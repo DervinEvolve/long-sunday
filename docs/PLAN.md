@@ -75,7 +75,7 @@ Every object named here is something a visitor can stand next to. Entry ids in b
 
 ## 5. The character
 
-A teenager, Black, with rope twists gathered into a medium ponytail that swings as he walks. An oversized orange techwear jacket with a high collar, goggles pushed up on the forehead, dark cargo trousers with straps, chunky white trainers with teal soles. Built from simple rigid shapes so the ink line reads cleanly. Idle, walk and run cycles. The design is original.
+A teenager, Black, with rope twists gathered into a ponytail that swings as he walks. The ponytail is kept on the short side of medium: the tips stop at the nape, above the collar, and never reach the shoulders. If in doubt, shorter. An oversized orange techwear jacket with a high collar, goggles pushed up on the forehead, dark cargo trousers with straps, chunky white trainers with teal soles. Built from simple rigid shapes so the ink line reads cleanly. Idle, walk and run cycles. The design is original.
 
 ## 6. Controls
 

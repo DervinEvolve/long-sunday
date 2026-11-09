@@ -1,8 +1,8 @@
-// The visitor's figure. A teenager with a big afro, an oversized orange jacket, cargo trousers and
-// chunky trainers. Rigid segments on joints, each segment one kit mesh, animated by hand written maths.
+// The visitor's figure. A Black teenager with his twists tied back in a short ponytail, an oversized
+// orange jacket, cargo trousers and chunky trainers. Rigid segments on joints, each segment one kit mesh, animated by hand written maths.
 // He faces -z in his own space (yaw 0 looks north), so the back of the jacket is +z.
 import * as THREE from 'three';
-import type { InkKit } from '../types';
+import type { ColorLike, InkBuilder, InkKit, QualityTier } from '../types';
 import * as geo from './geo';
 import { clamp, damp, lerp, smoothstep } from './util';
 import { palette as P } from '../world/palette';
@@ -11,7 +11,8 @@ export interface Character {
   group: THREE.Group;
   /** speed in m/s over the ground, turnRate in rad/s (positive is a left turn, yaw going up). */
   update(dt: number, t: number, speed: number, turnRate: number, grounded: boolean): void;
-  /** Top of the hair above the soles, metres. */
+  /** Top of the head, hair included, above the soles, metres. The tie and the top of the ponytail
+   *  stand a finger or so higher, behind the crown. */
   height: number;
   /** Ground slope under him in world space (rise per metre east, rise per metre south). Tilts the
    *  contact shadow and plants the feet on the hill. Optional: flat ground if never called. */
@@ -52,6 +53,70 @@ const SHOULDER_X = 0.232;
 const SHOULDER_Y = 0.365;
 const UPPER_ARM = 0.285;
 const STAND = 1.025; // pelvis pivot height standing still
+
+// ---------------------------------------------------------------------------------------------
+// Hair, the numbers a barber would argue about. Two strand twists tied back.
+// ---------------------------------------------------------------------------------------------
+
+export interface HairSpec {
+  /** Free twists in the ponytail. */
+  twists: number;
+  /** Radius of a free twist, metres. Finger thick and a little more, so it holds a line. */
+  twistR: number;
+  /** The longest twist, tie to tip. Kept short: the tips stop at the nape, above the collar. */
+  twistLen: number;
+  /** Length of one turn of the rope. */
+  turn: number;
+  /** Where the tie sits on the back of the skull, radians up from level. */
+  tieElev: number;
+  /** The bundle leaves the tie this far above level, radians. */
+  tieTilt: number;
+  /** How far the bundle fans. 0 is a tight rope, 1 is a mop. */
+  spread: number;
+  /** How far the bundle stands away from the head as it falls. 0 hangs straight down, 1 sticks out at 45 degrees. */
+  back: number;
+  /** How much of the violet sheen the scalp rows carry, 0 to 1. Less than the ponytail, so the bundle stands out against them. */
+  rowSheen: number;
+  /** Short twists that got away at his right temple: 0, 1 or 2. */
+  loose: number;
+  /** Twists lying on the scalp, hairline to tie. */
+  rows: number;
+  /** How proud a scalp twist stands off the head. */
+  rowH: number;
+  /** Half width of a scalp twist at its widest. */
+  rowW: number;
+  /** Colour of the tie. */
+  tie: ColorLike;
+  /** Colour under the twists, where a parting shows. */
+  part: ColorLike;
+}
+
+const HAIR: HairSpec = {
+  twists: 15,
+  twistR: 0.0155,
+  twistLen: 0.178,
+  turn: 0.023,
+  tieElev: 0.88,
+  tieTilt: 0.55,
+  spread: 0.3,
+  back: 0.7,
+  rowSheen: 0.3,
+  loose: 0,
+  rows: 18,
+  rowH: 0.012,
+  rowW: 0.018,
+  tie: P.yellow,
+  part: mix(P.hair, P.skin, 0.35),
+};
+const GOGGLE_Y = 0.217; // middle of the lens
+const GOGGLE_Z = -0.097;
+const HAIR_LIFT = 0.004; // the dark under the twists stands this far off the skin
+const LOOSE_LEN = 0.075; // a loose twist at the temple, root to tip
+const LOOSE_R = 0.011;
+const TIE_R = 0.024; // the band, middle of the cord
+const TIE_CORD = 0.011; // and how fat the cord is
+const TAIL_K = 150; // ponytail spring: stiffness
+const TAIL_C = 9; // and damping
 
 // ---------------------------------------------------------------------------------------------
 // Lofted tube: rings of ellipses stacked along y. This is most of his body.
@@ -217,7 +282,7 @@ function buildTorso(kit: InkKit): THREE.Mesh {
   return b.build('figure-torso');
 }
 
-function buildHead(kit: InkKit): THREE.Mesh {
+function buildHead(kit: InkKit, hs: HairSpec, low: boolean): { mesh: THREE.Mesh; tie: THREE.Vector3 } {
   const b = kit.builder();
   const skin = b.newId();
   // Skull, jaw, ears. One outline.
@@ -234,52 +299,411 @@ function buildHead(kit: InkKit): THREE.Mesh {
   b.add(geo.ico(0.02, 1), { color: mix(P.skin, P.ink, 0.12), pos: [0, 0.1, -0.116], scale: [0.8, 1.05, 0.9] });
   b.add(geo.box(0.04, 0.009, 0.01), { color: P.ink, pos: [-0.006, 0.06, -0.103], rot: [0, 0, 0.05], flat: 1, outline: false });
   b.add(geo.box(0.022, 0.009, 0.01), { color: P.ink, pos: [0.022, 0.065, -0.099], rot: [0, -0.3, 0.55], flat: 1, outline: false });
-  // Goggles pushed up to the hairline: strap, frame, one wide teal lens with a glint.
+  const tie = buildScalp(b, hs, low);
+  // Goggles pushed up on the forehead, the frame sitting across the hairline. The strap runs round
+  // the back of the head over the twists and under the ponytail.
   const band = (rx: number, rz: number, hy: number, half: number): THREE.BufferGeometry =>
     loft([{ y: -hy, rx, rz }, { y: hy, rx: rx * 0.97, rz: rz * 0.97 }], 10, { from: Math.PI - half, to: Math.PI + half });
-  const at: [number, number, number] = [0, 0.218, 0];
-  const tilt: [number, number, number] = [0.25, 0, 0];
-  b.add(band(0.126, 0.132, 0.014, 2.4), { color: INDIGO_DARK, pos: at, rot: tilt, flat: 0.5 });
-  b.add(band(0.13, 0.142, 0.04, 1.02), { color: INDIGO_DARK, pos: at, rot: tilt, flat: 0.5 });
-  b.add(band(0.132, 0.146, 0.028, 0.86), { color: P.teal, pos: at, rot: tilt, flat: 0.75, outline: false });
-  b.add(band(0.133, 0.148, 0.007, 0.2), { color: P.cyan, pos: [0, 0.23, 0], rot: [0.25, -0.42, 0], flat: 1, outline: false });
-  return b.build('figure-head');
+  const tilt = 0.5;
+  // Hung from the middle of the front of the frame, so the tilt can change without the lens moving.
+  const at = (rz: number, up = 0): [number, number, number] => [0, GOGGLE_Y + up - rz * Math.sin(tilt), GOGGLE_Z + rz * Math.cos(tilt)];
+  b.add(band(0.11, 0.115, 0.027, 1.0), { color: INDIGO_DARK, pos: at(0.115), rot: [tilt, 0, 0], flat: 0.5 });
+  b.add(band(0.112, 0.119, 0.019, 0.84), { color: P.teal, pos: at(0.115), rot: [tilt, 0, 0], flat: 0.75, outline: false });
+  b.add(band(0.113, 0.121, 0.006, 0.2), { color: P.cyan, pos: at(0.115, 0.008), rot: [tilt, -0.42, 0], flat: 1, outline: false });
+  b.add(
+    loft([{ y: -0.012, rx: 0.119, rz: 0.137 }, { y: 0.012, rx: 0.116, rz: 0.134 }], 12, { from: -2.1, to: 2.1 }),
+    { color: INDIGO_DARK, pos: [0, 0.172, 0.002], rot: [0.25, 0, 0], flat: 0.5 },
+  );
+  return { mesh: b.build('figure-head'), tie };
 }
 
-function buildHair(kit: InkKit): THREE.Mesh {
-  const b = kit.builder();
-  const id = b.newId();
-  const rnd = geo.seeded(41);
-  const puff = (x: number, y: number, z: number, r: number, detail = 1): void => {
-    b.add(geo.ico(r, detail), { color: P.hair, id, pos: [x, y, z], scale: [1, 0.94 + rnd() * 0.1, 1] });
-  };
-  // A catch of violet light on the upper side of a curl. Same outline as the hair, so it is a tone not a shape.
-  const shine = (x: number, y: number, z: number, r: number): void => {
-    const dz = z - 0.03;
-    const d = Math.hypot(x, dz) || 1;
-    const out = 0.3 * r;
-    b.add(geo.ico(r * 0.8, 1), { color: SHEEN, id, pos: [x + (x / d) * out * 0.6, y + out * 0.8, z + (dz / d) * out * 0.6], flat: 0.4 });
-  };
-  // Core, then three rings of curls and a crown. Angles from the back, so 0 is what the camera sees.
-  puff(0, 0.1, 0.03, 0.17, 2);
-  const ring = (n: number, y: number, rad: number, r: number, start: number, lit: boolean, skipFront: number): void => {
-    for (let i = 0; i < n; i++) {
-      const a = start + (i / n) * Math.PI * 2;
-      const front = Math.cos(a) < -skipFront;
-      if (front) continue;
-      const rr = r * (0.9 + rnd() * 0.2);
-      const x = Math.sin(a) * rad * (0.94 + rnd() * 0.12);
-      const z = Math.cos(a) * rad * (0.94 + rnd() * 0.12) + 0.03;
-      const yy = y + (rnd() - 0.5) * 0.03;
-      puff(x, yy, z, rr);
-      if (lit) shine(x, yy, z, rr);
+// ---------------------------------------------------------------------------------------------
+// Hair: two strand twists, laid back over the head in rows, gathered in a tie high on the back of
+// the crown, the ends falling in a short ponytail. It is all built from one thing, a rope: a tube
+// whose rings go fat, thin, fat, thin, each ring set a little askew so the turns run on the slant.
+// Hair and ink are nearly the same dark, so the line work cannot carry the texture. The violet
+// sheen does: every other half turn that faces the sky is drawn in the sheen tone, which stripes
+// each twist the way a pen would.
+// ---------------------------------------------------------------------------------------------
+
+const SKULL_Y = 0.125;
+const SKULL_RX = 0.108;
+const SKULL_RY = 0.1265;
+const SKULL_RZ = 0.115;
+
+// The hairline as a barber leaves it: how high the edge sits on the skull (radians above level)
+// against the angle round from the front. Straight across the forehead, a square corner at the
+// temple, a short drop in front of the ear, up and over the ear, then down to a tidy nape.
+const HAIRLINE: readonly (readonly [number, number])[] = [
+  [0, 0.75],
+  [0.55, 0.75],
+  [0.8, 0.66],
+  [0.98, 0.3],
+  [1.15, 0.1],
+  [1.32, 0.06],
+  [1.42, 0.22],
+  [1.85, 0.22],
+  [2.0, -0.1],
+  [2.3, -0.5],
+  [Math.PI, -0.58],
+];
+
+function hairline(theta: number): number {
+  for (let i = 1; i < HAIRLINE.length; i++) {
+    if (theta <= HAIRLINE[i][0]) {
+      const a = HAIRLINE[i - 1];
+      const b = HAIRLINE[i];
+      return lerp(a[1], b[1], (theta - a[0]) / (b[0] - a[0]));
     }
+  }
+  return HAIRLINE[HAIRLINE.length - 1][1];
+}
+
+const V = (x = 0, y = 0, z = 0): THREE.Vector3 => new THREE.Vector3(x, y, z);
+
+/** A point on the skull along direction d, lifted off the skin. Head space. */
+function onSkull(d: THREE.Vector3, lift: number): THREE.Vector3 {
+  return V(d.x * (SKULL_RX + lift), SKULL_Y + d.y * (SKULL_RY + lift), d.z * (SKULL_RZ + lift));
+}
+
+function skullNormal(d: THREE.Vector3): THREE.Vector3 {
+  return V(d.x / SKULL_RX, d.y / SKULL_RY, d.z / SKULL_RZ).normalize();
+}
+
+/** Loose triangles with their own normals. Winding is fixed up to agree with the normals. */
+class Tris {
+  pos: number[] = [];
+  nor: number[] = [];
+  add(p: number[], n: number[], a: number, b: number, c: number): void {
+    const ax = p[a * 3], ay = p[a * 3 + 1], az = p[a * 3 + 2];
+    const ux = p[b * 3] - ax, uy = p[b * 3 + 1] - ay, uz = p[b * 3 + 2] - az;
+    const vx = p[c * 3] - ax, vy = p[c * 3 + 1] - ay, vz = p[c * 3 + 2] - az;
+    const fx = uy * vz - uz * vy, fy = uz * vx - ux * vz, fz = ux * vy - uy * vx;
+    const sx = n[a * 3] + n[b * 3] + n[c * 3];
+    const sy = n[a * 3 + 1] + n[b * 3 + 1] + n[c * 3 + 1];
+    const sz = n[a * 3 + 2] + n[b * 3 + 2] + n[c * 3 + 2];
+    const order = fx * sx + fy * sy + fz * sz < 0 ? [a, c, b] : [a, b, c];
+    for (const i of order) {
+      this.pos.push(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]);
+      this.nor.push(n[i * 3], n[i * 3 + 1], n[i * 3 + 2]);
+    }
+  }
+  geo(): THREE.BufferGeometry | null {
+    if (this.pos.length === 0) return null;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(this.nor, 3));
+    return g;
+  }
+}
+
+interface RopeSpec {
+  /** Centres of the rings, evenly spaced, two to a turn. */
+  pts: readonly THREE.Vector3[];
+  /** For a twist lying on the head: the way out of the head at each ring. Only the top half is built. */
+  ups?: readonly THREE.Vector3[];
+  /** Half width and half height at ring j, before the fat and thin. */
+  wide: (j: number) => number;
+  tall: (j: number) => number;
+  seg: number;
+  /** 0 or 1: which rings are the fat ones, so neighbours do not line up. */
+  phase: number;
+  /** Which way is the sky for the sheen, and how squarely a face must look at it. */
+  sun: THREE.Vector3;
+  cut: number;
+  capStart?: boolean;
+  capEnd?: boolean;
+}
+
+const ROPE_PINCH = 0.7; // a thin ring against a fat one
+const ROPE_SLANT = 0.42; // how far each ring is set askew, in widths
+
+function rope(o: RopeSpec): { dark: THREE.BufferGeometry | null; lit: THREE.BufferGeometry | null } {
+  const n = o.pts.length;
+  const half = o.ups !== undefined;
+  const cols = half ? o.seg + 1 : o.seg;
+  const p: number[] = [];
+  const nr: number[] = [];
+  const t = V();
+  const up = V();
+  const bn = V();
+  const q = V();
+  const ref = V(1, 0, 0);
+  for (let j = 0; j < n; j++) {
+    t.copy(o.pts[Math.min(j + 1, n - 1)]).sub(o.pts[Math.max(j - 1, 0)]).normalize();
+    if (o.ups) {
+      up.copy(o.ups[j]).addScaledVector(t, -o.ups[j].dot(t)).normalize();
+      bn.crossVectors(t, up);
+    } else {
+      bn.copy(ref).addScaledVector(t, -ref.dot(t)).normalize();
+      up.crossVectors(bn, t);
+    }
+    const fat = (j + o.phase) % 2 === 0 ? 1 : ROPE_PINCH;
+    const w = Math.max(1e-4, o.wide(j) * fat);
+    const h = Math.max(1e-4, o.tall(j) * fat);
+    for (let i = 0; i < cols; i++) {
+      const a = half ? (Math.PI * i) / o.seg : (TAU * i) / o.seg;
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      q.copy(o.pts[j]).addScaledVector(bn, c * w).addScaledVector(up, s * h).addScaledVector(t, ROPE_SLANT * w * c);
+      p.push(q.x, q.y, q.z);
+      q.set(0, 0, 0).addScaledVector(bn, c / w).addScaledVector(up, s / h).normalize();
+      nr.push(q.x, q.y, q.z);
+    }
+  }
+  const dark = new Tris();
+  const lit = new Tris();
+  for (let j = 0; j < n - 1; j++) {
+    const shine = (j + o.phase) % 2 === 0;
+    for (let i = 0; i < o.seg; i++) {
+      const i1 = half ? i + 1 : (i + 1) % o.seg;
+      const a = j * cols + i;
+      const b = j * cols + i1;
+      const c = (j + 1) * cols + i;
+      const d = (j + 1) * cols + i1;
+      q.set(nr[a * 3] + nr[b * 3] + nr[c * 3] + nr[d * 3], nr[a * 3 + 1] + nr[b * 3 + 1] + nr[c * 3 + 1] + nr[d * 3 + 1], nr[a * 3 + 2] + nr[b * 3 + 2] + nr[c * 3 + 2] + nr[d * 3 + 2]).normalize();
+      const out = shine && q.dot(o.sun) > o.cut ? lit : dark;
+      out.add(p, nr, a, b, c);
+      out.add(p, nr, b, d, c);
+    }
+  }
+  const cap = (j: number, sign: number): void => {
+    t.copy(o.pts[Math.min(j + 1, n - 1)]).sub(o.pts[Math.max(j - 1, 0)]).normalize().multiplyScalar(sign);
+    q.copy(o.pts[j]).addScaledVector(t, o.wide(j) * 0.7);
+    const tip = p.length / 3;
+    p.push(q.x, q.y, q.z);
+    nr.push(t.x, t.y, t.z);
+    for (let i = 0; i < o.seg; i++) dark.add(p, nr, j * cols + i, j * cols + (half ? i + 1 : (i + 1) % o.seg), tip);
   };
-  ring(7, -0.035, 0.118, 0.082, 0, false, 0.3); // nape and behind the ears
-  ring(9, 0.07, 0.16, 0.094, 0.35, false, 0.45); // the widest row
-  ring(8, 0.2, 0.132, 0.09, 0.1, true, 2); // upper row, carries the sheen
-  puff(0, 0.275, 0.03, 0.088);
-  return b.build('figure-hair');
+  if (o.capStart) cap(0, -1);
+  if (o.capEnd) cap(n - 1, 1);
+  return { dark: dark.geo(), lit: lit.geo() };
+}
+
+/** Everything that sits still on the head: the dark under the twists, the rows, the tie.
+ *  Goes into the head's own mesh. Returns where the tie is, which is where the ponytail hangs from. */
+function buildScalp(b: InkBuilder, hs: HairSpec, low: boolean): THREE.Vector3 {
+  const dT = V(0, Math.sin(hs.tieElev), Math.cos(hs.tieElev)); // the tie, as a direction from the middle of the skull
+  const u = V(0, Math.cos(hs.tieElev), -Math.sin(hs.tieElev)); // from the tie over the top towards the forehead
+  // A spoke: start at the tie, head off on bearing psi (0 goes over the top to the forehead, half a
+  // turn goes down to the nape), travel delta radians round the skull.
+  const spoke = (psi: number, delta: number): THREE.Vector3 =>
+    V(Math.sin(delta) * Math.sin(psi), 0, 0)
+      .addScaledVector(dT, Math.cos(delta))
+      .addScaledVector(u, Math.sin(delta) * Math.cos(psi))
+      .normalize();
+  const inside = (d: THREE.Vector3): boolean => Math.asin(clamp(d.y, -1, 1)) > hairline(Math.atan2(Math.abs(d.x), -d.z));
+  // How far along a spoke the hairline is.
+  const edge = (psi: number): number => {
+    let lo = 0.2;
+    let hi = lo;
+    while (hi < 2.9 && inside(spoke(psi, hi))) {
+      lo = hi;
+      hi += 0.02;
+    }
+    for (let i = 0; i < 12; i++) {
+      const mid = (lo + hi) / 2;
+      if (inside(spoke(psi, mid))) lo = mid;
+      else hi = mid;
+    }
+    return lo;
+  };
+
+  // The dark under the twists. Its rim is the hairline, so the edge up is one clean line.
+  {
+    const cols = low ? 20 : 26;
+    const steps = [0.1, 0.3, 0.5, 0.7, 0.86, 1];
+    const p: number[] = [];
+    const n: number[] = [];
+    for (let c = 0; c < cols; c++) {
+      const psi = (c / cols) * TAU;
+      const far = edge(psi);
+      for (const f of steps) {
+        const d = spoke(psi, far * f);
+        const at = onSkull(d, HAIR_LIFT);
+        const nn = skullNormal(d);
+        p.push(at.x, at.y, at.z);
+        n.push(nn.x, nn.y, nn.z);
+      }
+    }
+    const mid = p.length / 3;
+    const at = onSkull(dT, HAIR_LIFT);
+    const nn = skullNormal(dT);
+    p.push(at.x, at.y, at.z);
+    n.push(nn.x, nn.y, nn.z);
+    const tris = new Tris();
+    const m = steps.length;
+    for (let c = 0; c < cols; c++) {
+      const c1 = (c + 1) % cols;
+      tris.add(p, n, mid, c * m, c1 * m);
+      for (let j = 0; j < m - 1; j++) {
+        tris.add(p, n, c * m + j, c1 * m + j, c * m + j + 1);
+        tris.add(p, n, c1 * m + j, c1 * m + j + 1, c * m + j + 1);
+      }
+    }
+    b.add(tris.geo()!, { color: hs.part, flat: 0.2 });
+  }
+
+  // The rows. Evenly fanned round the tie, each one as wide as its slice of the head allows.
+  const sun = V(0, 1, 0.25).normalize();
+  const rowSheen = mix(P.hair, P.violet, hs.rowSheen);
+  const step = (hs.turn * (low ? 1.35 : 1.12)) / 2 / 0.118; // radians of skull per ring
+  const gather = 0.2;
+  for (let k = 0; k < hs.rows; k++) {
+    const psi = ((k + 0.5) / hs.rows) * TAU;
+    const far = edge(psi) - 0.035;
+    const rings = Math.max(4, Math.round((far - gather) / step) + 1);
+    const pts: THREE.Vector3[] = [];
+    const ups: THREE.Vector3[] = [];
+    const wide: number[] = [];
+    for (let j = 0; j < rings; j++) {
+      const delta = lerp(far, gather, j / (rings - 1));
+      const d = spoke(psi, delta);
+      pts.push(onSkull(d, 0.0005));
+      ups.push(skullNormal(d));
+      const slice = (0.118 * Math.sin(delta) * Math.PI) / hs.rows;
+      wide.push(clamp(slice * 0.97, hs.rowW * 0.55, hs.rowW));
+    }
+    const root = (j: number): number => (j === 0 ? 0.45 : j === 1 ? 0.9 : 1); // rounded where it leaves the scalp
+    const g = rope({
+      pts,
+      ups,
+      wide: (j) => wide[j] * root(j),
+      tall: (j) => (hs.rowH + HAIR_LIFT) * root(j),
+      seg: low ? 2 : 3,
+      phase: k % 2,
+      sun,
+      cut: 0.6,
+      capStart: true,
+    });
+    const id = b.newId();
+    if (g.dark) b.add(g.dark, { color: P.hair, id });
+    if (g.lit) b.add(g.lit, { color: rowSheen, id, flat: 0.4 });
+  }
+
+  // The ones that got away: short, hanging in front of the ear over the goggle strap.
+  for (let k = 0; k < hs.loose; k++) {
+    const theta = 0.74 + k * 0.2;
+    const el = hairline(theta) + 0.06;
+    const d = V(Math.sin(theta) * Math.cos(el), Math.sin(el), -Math.cos(theta) * Math.cos(el));
+    const from = onSkull(d, HAIR_LIFT);
+    const out = skullNormal(d);
+    out.y = 0;
+    out.normalize();
+    const len = LOOSE_LEN * (1 - k * 0.22);
+    const rings = Math.max(4, Math.round(len / (hs.turn * 0.4)) + 1);
+    const pts: THREE.Vector3[] = [];
+    for (let j = 0; j < rings; j++) {
+      const t = j / (rings - 1);
+      pts.push(from.clone().addScaledVector(out, 0.024 * Math.sin(Math.min(1, t * 2.2) * Math.PI * 0.5)).add(V(0, 0.012 * Math.sin(t * Math.PI) - len * t * t, 0)));
+    }
+    const g = rope({
+      pts,
+      wide: (j) => LOOSE_R * (j === rings - 1 ? 0.6 : 1),
+      tall: (j) => LOOSE_R * (j === rings - 1 ? 0.6 : 1),
+      seg: 4,
+      phase: k % 2,
+      sun: V(out.x, 0.6, out.z).normalize(),
+      cut: 0.55,
+      capStart: true,
+      capEnd: true,
+    });
+    const id = b.newId();
+    if (g.dark) b.add(g.dark, { color: P.hair, id });
+    if (g.lit) b.add(g.lit, { color: SHEEN, id, flat: 0.4 });
+  }
+
+  // The tie: one band where the rows meet, turned to face the way the bundle leaves.
+  const tie = onSkull(dT, 0.008).add(V(0, Math.sin(hs.tieTilt), Math.cos(hs.tieTilt)).multiplyScalar(0.022));
+  b.add(geo.torus(TIE_R, TIE_CORD, low ? 8 : 10, 5), { color: hs.tie, pos: [tie.x, tie.y, tie.z], rot: [Math.PI / 2 - hs.tieTilt, 0, 0], flat: 0.55 });
+  return tie;
+}
+
+/** The ponytail, built round the tie. Two meshes so the short top twists can swing a beat behind
+ *  the long ones underneath. */
+function buildTail(kit: InkKit, hs: HairSpec, low: boolean, tie: THREE.Vector3): THREE.Mesh[] {
+  const under = kit.builder();
+  const over = kit.builder();
+  const rnd = geo.seeded(23);
+  const D = V(0, Math.sin(hs.tieTilt), Math.cos(hs.tieTilt)); // the way the bundle leaves the tie
+  const X = V(1, 0, 0);
+  const Y = V(0, Math.cos(hs.tieTilt), -Math.sin(hs.tieTilt)); // up, across the band
+  const sun = V();
+  const step = (hs.turn * (low ? 1.3 : 1)) / 2;
+  const root = V();
+  const dir = V();
+  const fall = V();
+  const p1 = V();
+  const p2 = V();
+  const q = V();
+  for (let k = 0; k < hs.twists; k++) {
+    // Where it sits in the band: sunflower spacing fills the circle evenly.
+    const rr = Math.sqrt((k + 0.5) / hs.twists);
+    const ang = k * 2.39996 + 0.6;
+    const sx = rr * Math.cos(ang);
+    const sy = rr * Math.sin(ang);
+    const len = hs.twistLen * (0.84 - 0.2 * sy) * (0.94 + rnd() * 0.12); // the ones on top are shorter
+    const stem = 0.4 + 0.07 * sy;
+    root.set(0, 0, 0).addScaledVector(X, sx * TIE_R * 0.55).addScaledVector(Y, sy * TIE_R * 0.55).addScaledVector(D, -0.03);
+    dir.copy(D).addScaledVector(X, sx * hs.spread * 1.3).addScaledVector(Y, sy * (sy > 0 ? 0.12 : 0.45)).normalize();
+    fall.set(sx * hs.spread * 0.55, -1, hs.back * (0.8 + 0.4 * sy)).normalize();
+    p1.copy(root).addScaledVector(dir, len * stem);
+    p2.copy(p1).addScaledVector(fall, len * (1 - stem) * 1.08);
+    // Walk the curve, then space the rings evenly along it.
+    const fine: THREE.Vector3[] = [];
+    const run: number[] = [0];
+    for (let i = 0; i <= 36; i++) {
+      const s = i / 36;
+      q.set(0, 0, 0)
+        .addScaledVector(root, (1 - s) * (1 - s))
+        .addScaledVector(p1, 2 * s * (1 - s))
+        .addScaledVector(p2, s * s);
+      // Keep it off the back of the head: push any point that dips into the hair straight out again.
+      const hx = (q.x + tie.x) / (SKULL_RX + 0.014 + hs.twistR);
+      const hy = (q.y + tie.y - SKULL_Y) / (SKULL_RY + 0.014 + hs.twistR);
+      const hz = (q.z + tie.z) / (SKULL_RZ + 0.014 + hs.twistR);
+      const f = Math.sqrt(hx * hx + hy * hy + hz * hz);
+      const push = smoothstep(0.12, 0.4, s);
+      if (f < 1) {
+        const k2 = lerp(1, 1 / f, push);
+        q.set((q.x + tie.x) * k2 - tie.x, (q.y + tie.y - SKULL_Y) * k2 + SKULL_Y - tie.y, (q.z + tie.z) * k2 - tie.z);
+      }
+      if (i > 0) run.push(run[i - 1] + q.distanceTo(fine[i - 1]));
+      fine.push(q.clone());
+    }
+    const total = run[36];
+    const rings = Math.max(5, Math.round(total / step) + 1);
+    const pts: THREE.Vector3[] = [];
+    let seg = 1;
+    for (let j = 0; j < rings; j++) {
+      const at = (total * j) / (rings - 1);
+      while (seg < 36 && run[seg] < at) seg++;
+      pts.push(fine[seg - 1].clone().lerp(fine[seg], clamp((at - run[seg - 1]) / Math.max(1e-6, run[seg] - run[seg - 1]), 0, 1)));
+    }
+    // The sheen sits on the outside of the bundle: up and back for the middle ones, round to the side for the outer ones.
+    sun.set(sx * 0.95, 0.5, 0.62).normalize();
+    const thick = hs.twistR * (0.94 + rnd() * 0.12);
+    const taper = (j: number): number => {
+      const left = rings - 1 - j;
+      if (j < 2) return j === 0 ? 0.6 : 0.8; // squeezed where the band holds it
+      return left === 0 ? 0.42 : left === 1 ? 0.72 : left === 2 ? 0.92 : 1;
+    };
+    const g = rope({
+      pts,
+      wide: (j) => thick * taper(j),
+      tall: (j) => thick * taper(j),
+      seg: low ? 4 : 5,
+      phase: k % 2,
+      sun,
+      cut: 0.6,
+      capEnd: true,
+    });
+    const b = sy > 0.3 ? over : under;
+    const id = b.newId();
+    if (g.dark) b.add(g.dark, { color: P.hair, id });
+    if (g.lit) b.add(g.lit, { color: SHEEN, id, flat: 0.4 });
+  }
+  return [under.build('figure-tail'), over.build('figure-tail-top')];
 }
 
 function buildUpperArm(kit: InkKit, side: number): THREE.Mesh {
@@ -451,9 +875,17 @@ function buildShadow(kit: InkKit): THREE.Mesh {
 // ---------------------------------------------------------------------------------------------
 
 const TAU = Math.PI * 2;
-const HAIR_Y = 0.155;
 
-export function createCharacter(kit: InkKit): Character {
+export interface CharacterOptions {
+  /** On 'low' the twists get fewer rings and sides. Default is the full figure. */
+  tier?: QualityTier;
+  /** Override any of the hair numbers. For the test page. */
+  hair?: Partial<HairSpec>;
+}
+
+export function createCharacter(kit: InkKit, opts: CharacterOptions = {}): Character {
+  const hs: HairSpec = { ...HAIR, ...opts.hair };
+  const low = opts.tier === 'low';
   const group = new THREE.Group();
   group.name = 'figure';
 
@@ -470,12 +902,16 @@ export function createCharacter(kit: InkKit): Character {
   const torso = buildTorso(kit);
   torso.position.set(0, SPINE_UP, 0);
   pelvis.add(torso);
-  const head = buildHead(kit);
+  const built = buildHead(kit, hs, low);
+  const head = built.mesh;
   head.position.set(0, NECK_UP, 0);
   torso.add(head);
-  const hair = buildHair(kit);
-  hair.position.set(0, HAIR_Y, 0.012);
-  head.add(hair);
+  // The ponytail hangs from the tie. Long twists underneath, short ones on top a beat behind.
+  const tail = buildTail(kit, hs, low, built.tie);
+  for (const m of tail) {
+    m.position.copy(built.tie);
+    head.add(m);
+  }
 
   // Index 0 is his left (-x), 1 is his right.
   const upperArm: THREE.Mesh[] = [];
@@ -518,6 +954,12 @@ export function createCharacter(kit: InkKit): Character {
   let prevSpeed = 0;
   let roll = 0;
   let lagY = STAND;
+  let tailP = 0; // ponytail pitch about the tie, negative streams back
+  let tailPV = 0;
+  let tailS = 0; // sway, positive to his right
+  let tailSV = 0;
+  let topP = 0;
+  let topS = 0;
   let slopeX = 0;
   let slopeZ = 0;
   const footZ = [0, 0]; // where each planted foot is, fore and aft, in his space
@@ -532,6 +974,7 @@ export function createCharacter(kit: InkKit): Character {
     prevSpeed = 0;
     roll = 0;
     lagY = STAND;
+    tailP = tailPV = tailS = tailSV = topP = topS = 0;
     footZ[0] = footZ[1] = 0;
     liftZ[0] = liftZ[1] = 0;
     planted[0] = true;
@@ -608,9 +1051,21 @@ export function createCharacter(kit: InkKit): Character {
     const look = clamp(turnRate * 0.1, -0.35, 0.35) + Math.sin(t * 0.31) * 0.14 * idle;
     head.rotation.set(lean * 0.8 - 0.03, twist * 0.6 + look, -roll * 0.6 + tip * 0.3);
     lagY = damp(lagY, py, 16, h);
-    const bob = clamp((lagY - py) * 0.9, -0.03, 0.03);
-    hair.position.y = HAIR_Y + bob;
-    hair.scale.set(1 - bob * 1.1, 1 + bob * 2.4, 1 - bob * 1.1);
+
+    // Ponytail: two damped springs about the tie. It streams back with speed, kicks back when he
+    // sets off, bounces a beat behind each footfall, swings out of a turn and across with the hips.
+    // With h at zero nothing moves, so a frozen frame keeps whatever swing it had.
+    const drop = lagY - py; // positive while the head is on its way down
+    const wantP = -(0.1 + 0.22 * kr) * move - clamp(accel * 0.022, -0.2, 0.3) - clamp(drop * 9, -0.22, 0.22) - air * 0.25;
+    const wantS = clamp(turnRate * (0.05 + v * 0.008), -0.38, 0.38) - Math.cos(TAU * (phase - duty / 2) - 0.6) * lerp(0.07, 0.1, kr) * move + shift * 0.03;
+    tailPV += ((wantP - tailP) * TAIL_K - tailPV * TAIL_C) * h;
+    tailSV += ((wantS - tailS) * TAIL_K - tailSV * TAIL_C) * h;
+    tailP = clamp(tailP + tailPV * h, -0.9, 0.07);
+    tailS = clamp(tailS + tailSV * h, -0.5, 0.5);
+    topP = damp(topP, tailP * 1.35, 11, h);
+    topS = damp(topS, tailS * 1.3, 11, h);
+    tail[0].rotation.set(tailP, 0, tailS);
+    tail[1].rotation.set(topP, 0, topS);
 
     // Arms swing against the legs. Elbows fold as the pace picks up.
     const swing = Math.cos(TAU * phase + 0.35);
@@ -715,7 +1170,7 @@ export function createCharacter(kit: InkKit): Character {
   reset();
   update(0, 0, 0, 0, true);
 
-  const height = STAND + SPINE_UP + NECK_UP + HAIR_Y + 0.275 + 0.088;
+  const height = STAND + SPINE_UP + NECK_UP + SKULL_Y + SKULL_RY + HAIR_LIFT + hs.rowH;
   return { group, update, height, setSlope, reset };
 }
 

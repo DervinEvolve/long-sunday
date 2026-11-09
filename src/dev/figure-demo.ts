@@ -1,8 +1,10 @@
-// Test page for the figure, the controller and the follow camera: http://localhost:5184/dev/figure.html
+// Test page for the figure, the controller and the follow camera: http://localhost:5186/dev/figure.html
 //   WASD or arrows to walk, Shift to run, drag to look, wheel to zoom.
 //   ?pose=idle|walk|run   hold him at that speed on the spot (the ground does not scroll)
 //   ?still=1              render one repeatable picture; with ?pose, ?step=<seconds> picks the moment
 //   ?view=back|front|side|far|three|title   fixed cameras round him (default is the real follow camera)
+//   ?view=hback|hside|hfront|hthree|htop    close on the head, for the hair
+//   ?hair=tieElev:1.05,twistR:0.02          try other hair numbers (see HairSpec in character.ts)
 //   ?auto=1               autopilot walks a figure of eight through the real controller (&run=1 to sprint)
 //   ?sim=<seconds>        with still=1: step the controller that long at 60 Hz before the picture
 //   ?slope=1              start on the hillside    ?tier=  ?px=  ?note=0
@@ -144,7 +146,13 @@ buildGround();
 // ---------------------------------------------------------------------------------------------
 // Him, and what drives him
 // ---------------------------------------------------------------------------------------------
-const figure = createCharacter(kit);
+// ?hair=name:value,name:value overrides the hair numbers, so two cuts can be shot side by side.
+const hair: Record<string, number | string> = {};
+for (const pair of (q.get('hair') ?? '').split(',')) {
+  const [k, val] = pair.split(':');
+  if (k && val !== undefined) hair[k] = Number.isNaN(Number(val)) ? '#' + val : Number(val);
+}
+const figure = createCharacter(kit, { tier: q.get('ftier') === 'low' ? 'low' : tier, hair });
 scene.add(figure.group);
 const cost = characterCost(figure);
 
@@ -207,6 +215,24 @@ function fixedCamera(): void {
     lz = -1.5;
     ly = 1.72;
     ty = 1.68;
+  } else if (view !== null && view[0] === 'h') {
+    // Close on the head. He is 1.8 m; the middle of the head is about 1.68 up.
+    ly = 1.74;
+    ty = 1.67;
+    lz = 1.5;
+    camera.fov = 22;
+    if (view === 'hfront') lz = -1.5;
+    else if (view === 'hside') {
+      lx = 1.5;
+      lz = 0.02;
+    } else if (view === 'hthree') {
+      lx = -1.0;
+      lz = 1.1;
+    } else if (view === 'htop') {
+      // Where the follow camera looks from: behind and above.
+      ly = 2.45;
+      lz = 1.3;
+    }
   } else if (view === 'far') {
     lz = 26;
     ly = 4.5;
