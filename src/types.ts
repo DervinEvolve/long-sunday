@@ -128,6 +128,8 @@ export interface DistrictContext {
   quality: QualityTier;
   /** Entries that belong to this district. */
   entries: Entry[];
+  /** Direction toward the sun, the one the renderer uses. For baked ground shadows. */
+  sun?: [number, number, number];
 }
 
 export interface DistrictBuild {

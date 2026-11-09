@@ -158,7 +158,7 @@ function buildWorld(): void {
   b.add(geo.sphere(0.45, 10, 7), { color: P.yellow, pos: [gx + 1.1, 0.45, gz - 1.6] });
   b.add(geo.cone(0.5, 1.3, 8), { color: P.orange, pos: [gx + 2.2, 0, gz - 0.9] });
 
-  // Someone with an afro, looking at the arch.
+  // Someone looking at the arch.
   const who: [number, number, number] = [1.9, 0, 6.4];
   b.add(geo.capsule(0.23, 0.95, 8, 3), { color: P.orange, pos: [who[0], 0.62, who[2]] });
   b.add(geo.cylinder(0.09, 0.1, 0.7, 6), { color: P.tealDeep, pos: [who[0] - 0.11, 0, who[2]] });
