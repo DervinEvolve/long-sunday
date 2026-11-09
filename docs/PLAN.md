@@ -10,7 +10,7 @@ The place is a future Queens that floats. Brick walk-ups with rooftop gardens, a
 
 1. A title card over the live world. Two choices: **Walk in**, or **Read the index**.
 2. The index is the thirty second route for a recruiter. Every entry in the world as a plain, accessible list. It is also what loads when WebGL is missing or reduced motion is on.
-3. Walking in puts you at the Trailhead as a teenager with a short curly afro and an oversized orange jacket. An avenue runs uphill to the north. Every job I have held sits on that avenue in date order. Side streets lead to experiments and to life outside work.
+3. Walking in puts you at the Trailhead as a teenager with his rope twists tied back in a ponytail and an oversized orange jacket. An avenue runs uphill to the north. Every job I have held sits on that avenue in date order. Side streets lead to experiments and to life outside work.
 4. Two lines are inlaid in the avenue like two lines on a subway map: coral for people work, teal for technology. They run side by side and become one line at the top, at the Observatory.
 5. Each district has objects you can walk up to. Press E, or tap, and a caption panel opens with what I did there, in my words, with links.
 6. The sky changes colour as you walk between districts. Things float that should not. It should feel like walking around inside someone's head.
@@ -75,7 +75,7 @@ Every object named here is something a visitor can stand next to. Entry ids in b
 
 ## 5. The character
 
-A teenager, Black, with a short curly afro that sits close to the head. An oversized orange techwear jacket with a high collar, goggles pushed up into the hair, dark cargo trousers with straps, chunky white trainers with teal soles. Built from simple rigid shapes so the ink line reads cleanly. Idle, walk and run cycles. The design is original.
+A teenager, Black, with rope twists gathered into a medium ponytail that swings as he walks. An oversized orange techwear jacket with a high collar, goggles pushed up on the forehead, dark cargo trousers with straps, chunky white trainers with teal soles. Built from simple rigid shapes so the ink line reads cleanly. Idle, walk and run cycles. The design is original.
 
 ## 6. Controls
 
