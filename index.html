@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#f6ecd9" />
+    <title>Long Sunday</title>
+    <meta name="description" content="A walk through the work of Dervin Dimanche: nine years of technical recruiting and the experiments built alongside it, as a small open world." />
+    <style>
+      html, body { margin: 0; height: 100%; background: #f6ecd9; color: #1c1a33; }
+      body { overflow: hidden; overscroll-behavior: none; }
+      #world { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+      #ui { position: fixed; inset: 0; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <canvas id="world" aria-label="A three dimensional world you can walk through. The same content is available as a list in the index."></canvas>
+    <div id="ui"></div>
+    <noscript>This page needs JavaScript. Write to dervindim@gmail.com and I will send you the short version.</noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
