@@ -165,6 +165,15 @@ export interface PartOpts {
   flat?: number;
   /** 0..1. Extra hatching on top of what the light gives. */
   hatch?: number;
+  /** 0..1 coverage. Below 1 the part is drawn as a screen-door: glass, cloud floors, tinted portals.
+   *  A dithered part draws no ink line of its own, so give it a frame. */
+  dither?: number;
+  /** 0..1. Gentle sway in the wind, growing with height above the part's lowest vertex. Plants, flags, wires. */
+  sway?: number;
+  /** Height (in builder space) that sway is measured from, when several parts of one plant should bend together. */
+  swayBase?: number;
+  /** False removes the ink line around and inside this part. For decals and soft things. Default true. */
+  outline?: boolean;
 }
 
 export interface LabelOpts {
@@ -179,6 +188,45 @@ export interface LabelOpts {
   align?: 'left' | 'center' | 'right';
   /** Wrap width in metres. */
   maxWidth?: number;
+  /** Outline id for the plate. Pass the id of the part the label sits on (with the same colour as `plate`)
+   *  and the plate edge disappears, leaving smooth letters on the surface. */
+  id?: number;
+  /** 0..1. How much the plate ignores light. Match the part it sits on. Default 0. */
+  flat?: number;
+  /** Line spacing as a multiple of `size`. Default 1.7. */
+  lineHeight?: number;
+  /** Plate margin around the text as a multiple of `size`. Default 0.55. */
+  pad?: number;
+  /** How far the label floats off its surface, metres. Default 0.02. */
+  lift?: number;
+  /** 0..1. Hand wobble: letters bob and tilt a little. Default 0.5. */
+  jitter?: number;
+  /** Which part of the block sits on `pos`. Defaults to `align`. Use 'center' with align 'left' for a
+   *  ragged-right paragraph in the middle of a sign. */
+  anchor?: 'left' | 'center' | 'right';
+}
+
+/** A flat shadow of a part, thrown onto level ground. Baked: it does not follow the sun afterwards. */
+export interface ShadowOpts {
+  /** Shadow colour. Mix the ground colour toward palette.shadow. */
+  color: ColorLike;
+  /** Direction toward the sun, the same one given to the renderer. */
+  sun: THREE.Vector3 | [number, number, number];
+  pos?: [number, number, number];
+  rot?: [number, number, number];
+  scale?: number | [number, number, number];
+  /** Height of the ground it falls on. Default 0. */
+  y?: number;
+  /** How far it floats above the ground to stay clear of it. Default 0.02. */
+  lift?: number;
+}
+
+export interface LabelSize {
+  /** Width of the widest line, metres. */
+  width: number;
+  /** Height of the whole block, first cap top to last baseline, metres. */
+  height: number;
+  lines: number;
 }
 
 /** Collects many coloured parts and returns ONE mesh: one draw call, outlines kept per part. */
@@ -186,6 +234,12 @@ export interface InkBuilder {
   add(geometry: THREE.BufferGeometry, opts: PartOpts): number;
   /** Hand-lettered text drawn from the shared lettering atlas. Costs no extra draw call. */
   label(opts: LabelOpts): void;
+  /** Size a label would take, without drawing it. For fitting a sign to its text. */
+  measure?(opts: Pick<LabelOpts, 'text' | 'size' | 'maxWidth' | 'lineHeight'>): LabelSize;
+  /** The same geometry and placement as an add(), squashed flat along the sun onto the ground. No ink line. */
+  shadow?(geometry: THREE.BufferGeometry, opts: ShadowOpts): void;
+  /** Everything added so far as one geometry with the kit's attributes, for kit.instances(). Empties the builder. */
+  geometry?(): THREE.BufferGeometry;
   newId(): number;
   triangles(): number;
   build(name?: string): THREE.Mesh;
@@ -195,9 +249,12 @@ export interface InkKit {
   builder(): InkBuilder;
   /** An instanced mesh that draws with the ink material. Set matrices with setMatrixAt.
    *  Each instance gets its own outline. Per-instance colour through setColorAt. */
-  instances(geometry: THREE.BufferGeometry, count: number, opts?: { color?: ColorLike; flat?: number; hatch?: number }): THREE.InstancedMesh;
+  instances(geometry: THREE.BufferGeometry, count: number, opts?: { color?: ColorLike; flat?: number; hatch?: number; dither?: number; sway?: number },
+  ): THREE.InstancedMesh;
   /** The shared ink material, for the rare mesh that cannot go through a builder. */
   material: THREE.Material;
+  /** Resolves when the lettering font is loaded and the atlas is drawn. Await it before building anything with labels. */
+  ready?: Promise<void>;
 }
 
 // ---------------------------------------------------------------------------------------------
