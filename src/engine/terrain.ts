@@ -12,7 +12,8 @@ import { gfbm, gnoise2, hash2, noise2, rng, smootherstep, smoothstep } from './u
 /** Thread colours inlaid in the roads. Coral for people work, teal for technology, yellow for life. */
 export const THREAD_COLORS = { people: '#ee6352', tech: palette.teal, life: palette.yellow, both: palette.violet } as const;
 
-/** Road ribbons stop this far (as a share of the pad radius) from a district centre. */
+/** A road's thread line runs onto each plaza and stops in a pale dot this far (as a share of the pad radius)
+ *  from the district centre. The street paving itself stops at the plaza kerb, radius * PLAZA. */
 export const ROAD_END = 0.6;
 /** roadInfo sees a road from this far away. Past it the distance comes back as Infinity. */
 export const ROAD_REACH = 30;
@@ -57,6 +58,8 @@ function ramp(d: number, len: number): number {
   if (d > len - e) return 1 - (v * (len - d) * (len - d)) / (2 * e);
   return v * (d - e / 2);
 }
+
+const SWING_SMOOTH = 160;
 
 function buildPath(index: number): RoadPath {
   const spec = ROADS[index];
@@ -117,8 +120,11 @@ function buildPath(index: number): RoadPath {
       const span = i1 - i0;
       if (span < 8) continue;
       const side = (index + k) & 1 ? -1 : 1;
-      for (let amp = 0; amp <= 16; amp += 0.5) {
+      const s0 = Math.max(at[k] + 1, i0 - 12), s1 = Math.min(at[k + 1] - 1, i1 + 12);
+      for (let amp = 0; amp <= 24; amp += 0.5) {
         let len = 0;
+        for (let i = s0; i < i0; i++) { fx[i] = ox[i]; fz[i] = oz[i]; }
+        for (let i = i1 + 1; i <= s1; i++) { fx[i] = ox[i]; fz[i] = oz[i]; }
         for (let i = i0; i <= i1; i++) {
           const u = (i - i0) / span;
           const off = side * amp * Math.sin(2 * Math.PI * u) * Math.sin(Math.PI * u);
@@ -127,8 +133,21 @@ function buildPath(index: number): RoadPath {
           const tl = Math.hypot(tx, tz) || 1;
           fx[i] = ox[i] - (tz / tl) * off;
           fz[i] = oz[i] + (tx / tl) * off;
-          if (i > i0) len += Math.hypot(fx[i] - fx[i - 1], fz[i] - fz[i - 1]);
         }
+        if (amp > 0) {
+          // Round the swing off, or its turns come out tighter than the street is wide and the
+          // inside kerb folds over itself.
+          for (let pass = 0; pass < SWING_SMOOTH; pass++) {
+            let px = fx[s0], pz = fz[s0];
+            for (let i = s0 + 1; i < s1; i++) {
+              const cx = fx[i], cz = fz[i];
+              fx[i] = 0.25 * px + 0.5 * cx + 0.25 * fx[i + 1];
+              fz[i] = 0.25 * pz + 0.5 * cz + 0.25 * fz[i + 1];
+              px = cx; pz = cz;
+            }
+          }
+        }
+        for (let i = i0 + 1; i <= i1; i++) len += Math.hypot(fx[i] - fx[i - 1], fz[i] - fz[i - 1]);
         if (rise / (len - Math.min(EASE, len / 3)) <= MAX_GRADE) break;
       }
     }
@@ -323,18 +342,21 @@ const SFLAT = Float64Array.from(SITES.map((s) => s.radius * PAD_FLAT));
 const SBLEND = Float64Array.from(SITES.map((s) => s.radius * PAD_BLEND));
 const BONE = SITES.findIndex((s) => s.id === 'boneyard');
 
-/** Where the mesa ends, by compass angle. Never closer in than WORLD_RADIUS - 4. */
+/** Where the island ends, by compass angle. Never closer in than WORLD_RADIUS - 4. */
 export function rimRadius(x: number, z: number): number {
   const a = Math.atan2(z, x);
   return WORLD_RADIUS + 4 + 4 * Math.sin(3 * a + 1.3) + 2.5 * Math.sin(7 * a + 0.4) + 1.5 * Math.sin(12 * a + 2.1);
 }
 
-/** True where a visitor may stand: on the mesa, a few steps back from the edge. */
+/** True where a visitor may stand: on the island, a few steps back from the edge. */
 export function inBounds(x: number, z: number): boolean {
   const r2 = x * x + z * z;
   if (r2 < (WORLD_RADIUS - 8) * (WORLD_RADIUS - 8)) return true;
   return Math.sqrt(r2) < rimRadius(x, z) - 3;
 }
+
+// How far the last point asked of heightAt stands above or below the broad swell. The ground colour reads it.
+let relief = 0;
 
 /** Ground height in metres at a world position. */
 export function heightAt(x: number, z: number): number {
@@ -348,7 +370,7 @@ export function heightAt(x: number, z: number): number {
     const ddx = x - SX[i], ddz = z - SZ[i];
     const d2 = ddx * ddx + ddz * ddz;
     const f = SFLAT[i];
-    if (d2 <= f * f) return SH[i];
+    if (d2 <= f * f) { relief = 0; return SH[i]; }
     const q = 1 / (d2 + 2500);
     const w = q * q;
     wsum += w;
@@ -384,12 +406,13 @@ export function heightAt(x: number, z: number): number {
     if (qs > 0) roadH /= qs;
   }
 
-  // Wild ground: a broad swell that carries the district heights, dunes on top, calmer beside a road.
+  // Open ground: a broad swell that carries the district heights, park hills on top, calmer beside a road.
   const calm = 0.22 + 0.78 * smoothstep(5, ROAD_REACH, near);
-  let h = hsum / wsum;
-  h += gfbm(x * 0.0105 + 3.1, z * 0.0105 - 1.7, 3, 11) * 4.2 * calm;
-  const shelf = gnoise2(x * 0.0062 - 4.2, z * 0.0062 + 9.3, 23);
-  h += smoothstep(0.12, 0.3, shelf) * 3.2 * calm;
+  const swell = hsum / wsum;
+  let h = swell;
+  h += gfbm(x * 0.0088 + 3.1, z * 0.0088 - 1.7, 2, 11) * 4.4 * calm;
+  const knoll = gnoise2(x * 0.0062 - 4.2, z * 0.0062 + 9.3, 23);
+  h += smoothstep(0.05, 0.6, knoll) * 2.6 * calm;
   if (BONE >= 0) {
     // A raised lip around the Boneyard so it sits in a bowl.
     const d = Math.hypot(x - SX[BONE], z - SZ[BONE]) - SBLEND[BONE] * 1.12;
@@ -398,8 +421,9 @@ export function heightAt(x: number, z: number): number {
 
   if (padW > 0) h += (padH - h) * padW;
   if (roadW > 0) h += (roadH - h) * roadW * fade;
+  relief = h - swell;
 
-  // Past the rim the mesa drops away.
+  // Past the rim the ground drops away.
   const r2 = x * x + z * z;
   if (r2 > (WORLD_RADIUS - 6) * (WORLD_RADIUS - 6)) {
     const over = Math.sqrt(r2) - rimRadius(x, z);
@@ -499,31 +523,32 @@ class Raw {
 // Ground colour
 // ---------------------------------------------------------------------------------------------
 
-const C_LIGHT = rgb(palette.sandLight);
-const C_DEEP = rgb(palette.sandDeep);
-const C_ROCK = rgb(palette.rock);
-// Three flat sands. Neighbouring bands never share one, so every contour is a change of colour too.
-const C_BANDS: RGB[] = [rgb(palette.sand), rgb('#f6d8b4'), rgb('#e9b98f')];
-const C_PAD = SITES.map((s) => mix3([0, 0, 0], rgb('#fbe9cf'), rgb(s.accents[0]), 0.13));
+/** Plazas are paved out to this share of the pad radius. Just inside the flat part, so the paving lies dead level. */
+export const PLAZA = PAD_FLAT * 0.97;
+/** Width of the sidewalk outside each edge of a road, by road kind. The drawn street is road width plus two of these. */
+export const SIDEWALK = { spine: 1.25, branch: 0.9 } as const;
+
+const C_MOSS = rgb(palette.moss);
+const C_GDEEP = mix3([0, 0, 0], rgb(palette.grass), rgb(palette.grassDeep), 0.72);
+const C_GRASS = rgb(palette.grass);
+const C_GLIGHT = rgb(palette.grassLight);
+const C_EARTH = rgb('#d8b38a');
+// Four flat greens, hollow to crown. A point's tone picks one; where two tones meet is a drawn edge.
+const C_TONES: RGB[] = [C_MOSS, C_GDEEP, C_GRASS, C_GLIGHT];
 const hit: RoadHit = { road: -1, dist: Infinity, s: 0, height: 0, width: 0 };
 
-const BAND_PER_METRE = 0.19;
-
-/** Which contour band a point is in: the whole part picks the band, crossings are the drawn lines.
- *  Pads pull toward one value so no line cuts across a district floor. */
-function bandValue(x: number, z: number, h: number): number {
-  let v = h * BAND_PER_METRE + gfbm(x * 0.017 + 7.7, z * 0.017 + 2.2, 2, 5) * 1.25;
+/** Which green a point wears, 0..4: hollows and steep banks low, sunny crowns high.
+ *  Pads pull toward plain grass so no line cuts in under a plaza. */
+function toneValue(x: number, z: number, slope: number, lift: number): number {
+  let v = 2.5 + lift * 0.3 - smoothstep(0.1, 0.5, slope) * 1.9 + gfbm(x * 0.017 + 7.7, z * 0.017 + 2.2, 2, 5) * 0.55;
   for (let i = 0; i < NS; i++) {
     const d = Math.hypot(x - SX[i], z - SZ[i]);
-    if (d < SBLEND[i]) {
-      const home = Math.floor(SH[i] * BAND_PER_METRE) + 0.5;
-      v += (home - v) * (1 - smoothstep(SFLAT[i] * 1.04, SBLEND[i], d));
-    }
+    if (d < SBLEND[i]) v += (2.5 - v) * (1 - smoothstep(SFLAT[i] * 1.04, SBLEND[i], d));
   }
-  return v;
+  return v < 0.02 ? 0.02 : v > 3.98 ? 3.98 : v;
 }
 
-// What lies over the band colour at a point, as `colour = band * keep + add`.
+// What lies over the tone colour at a point, as `colour = tone * keep + add`.
 const tint = { keep: 1, r: 0, g: 0, b: 0 };
 function lay(c: RGB, t: number): void {
   if (t <= 0) return;
@@ -537,36 +562,150 @@ function lay(c: RGB, t: number): void {
 function groundTint(x: number, z: number, slope: number): void {
   tint.keep = 1;
   tint.r = tint.g = tint.b = 0;
-  // Sun-bleached blotches.
-  const blotch = noise2(x * 0.045 + 31, z * 0.045 - 12, 9);
-  lay(C_LIGHT, smoothstep(0.66, 0.8, blotch) * 0.35);
-  // Banks and dune faces go deeper.
-  lay(C_DEEP, smoothstep(0.2, 0.46, slope) * 0.8);
-  lay(C_ROCK, smoothstep(0.5, 1.0, slope) * 0.7);
-  // The rim is rockier.
+  // Big soft blotches where the lawn has dried a little.
+  const blotch = noise2(x * 0.03 + 31, z * 0.03 - 12, 9);
+  lay(C_GLIGHT, smoothstep(0.62, 0.82, blotch) * 0.22);
+  // The steepest banks show earth through the grass.
+  lay(C_EARTH, smoothstep(0.62, 1.1, slope) * 0.6);
+  // The last couple of metres before the drop are bare.
   const r = Math.hypot(x, z);
-  if (r > WORLD_RADIUS - 34) lay(C_ROCK, smoothstep(30, 2, rimRadius(x, z) - r) * 0.6);
-  // Road dust.
+  if (r > WORLD_RADIUS - 20) lay(C_EARTH, smoothstep(4.5, 0.8, rimRadius(x, z) - r) * 0.85);
+}
+
+const TIER_STEP: Record<QualityTier, number> = { high: 3.35, medium: 4.0, low: 5.2 };
+const EXTENT = 252;
+const CHUNKS = 3;
+/** The ground mesh keeps this far under any paving, so grass never pokes up through a slab. */
+const UNDER = 0.13;
+/** Grass ignores this much of the light, so a bank in shade stays a flat tone and is not scribbled over with hatching. */
+const GRASS_FLAT = 0.52;
+
+// The ground grid of the mesh being built, kept so drawn-on shapes can lie exactly on the triangles.
+let gridN = 0;
+let gridSize = 1;
+let gridY = new Float32Array(0);
+
+/** Height of the ground mesh (not the true ground) at a point: the same triangles the mesh draws. */
+function meshY(x: number, z: number): number {
+  const fi = (x + EXTENT) / gridSize, fj = (z + EXTENT) / gridSize;
+  const i = Math.max(0, Math.min(gridN - 1, Math.floor(fi)));
+  const j = Math.max(0, Math.min(gridN - 1, Math.floor(fj)));
+  const u = fi - i, v = fj - j;
+  const w = gridN + 1;
+  const a = gridY[j * w + i], b = gridY[j * w + i + 1], c = gridY[(j + 1) * w + i], d = gridY[(j + 1) * w + i + 1];
+  if ((i + j) & 1) return u + v <= 1 ? a + u * (b - a) + v * (c - a) : d + (1 - u) * (c - d) + (1 - v) * (b - d);
+  return v >= u ? a + u * (d - c) + v * (c - a) : a + u * (b - a) + v * (d - b);
+}
+
+/** Mesh height at a grid corner: the true ground, held down under roads and plazas. */
+function cornerY(x: number, z: number, size: number): number {
+  const h = heightAt(x, z);
+  let y = h;
   roadInfo(x, z, hit);
-  if (hit.road >= 0) lay(C_LIGHT, (1 - smoothstep(hit.width * 0.5, hit.width * 0.5 + 5, hit.dist)) * 0.55);
-  // Pads: paler, with a breath of the district's colour.
+  if (hit.road >= 0 && ribbonHere(hit.road, hit.s)) {
+    const half = hit.width * 0.5 + SIDEWALK[PATHS[hit.road].kind];
+    const t = 1 - smoothstep(half + size, half + size + 1.5, hit.dist);
+    if (t > 0) y += (Math.min(h, hit.height - UNDER) - h) * t;
+  }
   for (let i = 0; i < NS; i++) {
-    const d = Math.hypot(x - SX[i], z - SZ[i]);
-    if (d < SBLEND[i]) lay(C_PAD[i], 1 - smoothstep(SFLAT[i] * 0.94, SBLEND[i] * 0.92, d));
+    const reach = SITES[i].radius * PLAZA + size;
+    const d2 = (x - SX[i]) * (x - SX[i]) + (z - SZ[i]) * (z - SZ[i]);
+    if (d2 > (reach + 1.5) * (reach + 1.5)) continue;
+    const t = 1 - smoothstep(reach, reach + 1.5, Math.sqrt(d2));
+    const low = Math.min(h, SH[i] - UNDER);
+    if (low < y) y += (low - y) * t;
+  }
+  return y;
+}
+
+/** How high the ground may come at a spot with paving over it. Infinity on open grass. */
+function pavingCeiling(x: number, z: number): number {
+  let top = Infinity;
+  roadInfo(x, z, hit);
+  if (hit.road >= 0 && ribbonHere(hit.road, hit.s) && hit.dist < hit.width * 0.5 + SIDEWALK[PATHS[hit.road].kind]) top = hit.height - 0.03;
+  for (let i = 0; i < NS; i++) {
+    const r = SITES[i].radius * PLAZA;
+    const dx = x - SX[i], dz = z - SZ[i];
+    if (dx * dx + dz * dz < r * r) top = Math.min(top, SH[i] - 0.03);
+  }
+  return top;
+}
+
+/** What the last ground build had to push down to keep grass from coming up through paving. */
+export const groundSettle = { spots: 0, deepest: 0 };
+
+// A grid this coarse cannot follow a steep street round a tight bend: the odd triangle comes up
+// through the sidewalk. Look for those spots and push the corner that causes each one down.
+function settleUnderPaving(): void {
+  const n = gridN, w = n + 1, size = gridSize;
+  const K = 4;
+  const lid = new Float32Array(w * w);
+  for (let j = 0; j < w; j++) {
+    for (let i = 0; i < w; i++) {
+      const k = j * w + i;
+      lid[k] = pavingCeiling(-EXTENT + i * size, -EXTENT + j * size);
+      if (gridY[k] > lid[k]) gridY[k] = lid[k];
+    }
+  }
+  const cells: number[] = [];
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
+      const k = j * w + i;
+      if (lid[k] < Infinity || lid[k + 1] < Infinity || lid[k + w] < Infinity || lid[k + w + 1] < Infinity) cells.push(j * n + i);
+    }
+  }
+  const tops = new Float32Array(cells.length * K * K);
+  for (let c = 0; c < cells.length; c++) {
+    const i = cells[c] % n, j = (cells[c] - i) / n;
+    for (let q = 0; q < K * K; q++) {
+      const u = ((q % K) + 0.5) / K, v = (Math.floor(q / K) + 0.5) / K;
+      tops[c * K * K + q] = pavingCeiling(-EXTENT + (i + u) * size, -EXTENT + (j + v) * size);
+    }
+  }
+  groundSettle.spots = 0;
+  groundSettle.deepest = 0;
+  const at = [0, 0, 0], wt = [0, 0, 0];
+  for (let pass = 0; pass < 5; pass++) {
+    let moved = 0;
+    for (let c = 0; c < cells.length; c++) {
+      const i = cells[c] % n, j = (cells[c] - i) / n;
+      const a = j * w + i, b = a + 1, cc = a + w, d = cc + 1;
+      for (let q = 0; q < K * K; q++) {
+        const top = tops[c * K * K + q];
+        if (top === Infinity) continue;
+        const u = ((q % K) + 0.5) / K, v = (Math.floor(q / K) + 0.5) / K;
+        // The same split meshY uses.
+        if ((i + j) & 1) {
+          if (u + v <= 1) { at[0] = a; at[1] = b; at[2] = cc; wt[0] = 1 - u - v; wt[1] = u; wt[2] = v; }
+          else { at[0] = d; at[1] = cc; at[2] = b; wt[0] = u + v - 1; wt[1] = 1 - u; wt[2] = 1 - v; }
+        } else if (v >= u) { at[0] = a; at[1] = cc; at[2] = d; wt[0] = 1 - v; wt[1] = v - u; wt[2] = u; }
+        else { at[0] = a; at[1] = b; at[2] = d; wt[0] = 1 - u; wt[1] = u - v; wt[2] = v; }
+        const y = gridY[at[0]] * wt[0] + gridY[at[1]] * wt[1] + gridY[at[2]] * wt[2];
+        if (y <= top + 1e-4) continue;
+        // Push the corner that lifts this spot the most.
+        let worst = 0, pull = -Infinity;
+        for (let m = 0; m < 3; m++) {
+          const p = wt[m] * (gridY[at[m]] - top);
+          if (p > pull) { pull = p; worst = m; }
+        }
+        const drop = (y - top) / Math.max(0.12, wt[worst]);
+        gridY[at[worst]] -= drop;
+        moved++;
+        if (pass === 0) groundSettle.spots++;
+        if (drop > groundSettle.deepest) groundSettle.deepest = drop;
+      }
+    }
+    if (!moved) break;
   }
 }
 
-const TIER_STEP: Record<QualityTier, number> = { high: 2.5, medium: 3.3, low: 4.5 };
-const EXTENT = 252;
-const CHUNKS = 3;
-
-// One corner of a ground triangle while it is being cut along the contours.
-const F = 12; // x y z nx ny nz hatch keep r g b band
+// One corner of a ground triangle while it is being cut along the tone edges.
+const F = 12; // x y z nx ny nz hatch keep r g b tone
 const polyA = new Float64Array(F * 12);
 const polyB = new Float64Array(F * 12);
 const polyC = new Float64Array(F * 12);
 
-/** Keep the part of a polygon on one side of a band level. Returns the new corner count. */
+/** Keep the part of a polygon on one side of a tone level. Returns the new corner count. */
 function clipBand(src: Float64Array, n: number, dst: Float64Array, level: number, above: boolean): number {
   let m = 0;
   for (let i = 0; i < n; i++) {
@@ -599,6 +738,17 @@ function buildGround(kit: InkKit, tier: QualityTier, group: THREE.Group): number
   const data = new Float64Array(w * w * F);
   const inside = new Uint8Array(w * w);
   const done = new Uint8Array(w * w);
+  gridN = n;
+  gridSize = size;
+  gridY = new Float32Array(w * w);
+  for (let j = 0; j < w; j++) {
+    for (let i = 0; i < w; i++) {
+      const x = -EXTENT + i * size, z = -EXTENT + j * size;
+      if (Math.hypot(x, z) < rimRadius(x, z)) inside[j * w + i] = 1;
+      gridY[j * w + i] = Math.hypot(x, z) < WORLD_RADIUS + 16 ? cornerY(x, z, size) : 0;
+    }
+  }
+  settleUnderPaving();
   // Everything about a grid corner, worked out once whichever chunk asks first.
   const corner = (k: number): number => {
     const o = k * F;
@@ -610,6 +760,7 @@ function buildGround(kit: InkKit, tier: QualityTier, group: THREE.Group): number
     const r = Math.hypot(x, z);
     const rim = rimRadius(x, z);
     let sx = x, sz = z;
+    let y = gridY[k];
     if (r >= rim) {
       // Pull the outside corners onto the rim so the ground ends on a clean edge, and read the
       // height a hair inside, where the ground has not started to fall.
@@ -617,36 +768,28 @@ function buildGround(kit: InkKit, tier: QualityTier, group: THREE.Group): number
       z *= rim / r;
       sx = x * 0.9999;
       sz = z * 0.9999;
+      y = heightAt(sx, sz);
     }
-    const h = heightAt(sx, sz);
+    heightAt(sx, sz);
+    const lift = relief;
     const e = 1.1;
     const gx = (heightAt(sx + e, sz) - heightAt(sx - e, sz)) / (2 * e);
     const gz = (heightAt(sx, sz + e) - heightAt(sx, sz - e)) / (2 * e);
     const slope = inside[k] ? Math.hypot(gx, gz) : 0;
     const nl = Math.hypot(gx, 1, gz);
-    // Sink the ground a little under the road slabs so it never pokes through them.
-    roadInfo(sx, sz, hit);
-    let y = h;
-    if (hit.road >= 0 && ribbonHere(hit.road, hit.s)) {
-      const hw = hit.width * 0.5;
-      y -= 0.24 * (1 - smoothstep(hw + size, hw + size + 2.5, hit.dist));
-    }
     groundTint(sx, sz, slope);
     data[o] = x; data[o + 1] = y; data[o + 2] = z;
     data[o + 3] = inside[k] ? -gx / nl : 0; data[o + 4] = inside[k] ? 1 / nl : 1; data[o + 5] = inside[k] ? -gz / nl : 0;
-    data[o + 6] = smoothstep(0.6, 1.2, slope) * 0.4;
+    // No hatching on grass: over a lumpy bank it turns into a scribble. The tone edges do the work.
+    data[o + 6] = 0;
     data[o + 7] = tint.keep; data[o + 8] = tint.r; data[o + 9] = tint.g; data[o + 10] = tint.b;
-    data[o + 11] = bandValue(sx, sz, h);
+    data[o + 11] = toneValue(sx, sz, slope, lift);
     return o;
   };
-  for (let j = 0; j < w; j++) {
-    for (let i = 0; i < w; i++) {
-      const x = -EXTENT + i * size, z = -EXTENT + j * size;
-      if (Math.hypot(x, z) < rimRadius(x, z)) inside[j * w + i] = 1;
-    }
-  }
-  // One id per band colour: where two bands meet the ids differ and the ink pass draws the contour.
+  // Moss, deep and grass each carry their own id, so the ink pass draws the line where they meet.
+  // Light grass shares the plain grass id: a sunny crown is a patch of colour with no line round it.
   const ids = [idByte(kit), idByte(kit), idByte(kit)];
+  ids.push(ids[2]);
   const color: RGB = [0, 0, 0];
   let total = 0;
   for (let cj = 0; cj < CHUNKS; cj++) {
@@ -654,16 +797,16 @@ function buildGround(kit: InkKit, tier: QualityTier, group: THREE.Group): number
       const raw = new Raw();
       const shared = new Map<number, number>();
       const put = (src: Float64Array, o: number, band: number): number => {
-        const m = ((band % 3) + 3) % 3;
-        const c = C_BANDS[m];
+        const m = band < 0 ? 0 : band > 3 ? 3 : band;
+        const c = C_TONES[m];
         const keep = src[o + 7];
         color[0] = c[0] * keep + src[o + 8];
         color[1] = c[1] * keep + src[o + 9];
         color[2] = c[2] * keep + src[o + 10];
-        return raw.vert(src[o], src[o + 1], src[o + 2], src[o + 3], src[o + 4], src[o + 5], color, ids[m], 0, src[o + 6]);
+        return raw.vert(src[o], src[o + 1], src[o + 2], src[o + 3], src[o + 4], src[o + 5], color, ids[m], GRASS_FLAT, src[o + 6]);
       };
       const use = (k: number, band: number): number => {
-        const key = k * 64 + ((band + 32) & 63);
+        const key = k * 8 + (band & 7);
         let v = shared.get(key);
         if (v === undefined) {
           v = put(data, k * F, band);
@@ -680,7 +823,7 @@ function buildGround(kit: InkKit, tier: QualityTier, group: THREE.Group): number
           raw.tri(use(a, lo), use(b, lo), use(c, lo));
           return;
         }
-        // The triangle straddles a contour: cut it into one piece per band.
+        // The triangle straddles a tone edge: cut it into one piece per tone.
         for (let k = 0; k < F; k++) {
           polyA[k] = data[oa + k];
           polyA[F + k] = data[ob + k];
@@ -725,18 +868,39 @@ function buildGround(kit: InkKit, tier: QualityTier, group: THREE.Group): number
   return total;
 }
 
-/** Road slabs run between districts and stop short of each centre. True where one is drawn. */
-function ribbonHere(road: number, s: number): boolean {
-  const p = PATHS[road];
-  for (const stop of p.stops) {
-    if (Math.abs(s - stop.s) < stop.site.radius * ROAD_END) return false;
+// Where the street slabs run: from the kerb of one plaza to the kerb of the next.
+interface Leg { road: number; s0: number; s1: number; from: DistrictSite; to: DistrictSite; sFrom: number; sTo: number }
+const LEGS: Leg[] = [];
+for (const p of PATHS) {
+  const cross = (stop: { site: DistrictSite; s: number }, dir: number): number => {
+    const r = stop.site.radius * PLAZA;
+    const a: RoadPoint = { x: 0, z: 0, h: 0, tx: 0, tz: 0 };
+    for (let s = stop.s; s >= 0 && s <= p.length; s += dir * 0.1) {
+      roadPoint(p.index, s, a);
+      if (Math.hypot(a.x - stop.site.center.x, a.z - stop.site.center.z) >= r) return s;
+    }
+    return stop.s;
+  };
+  for (let k = 0; k < p.stops.length - 1; k++) {
+    const A = p.stops[k], B = p.stops[k + 1];
+    LEGS.push({ road: p.index, s0: cross(A, 1), s1: cross(B, -1), from: A.site, to: B.site, sFrom: A.s, sTo: B.s });
   }
-  return true;
+}
+
+/** Street slabs run between plazas. True where one is drawn. */
+function ribbonHere(road: number, s: number): boolean {
+  for (let i = 0; i < LEGS.length; i++) {
+    const l = LEGS[i];
+    if (l.road === road && s >= l.s0 - 0.7 && s <= l.s1 + 0.7) return true;
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------------------------
-// The cliff under the rim
+// The underside
 // ---------------------------------------------------------------------------------------------
+// A piece of city lifted out of the earth: topsoil, old fill, then bedrock in violet-grey and warm
+// bands down to a point, with brick foundations, pipes, roots and a cut tunnel showing in the face.
 
 // depth below the rim, share of the rim radius, push outward, wobble
 const STRATA: [number, number, number, number][] = [
@@ -755,7 +919,19 @@ const STRATA: [number, number, number, number][] = [
   [170, 0.09, 0, 3.5],
 ];
 const TIP_DEPTH = 196;
-const STRATA_COLORS = ['#e9a586', palette.cliff, palette.rockDeep, palette.cliff, palette.rock, palette.cliff, palette.rockDeep, '#a84236', '#9c3f45', '#8c3c50', '#7c3a5a', '#6e3862', '#623668'];
+const STRATA_COLORS = ['#9c7862', '#e9d2b4', '#aaa1c6', palette.sandDeep, '#8f88b8', '#d4937a', '#7d76a8', '#b77c78', palette.asphalt, '#625a92', '#574c88', '#4d427c', '#453a72'];
+const STRATA_HATCH = [0.05, 0.08, 0.28, 0.16, 0.36, 0.24, 0.46, 0.4, 0.52, 0.56, 0.6, 0.62, 0.62];
+const C_BRICK = rgb(palette.brick);
+const C_BRICK2 = rgb(palette.brickDeep);
+
+/** Where things stick out of the face, as angles round the rim. The first tunnel faces the usual far view. */
+const TUNNELS = [0.93, 3.95];
+const FOUNDATIONS = [0.52, 1.36, 2.05, 2.8, 3.45, 4.4, 5.05, 5.75, 0.05];
+
+function rimTop(a: number): number {
+  const r = rimRadius(Math.cos(a), Math.sin(a)) * 0.9999;
+  return heightAt(Math.cos(a) * r, Math.sin(a) * r);
+}
 
 function buildSkirt(kit: InkKit, tier: QualityTier, group: THREE.Group): number {
   const na = tier === 'high' ? 200 : tier === 'medium' ? 150 : 100;
@@ -783,7 +959,7 @@ function buildSkirt(kit: InkKit, tier: QualityTier, group: THREE.Group): number 
     }
   }
   const col: RGB = [0, 0, 0];
-  // A lid just under the ground's edge, so a hairline gap there shows rock and not sky.
+  // A lid just under the ground's edge, so a hairline gap there shows earth and not sky.
   const lidId = idByte(kit);
   const lidC = rgb(STRATA_COLORS[0]);
   for (let i = 0; i < na; i++) {
@@ -795,7 +971,7 @@ function buildSkirt(kit: InkKit, tier: QualityTier, group: THREE.Group): number 
   for (let k = 0; k < rings - 1; k++) {
     const id = idByte(kit);
     rgb(STRATA_COLORS[k]).forEach((v, n) => (col[n] = v));
-    const hatch = k < 2 ? 0.1 : k < 7 ? 0.3 : 0.5;
+    const hatch = STRATA_HATCH[k];
     for (let i = 0; i < na; i++) {
       const j = (i + 1) % na;
       const a = k * na + i, b = k * na + j, c = (k + 1) * na + i, d = (k + 1) * na + j;
@@ -809,209 +985,611 @@ function buildSkirt(kit: InkKit, tier: QualityTier, group: THREE.Group): number 
   const last = (rings - 1) * na;
   for (let i = 0; i < na; i++) {
     const j = (i + 1) % na;
-    raw.face(px[last + i], py[last + i], pz[last + i], px[last + j], py[last + j], pz[last + j], 6, lowest - TIP_DEPTH, -8, tipC, tipId, 0, 0.5);
+    raw.face(px[last + i], py[last + i], pz[last + i], px[last + j], py[last + j], pz[last + j], 6, lowest - TIP_DEPTH, -8, tipC, tipId, 0, STRATA_HATCH[rings - 1]);
+  }
+
+  // Old brick foundations standing proud of the face: courses of big blocks, torn away toward the bottom.
+  const brickIds = [idByte(kit), idByte(kit), idByte(kit)];
+  // One flat four-sided face, wound so it looks toward (hx, hy, hz).
+  const quad = (ax: number, ay: number, az: number, bx: number, by: number, bz: number, cx: number, cy: number, cz: number, dx: number, dy: number, dz: number, c: RGB, id: number, hx: number, hy: number, hz: number): void => {
+    const ux = bx - ax, uy = by - ay, uz = bz - az, vx = dx - ax, vy = dy - ay, vz = dz - az;
+    const out = (uy * vz - uz * vy) * hx + (uz * vx - ux * vz) * hy + (ux * vy - uy * vx) * hz;
+    if (out >= 0) {
+      raw.face(ax, ay, az, bx, by, bz, cx, cy, cz, c, id);
+      raw.face(ax, ay, az, cx, cy, cz, dx, dy, dz, c, id);
+    } else {
+      raw.face(ax, ay, az, cx, cy, cz, bx, by, bz, c, id);
+      raw.face(ax, ay, az, dx, dy, dz, cx, cy, cz, c, id);
+    }
+  };
+  const walls = tier === 'low' ? 5 : FOUNDATIONS.length;
+  for (let f = 0; f < walls; f++) {
+    const a0 = FOUNDATIONS[f];
+    const rows = 5 + Math.floor(hash2(f, 1, 301) * 4);
+    const course = 1.05;
+    const top = rimTop(a0) - 1.1 - hash2(f, 2, 301) * 0.8;
+    const proud = 3.3 + hash2(f, 5, 301) * 0.8;
+    let half = (5.5 + hash2(f, 3, 301) * 5) / WORLD_RADIUS;
+    const at = (t: number, back: boolean, y: number, out: number[]): void => {
+      const r = rimRadius(Math.cos(t), Math.sin(t)) + (back ? -1.5 : proud);
+      out[0] = Math.cos(t) * r; out[1] = y; out[2] = Math.sin(t) * r;
+    };
+    const p0: number[] = [0, 0, 0], p1: number[] = [0, 0, 0], p2: number[] = [0, 0, 0], p3: number[] = [0, 0, 0];
+    const hx = Math.cos(a0), hz = Math.sin(a0);
+    const dt = 4.2 / WORLD_RADIUS;
+    for (let r = 0; r < rows; r++) {
+      const y1 = top - r * course, y0 = y1 - course;
+      const ta = a0 - half, tb = a0 + half;
+      // The front, block by block, each course shifted half a block from the one above.
+      let t = ta;
+      let n = 0;
+      while (t < tb - 1e-5) {
+        const next = Math.min(tb, n === 0 && r & 1 ? t + dt * 0.5 : t + dt);
+        const c = hash2(f * 17 + r, n, 302) < 0.3 ? C_BRICK2 : C_BRICK;
+        at(t, false, y0, p0); at(next, false, y0, p1); at(next, false, y1, p2); at(t, false, y1, p3);
+        quad(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], p3[0], p3[1], p3[2], c, brickIds[(r * 2 + n) % 3], hx, 0, hz);
+        t = next;
+        n++;
+      }
+      // The two ends of the course.
+      for (let e = 0; e < 2; e++) {
+        const te = e ? tb : ta;
+        at(te, false, y0, p0); at(te, false, y1, p1); at(te, true, y1, p2); at(te, true, y0, p3);
+        quad(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], p3[0], p3[1], p3[2], C_BRICK2, brickIds[r % 3], e ? -hz : hz, 0, e ? hx : -hx);
+      }
+      // Its top, on the first course; its underside, wherever the next course is shorter or missing.
+      if (r === 0) {
+        at(ta, false, y1, p0); at(tb, false, y1, p1); at(tb, true, y1, p2); at(ta, true, y1, p3);
+        quad(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], p3[0], p3[1], p3[2], C_BRICK, brickIds[0], 0, 1, 0);
+      }
+      const shrink = r === rows - 1 ? half : r >= 2 ? (hash2(f, r, 303) < 0.6 ? dt * (0.5 + hash2(f, r, 304) * 0.5) : 0) : 0;
+      if (shrink > 0) {
+        const lose = Math.min(shrink, half);
+        const sideA = hash2(f, r, 305) < 0.5 || r === rows - 1;
+        const cutA = sideA ? lose : 0, cutB = r === rows - 1 ? lose : sideA ? 0 : lose;
+        if (cutA > 0) {
+          at(ta, false, y0, p0); at(ta + cutA, false, y0, p1); at(ta + cutA, true, y0, p2); at(ta, true, y0, p3);
+          quad(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], p3[0], p3[1], p3[2], C_BRICK2, brickIds[r % 3], 0, -1, 0);
+        }
+        if (cutB > 0) {
+          at(tb - cutB, false, y0, p0); at(tb, false, y0, p1); at(tb, true, y0, p2); at(tb - cutB, true, y0, p3);
+          quad(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], p3[0], p3[1], p3[2], C_BRICK2, brickIds[r % 3], 0, -1, 0);
+        }
+        if (r === rows - 1) break;
+        // Only a symmetric loss keeps the wall centred on its angle; a one-sided loss just narrows it.
+        half -= lose / 2;
+      }
+    }
   }
   group.add(raw.mesh(kit, 'cliff'));
   return raw.triangles;
 }
 
+/** Pipes, roots and the cut tunnel mouths: one mesh. */
+function buildUnderside(kit: InkKit, tier: QualityTier, group: THREE.Group): number {
+  const b = kit.builder();
+  const low = tier === 'low';
+  const round = low ? 6 : 8;
+  const dark = '#3a3166';
+  // Pipes: a length of main sticking out of the fill, some turned down at an elbow.
+  const rand = rng(7719);
+  const pipes = low ? 5 : 11;
+  for (let i = 0; i < pipes; i++) {
+    const a = (i + 0.2 + rand() * 0.6) * ((Math.PI * 2) / pipes);
+    const depth = 3.4 + rand() * 7;
+    const r = 0.38 + rand() * 0.4;
+    const len = 5.5 + rand() * 3.5;
+    const cx = Math.cos(a), cz = Math.sin(a);
+    const start = rimRadius(cx, cz) - 3;
+    const y = rimTop(a) - depth;
+    const c = i % 3 === 1 ? palette.verdigris : palette.steel;
+    const id = b.newId();
+    b.add(geo.cylinder(r, r, len, round), { color: c, pos: [cx * start, y, cz * start], rot: [0, -a, -Math.PI / 2], id });
+    const end = start + len;
+    b.add(geo.cylinder(r * 1.22, r * 1.22, 0.28, round), { color: c, pos: [cx * (end - 0.9), y, cz * (end - 0.9)], rot: [0, -a, -Math.PI / 2] });
+    if (i % 2 === 0) {
+      const drop = 2.2 + rand() * 2.5;
+      b.add(geo.sphere(r * 1.12, round, 4), { color: c, pos: [cx * end, y, cz * end], id });
+      b.add(geo.cylinder(r, r, drop, round), { color: c, pos: [cx * end, y - drop, cz * end], id });
+      b.add(geo.cylinder(r * 0.72, r * 0.72, 0.04, round), { color: dark, pos: [cx * end, y - drop - 0.03, cz * end], flat: 1 });
+    } else {
+      b.add(geo.cylinder(r * 0.72, r * 0.72, 0.05, round), { color: dark, pos: [cx * (end - 0.02), y, cz * (end - 0.02)], rot: [0, -a, -Math.PI / 2], flat: 1 });
+    }
+  }
+  // Roots hanging out of the topsoil.
+  const roots = low ? 6 : 13;
+  for (let i = 0; i < roots; i++) {
+    const a = (i + rand()) * ((Math.PI * 2) / roots) + 0.3;
+    const cx = Math.cos(a), cz = Math.sin(a);
+    const r0 = rimRadius(cx, cz) + 0.6;
+    const y = rimTop(a) - 1.2;
+    const fall = 6 + rand() * 9;
+    const sw = (rand() - 0.5) * 3;
+    const pts: [number, number, number][] = [
+      [cx * (r0 - 1.5), y + 0.4, cz * (r0 - 1.5)],
+      [cx * (r0 + 1.4) - cz * sw * 0.3, y - fall * 0.3, cz * (r0 + 1.4) + cx * sw * 0.3],
+      [cx * (r0 + 2.2) - cz * sw * 0.8, y - fall * 0.68, cz * (r0 + 2.2) + cx * sw * 0.8],
+      [cx * (r0 + 1.6) - cz * sw, y - fall, cz * (r0 + 1.6) + cx * sw],
+    ];
+    b.add(geo.tube(pts, 0.16 + rand() * 0.12, { radial: 5, perSpan: low ? 2 : 3 }), { color: '#7b5a4a' });
+  }
+  // The tunnel: a brick ring cut clean through, dark inside, the rails still poking out.
+  const mouths = low ? 1 : TUNNELS.length;
+  for (let i = 0; i < mouths; i++) {
+    const a = TUNNELS[i];
+    const cx = Math.cos(a), cz = Math.sin(a);
+    const rim = rimRadius(cx, cz);
+    const yaw = Math.PI / 2 - a;
+    const y = rimTop(a) - 10.4;
+    const front = rim + 4.6;
+    const deep = 7;
+    const mid = front - deep / 2;
+    const span = 5.6, rise = 5.4, thick = 0.8;
+    const ring = b.newId();
+    b.add(geo.arch({ span, rise, thick, depth: deep, round: true, seg: low ? 8 : 12 }), { color: palette.brick, pos: [cx * mid, y, cz * mid], rot: [0, yaw, 0], id: ring });
+    b.add(geo.arch({ span: span + 0.5, rise: rise + 0.25, thick: thick + 0.3, depth: 0.7, round: true, seg: low ? 8 : 12 }), { color: palette.marble, pos: [cx * (front - 0.2), y, cz * (front - 0.2)], rot: [0, yaw, 0] });
+    b.add(geo.box(span + 2 * thick + 1.2, 0.7, deep + 1.2), { color: palette.paveShade, pos: [cx * (mid + 0.5), y - 0.7, cz * (mid + 0.5)], rot: [0, yaw, 0] });
+    // The dark, a little way in, and a second ring deeper to show it goes on.
+    b.add(geo.box(span + 0.3, rise + 0.3, 0.3), { color: dark, pos: [cx * (front - 2.6), y, cz * (front - 2.6)], rot: [0, yaw, 0], flat: 1, outline: false });
+    b.add(geo.arch({ span: span - 1.5, rise: rise - 1.1, thick: 0.75, depth: 0.3, round: true, seg: 8 }), { color: '#51467f', pos: [cx * (front - 2.3), y, cz * (front - 2.3)], rot: [0, yaw, 0], flat: 1 });
+    for (const side of [-1, 1]) {
+      const ox = -cz * side * 0.95, oz = cx * side * 0.95;
+      b.add(geo.box(0.16, 0.18, 5.2), { color: palette.steel, pos: [cx * (front - 0.6) + ox, y, cz * (front - 0.6) + oz], rot: [0, yaw, 0] });
+    }
+    for (let k = 0; k < 3; k++) {
+      const d = front - 1.6 + k * 0.9;
+      b.add(geo.box(2.7, 0.1, 0.34), { color: '#7b5a4a', pos: [cx * d, y, cz * d], rot: [0, yaw, 0] });
+    }
+  }
+  const tris = b.triangles();
+  group.add(b.build('underside'));
+  return tris;
+}
+
 // ---------------------------------------------------------------------------------------------
-// Roads, and cracks in the ground
+// Streets and plazas
 // ---------------------------------------------------------------------------------------------
 
 const ROAD_LIFT = 0.05;
-const C_ROAD = rgb('#fcf1dd');
-const C_KERB = rgb('#e3b592');
+const WALK_LIFT = 0.085;
+const PLAZA_LIFT = 0.03;
+const PAINT_LIFT = 0.03;
+const NO_EDGE = 255;
+const C_ROAD = rgb(palette.pave);
+const C_ROAD2 = mix3([0, 0, 0], rgb(palette.pave), rgb(palette.paveShade), 0.6);
+const C_WALK = rgb(palette.marble);
+const C_WALK2 = mix3([0, 0, 0], rgb(palette.marble), rgb(palette.marbleShade), 0.45);
+const C_KERB = mix3([0, 0, 0], rgb(palette.paveShade), rgb(palette.asphalt), 0.16);
+const C_BAR = mix3([0, 0, 0], rgb(palette.pave), rgb(palette.asphalt), 0.78);
 const C_CORAL = rgb(THREAD_COLORS.people);
 const C_TEAL = rgb(THREAD_COLORS.tech);
 const C_BOTH = rgb(THREAD_COLORS.both);
-const LINE_HALF = 0.17;
-const LINE_APART = 0.5;
+const C_PAD = SITES.map((s) => mix3([0, 0, 0], rgb(palette.pave), rgb(s.accents[0]), 0.12));
+const C_PAD2 = C_PAD.map((c) => mix3([0, 0, 0], c, rgb(palette.paveShade), 0.55));
+const C_PADKERB = SITES.map((s) => mix3([0, 0, 0], C_KERB, rgb(s.accents[0]), 0.14));
+/** Half the width of one inlaid thread line, and how far each line of the avenue's pair sits from the middle. */
+const LINE_HALF = 0.125;
+const LINE_APART = 0.225;
 /** Metres before the Observatory end of the spine over which the two lines become one. */
 export const MERGE_LENGTH = 48;
 
 const rp: RoadPoint = { x: 0, z: 0, h: 0, tx: 0, tz: 1 };
 
-function buildRoads(kit: InkKit, raw: Raw): void {
-  const id = idByte(kit);
+// How the avenue's pair of lines sits at one spot: apart, half width, and how far they have turned into one colour.
+const th = { apart: LINE_APART, half: LINE_HALF, blend: 0 };
+function threadAt(s: number, sEnd: number, merge: boolean): void {
+  th.apart = LINE_APART;
+  th.half = LINE_HALF;
+  th.blend = 0;
+  if (!merge) return;
+  const t = 1 - Math.min(1, Math.max(0, sEnd - s) / MERGE_LENGTH);
+  th.blend = smoothstep(0.3, 0.6, t);
+  th.half = LINE_HALF - 0.03 * th.blend;
+  th.apart = LINE_APART + (th.half - LINE_APART) * smoothstep(0, 0.42, t);
+}
+
+function buildStreets(kit: InkKit, raw: Raw, tier: QualityTier): void {
+  const roadIds = [idByte(kit), idByte(kit)];
+  const walkIds = [idByte(kit), idByte(kit)];
+  const dotId = idByte(kit);
+  const sub = tier === 'low' ? 3.6 : 2.6;
   const cA: RGB = [0, 0, 0];
   const cB: RGB = [0, 0, 0];
-  for (const p of PATHS) {
+  const offs: number[] = [];
+  const cols: RGB[] = [];
+  const rowA: number[] = [];
+  const rowB: number[] = [];
+
+  for (const leg of LEGS) {
+    const p = PATHS[leg.road];
     const hw = p.width / 2;
+    const W = hw + SIDEWALK[p.kind];
+    const spine = p.kind === 'spine';
+    const merge = spine && leg.to.id === 'observatory';
     const lineC = rgb(THREAD_COLORS[p.stops[p.stops.length - 1].site.thread]);
-    for (let k = 0; k < p.stops.length - 1; k++) {
-      const A = p.stops[k], B = p.stops[k + 1];
-      const s0 = A.s + A.site.radius * ROAD_END;
-      const s1 = B.s - B.site.radius * ROAD_END;
-      const merge = p.kind === 'spine' && B.site.id === 'observatory';
-      const count = Math.max(2, Math.ceil((s1 - s0) / 1.5));
-      // offsets across the road, left to right, and the colour of the strip that starts at each
-      let prev: number[] | null = null;
-      for (let i = 0; i <= count; i++) {
-        const s = s0 + ((s1 - s0) * i) / count;
+    const lineFrom = leg.sFrom + leg.from.radius * ROAD_END;
+    const lineTo = leg.sTo - leg.to.radius * ROAD_END;
+    const a = leg.s0 - 0.45, b = leg.s1 + 0.45;
+    const slabs = Math.max(1, Math.round((b - a) / 8));
+    const per = Math.max(2, Math.round((b - a) / slabs / sub));
+    const rows = slabs * per;
+    const ds = (b - a) / rows;
+    const flagLen = Math.max(1, per >> 1);
+
+    // The strips across the carriageway at one spot, left to right.
+    const lay2 = (s: number, cRoad: RGB): void => {
+      offs.length = 0;
+      cols.length = 0;
+      if (spine) {
+        threadAt(s, lineTo, merge);
+        mix3(cA, C_CORAL, C_BOTH, th.blend);
+        mix3(cB, C_TEAL, C_BOTH, th.blend);
+        offs.push(-hw, -th.apart - th.half, -th.apart + th.half, th.apart - th.half, th.apart + th.half, hw);
+        cols.push(cRoad, cA, cRoad, cB, cRoad);
+      } else {
+        offs.push(-hw, -LINE_HALF, LINE_HALF, hw);
+        cols.push(cRoad, lineC, cRoad);
+      }
+    };
+    // One cross-section of the street: wall, sidewalk, kerb, carriageway, kerb, sidewalk, wall.
+    const row = (out: number[], s: number, cRoad: RGB, rid: number, cWalk: RGB, wid: number): void => {
+      out.length = 0;
+      roadPoint(p.index, s, rp);
+      const nx = -rp.tz, nz = rp.tx;
+      const yr = rp.h + ROAD_LIFT, yw = rp.h + WALK_LIFT;
+      const at = (o: number, y: number, ux: number, uy: number, uz: number, c: RGB, id: number): number =>
+        raw.vert(rp.x + nx * o, y, rp.z + nz * o, ux, uy, uz, c, id);
+      out.push(at(-W, yw - 0.9, -nx, 0, -nz, C_WALK2, wid), at(-W, yw, -nx, 0, -nz, C_WALK2, wid));
+      out.push(at(-W, yw, 0, 1, 0, cWalk, wid), at(-hw - 0.2, yw, 0, 1, 0, cWalk, wid));
+      out.push(at(-hw - 0.2, yw, 0, 1, 0, C_KERB, wid), at(-hw, yr, 0, 1, 0, C_KERB, wid));
+      lay2(s, cRoad);
+      for (let c = 0; c < cols.length; c++) out.push(at(offs[c], yr, 0, 1, 0, cols[c], rid), at(offs[c + 1], yr, 0, 1, 0, cols[c], rid));
+      out.push(at(hw, yr, 0, 1, 0, C_KERB, wid), at(hw + 0.2, yw, 0, 1, 0, C_KERB, wid));
+      out.push(at(hw + 0.2, yw, 0, 1, 0, cWalk, wid), at(W, yw, 0, 1, 0, cWalk, wid));
+      out.push(at(W, yw, nx, 0, nz, C_WALK2, wid), at(W, yw - 0.9, nx, 0, nz, C_WALK2, wid));
+    };
+    for (let i = 0; i < rows; i++) {
+      const slab = Math.floor(i / per);
+      const flag = Math.floor(i / flagLen);
+      const cRoad = hash2(slab, leg.road * 7 + 1, 911) < 0.17 ? C_ROAD2 : C_ROAD;
+      const cWalk = hash2(flag, leg.road * 7 + 2, 912) < 0.14 ? C_WALK2 : C_WALK;
+      row(rowA, a + i * ds, cRoad, roadIds[slab & 1], cWalk, walkIds[flag & 1]);
+      row(rowB, a + (i + 1) * ds, cRoad, roadIds[slab & 1], cWalk, walkIds[flag & 1]);
+      for (let c = 0; c < rowA.length; c += 2) {
+        raw.tri(rowA[c], rowA[c + 1], rowB[c]);
+        raw.tri(rowA[c + 1], rowB[c + 1], rowB[c]);
+      }
+    }
+
+    // Paint on the carriageway between two arc lengths and two offsets, lying on the slab's own facets.
+    const yAt = (s: number): number => {
+      const f = Math.min(rows - 0.0001, Math.max(0, (s - a) / ds));
+      const i = Math.floor(f);
+      roadPoint(p.index, a + i * ds, rp);
+      const h0 = rp.h;
+      roadPoint(p.index, a + (i + 1) * ds, rp);
+      return h0 + (rp.h - h0) * (f - i) + ROAD_LIFT + PAINT_LIFT;
+    };
+    const paint = (sa: number, sb: number, oa: number, ob: number, c: RGB): void => {
+      let s = sa;
+      while (s < sb - 1e-4) {
+        const next = Math.min(sb, a + (Math.floor((s - a) / ds + 1e-6) + 1) * ds);
+        const y0 = yAt(s), y1 = yAt(next);
+        roadPoint(p.index, s, rp);
+        const x0 = rp.x, z0 = rp.z, n0x = -rp.tz, n0z = rp.tx;
+        roadPoint(p.index, next, rp);
+        const x1 = rp.x, z1 = rp.z, n1x = -rp.tz, n1z = rp.tx;
+        const A = raw.vert(x0 + n0x * oa, y0, z0 + n0z * oa, 0, 1, 0, c, NO_EDGE);
+        const B = raw.vert(x0 + n0x * ob, y0, z0 + n0z * ob, 0, 1, 0, c, NO_EDGE);
+        const C = raw.vert(x1 + n1x * oa, y1, z1 + n1z * oa, 0, 1, 0, c, NO_EDGE);
+        const D = raw.vert(x1 + n1x * ob, y1, z1 + n1z * ob, 0, 1, 0, c, NO_EDGE);
+        raw.tri(A, B, C);
+        raw.tri(B, D, C);
+        s = next;
+      }
+    };
+    // A crosswalk at each end, where the street meets a plaza.
+    const pitch = spine ? 0.8 : 0.6;
+    const first = spine ? 0.8 : 0.52;
+    for (let end = 0; end < 2; end++) {
+      const sa = end === 0 ? a + 1.3 : b - 3.9;
+      if (b - a < 12) break;
+      for (let c = first; c + pitch * 0.26 <= hw - 0.12; c += pitch) {
+        paint(sa, sa + 3.2, c - pitch * 0.27, c + pitch * 0.27, C_BAR);
+        paint(sa, sa + 3.2, -c - pitch * 0.27, -c + pitch * 0.27, C_BAR);
+      }
+    }
+
+    // The thread lines run on across each plaza and stop at a station dot.
+    const tail = (sa: number, sb: number, site: DistrictSite, dotAt: number): void => {
+      const y = site.height + PLAZA_LIFT + 0.04;
+      const n = Math.max(1, Math.ceil((sb - sa) / 2.5));
+      let prev: number[] = [];
+      for (let i = 0; i <= n; i++) {
+        const s = sa + ((sb - sa) * i) / n;
         roadPoint(p.index, s, rp);
         const nx = -rp.tz, nz = rp.tx;
-        const y = rp.h + ROAD_LIFT;
-        let offs: number[];
-        let cols: RGB[];
-        if (p.kind === 'spine') {
-          let apart = LINE_APART, half = LINE_HALF, blend = 0;
-          if (merge) {
-            const t = 1 - Math.min(1, (s1 - s) / MERGE_LENGTH);
-            apart = LINE_APART + (LINE_HALF - LINE_APART) * smoothstep(0, 0.6, t);
-            blend = smoothstep(0.55, 0.8, t);
-            half = LINE_HALF - 0.05 * blend;
-            apart -= 0.05 * blend;
-          }
-          mix3(cA, C_CORAL, C_BOTH, blend);
-          mix3(cB, C_TEAL, C_BOTH, blend);
-          offs = [-hw, -apart - half, -apart + half, apart - half, apart + half, hw];
-          cols = [C_ROAD, [cA[0], cA[1], cA[2]], C_ROAD, [cB[0], cB[1], cB[2]], C_ROAD];
-        } else {
-          offs = [-hw, -LINE_HALF, LINE_HALF, hw];
-          cols = [C_ROAD, lineC, C_ROAD];
-        }
-        const row: number[] = [];
-        // kerb down the left side, the strips, kerb down the right
-        const lx = rp.x + nx * offs[0], lz = rp.z + nz * offs[0];
-        const rx = rp.x + nx * offs[offs.length - 1], rz = rp.z + nz * offs[offs.length - 1];
-        row.push(raw.vert(lx, y - 0.45, lz, -nx, 0, -nz, C_KERB, id), raw.vert(lx, y, lz, -nx, 0, -nz, C_KERB, id));
-        for (let c = 0; c < cols.length; c++) {
-          row.push(
-            raw.vert(rp.x + nx * offs[c], y, rp.z + nz * offs[c], 0, 1, 0, cols[c], id),
-            raw.vert(rp.x + nx * offs[c + 1], y, rp.z + nz * offs[c + 1], 0, 1, 0, cols[c], id),
+        lay2(s, C_ROAD);
+        const cur: number[] = [];
+        for (let c = 1; c < cols.length; c += 2) {
+          cur.push(
+            raw.vert(rp.x + nx * offs[c], y, rp.z + nz * offs[c], 0, 1, 0, cols[c], NO_EDGE),
+            raw.vert(rp.x + nx * offs[c + 1], y, rp.z + nz * offs[c + 1], 0, 1, 0, cols[c], NO_EDGE),
           );
         }
-        row.push(raw.vert(rx, y, rz, nx, 0, nz, C_KERB, id), raw.vert(rx, y - 0.45, rz, nx, 0, nz, C_KERB, id));
-        if (prev) {
-          for (let c = 0; c < row.length; c += 2) {
-            raw.tri(prev[c], prev[c + 1], row[c]);
-            raw.tri(prev[c + 1], row[c + 1], row[c]);
+        if (i > 0) {
+          for (let c = 0; c < cur.length; c += 2) {
+            raw.tri(prev[c], prev[c + 1], cur[c]);
+            raw.tri(prev[c + 1], cur[c + 1], cur[c]);
           }
         }
-        prev = row;
+        prev = cur;
       }
+      // The dot: a pale disc with an ink ring, the way a stop is drawn on a line map.
+      roadPoint(p.index, dotAt, rp);
+      const c0 = raw.vert(rp.x, y + 0.012, rp.z, 0, 1, 0, C_WALK, dotId);
+      const ring: number[] = [];
+      for (let k = 0; k < 12; k++) {
+        const an = (k / 12) * Math.PI * 2;
+        ring.push(raw.vert(rp.x + Math.cos(an) * 0.62, y + 0.012, rp.z + Math.sin(an) * 0.62, 0, 1, 0, C_WALK, dotId));
+      }
+      for (let k = 0; k < 12; k++) raw.tri(c0, ring[(k + 1) % 12], ring[k]);
+    };
+    tail(lineFrom, a + 0.2, leg.from, lineFrom);
+    tail(b - 0.2, lineTo, leg.to, lineTo);
+  }
+}
+
+function buildPlazas(kit: InkKit, raw: Raw, tier: QualityTier): void {
+  const seg = tier === 'low' ? 24 : 36;
+  const sectors = tier === 'low' ? [1, 6, 12, 12] : [1, 6, 12, 18];
+  const ids = [idByte(kit), idByte(kit), idByte(kit)];
+  const kerbId = idByte(kit);
+  for (let i = 0; i < NS; i++) {
+    const site = SITES[i];
+    const R = site.radius * PLAZA;
+    const y = SH[i] + PLAZA_LIFT;
+    const radii = [0, R * 0.2, R * 0.46, R * 0.73, R - 0.45];
+    const turn = hash2(i, 3, 61) * Math.PI;
+    const px = (r: number, k: number): number => SX[i] + Math.cos(turn + (k / seg) * Math.PI * 2) * r;
+    const pz = (r: number, k: number): number => SZ[i] + Math.sin(turn + (k / seg) * Math.PI * 2) * r;
+    for (let ring = 0; ring < 4; ring++) {
+      const r0 = radii[ring], r1 = radii[ring + 1];
+      const span = seg / sectors[ring];
+      for (let m = 0; m < sectors[ring]; m++) {
+        // Rings always show their joint; here and there one flag of paving is cut out and toned.
+        const odd = ring > 0 && hash2(i * 31 + ring, m, 517) < 0.3;
+        const c = odd && hash2(i * 31 + ring, m, 518) < 0.55 ? C_PAD2[i] : C_PAD[i];
+        const id = odd ? ids[2] : ids[ring & 1];
+        for (let k = m * span; k < (m + 1) * span; k++) {
+          const B = raw.vert(px(r1, k), y, pz(r1, k), 0, 1, 0, c, id);
+          const C = raw.vert(px(r1, k + 1), y, pz(r1, k + 1), 0, 1, 0, c, id);
+          if (ring === 0) {
+            const A = raw.vert(SX[i], y, SZ[i], 0, 1, 0, c, id);
+            raw.tri(A, C, B);
+          } else {
+            const A = raw.vert(px(r0, k), y, pz(r0, k), 0, 1, 0, c, id);
+            const D = raw.vert(px(r0, k + 1), y, pz(r0, k + 1), 0, 1, 0, c, id);
+            raw.tri(A, D, B);
+            raw.tri(D, C, B);
+          }
+        }
+      }
+    }
+    // The kerb: a darker band of stone round the paving, then a short wall down into the grass.
+    const kc = C_PADKERB[i];
+    for (let k = 0; k < seg; k++) {
+      const A = raw.vert(px(R - 0.45, k), y, pz(R - 0.45, k), 0, 1, 0, kc, kerbId);
+      const D = raw.vert(px(R - 0.45, k + 1), y, pz(R - 0.45, k + 1), 0, 1, 0, kc, kerbId);
+      const B = raw.vert(px(R, k), y, pz(R, k), 0, 1, 0, kc, kerbId);
+      const C = raw.vert(px(R, k + 1), y, pz(R, k + 1), 0, 1, 0, kc, kerbId);
+      raw.tri(A, D, B);
+      raw.tri(D, C, B);
+      const ax = px(R, k), az = pz(R, k), bx = px(R, k + 1), bz = pz(R, k + 1);
+      const nx = (ax + bx) / 2 - SX[i], nz = (az + bz) / 2 - SZ[i];
+      const nl = Math.hypot(nx, nz) || 1;
+      const E = raw.vert(ax, y, az, nx / nl, 0, nz / nl, kc, kerbId);
+      const G = raw.vert(bx, y, bz, nx / nl, 0, nz / nl, kc, kerbId);
+      const H = raw.vert(ax, y - 0.9, az, nx / nl, 0, nz / nl, kc, kerbId);
+      const I = raw.vert(bx, y - 0.9, bz, nx / nl, 0, nz / nl, kc, kerbId);
+      raw.tri(E, G, H);
+      raw.tri(G, I, H);
     }
   }
 }
 
-const C_CRACK = rgb('#9a6672');
-const NO_EDGE = 255;
+// Things drawn on the grass: mown stripes beside the avenue, clover, the odd patch of bare earth.
+// Flat shapes with no ink line, laid a hand above the ground mesh.
+const DECAL_LIFT = 0.1;
+const C_MOWN = mix3([0, 0, 0], rgb(palette.grass), rgb(palette.grassLight), 0.62);
+const C_CLOVER = mix3([0, 0, 0], rgb(palette.grassLight), rgb(palette.verdigris), 0.42);
 
-function crackPatch(raw: Raw, cx: number, cz: number, radius: number, seed: number): void {
-  const a = 1.9;
-  const w = a * 0.866, hh = a * 1.5, q = a * 0.25;
-  const half = 0.06;
-  const n = Math.ceil(radius / w) + 1;
-  const m = Math.ceil(radius / hh) + 1;
-  const vx = (i: number, j: number) => cx + i * w + (hash2(i, j, seed) - 0.5) * a * 0.55;
-  const vz = (i: number, j: number) => cz + j * hh + ((i + j) & 1 ? q : -q) + (hash2(i, j, seed + 1) - 0.5) * a * 0.55;
-  const edge = (i0: number, j0: number, i1: number, j1: number) => {
-    const x0 = vx(i0, j0), z0 = vz(i0, j0), x1 = vx(i1, j1), z1 = vz(i1, j1);
-    const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
-    const d = Math.hypot(mx - cx, mz - cz) / radius;
-    // Plates thin out toward the edge of a patch.
-    if (d > 1 || hash2(i0 * 3 + i1, j0 * 3 + j1, seed + 2) < 0.12 + d * d * 0.75) return;
-    if (!inBounds(mx, mz) || Math.hypot(mx, mz) > WORLD_RADIUS - 6) return;
-    roadInfo(mx, mz, hit);
-    if (hit.road >= 0 && hit.dist < hit.width * 0.5 + 0.8) return;
-    for (let s = 0; s < NS; s++) if (Math.hypot(mx - SX[s], mz - SZ[s]) < SITES[s].radius * 1.03) return;
-    const ex = x1 - x0, ez = z1 - z0;
-    const l = Math.hypot(ex, ez) || 1;
-    const px = (-ez / l) * half, pz = (ex / l) * half;
-    const y0 = heightAt(x0, z0) + 0.035, y1 = heightAt(x1, z1) + 0.035;
-    const A = raw.vert(x0 - px, y0, z0 - pz, 0, 1, 0, C_CRACK, NO_EDGE, 1);
-    const B = raw.vert(x0 + px, y0, z0 + pz, 0, 1, 0, C_CRACK, NO_EDGE, 1);
-    const C = raw.vert(x1 - px, y1, z1 - pz, 0, 1, 0, C_CRACK, NO_EDGE, 1);
-    const D = raw.vert(x1 + px, y1, z1 + pz, 0, 1, 0, C_CRACK, NO_EDGE, 1);
+/** Open grass: clear of every street, plaza and the rim by `room` metres. */
+function openGrass(x: number, z: number, room: number): boolean {
+  if (Math.hypot(x, z) > rimRadius(x, z) - 6 - room) return false;
+  for (let i = 0; i < NS; i++) {
+    const r = SFLAT[i] + 2 + room;
+    const dx = x - SX[i], dz = z - SZ[i];
+    if (dx * dx + dz * dz < r * r) return false;
+  }
+  roadInfo(x, z, hit);
+  return hit.road < 0 || hit.dist > hit.width / 2 + 2.2 + room;
+}
+
+function buildDecals(raw: Raw, tier: QualityTier): void {
+  const quad = (ax: number, az: number, bx: number, bz: number, cx: number, cz: number, dx: number, dz: number, c: RGB): void => {
+    const A = raw.vert(ax, meshY(ax, az) + DECAL_LIFT, az, 0, 1, 0, c, NO_EDGE);
+    const B = raw.vert(bx, meshY(bx, bz) + DECAL_LIFT, bz, 0, 1, 0, c, NO_EDGE);
+    const C = raw.vert(cx, meshY(cx, cz) + DECAL_LIFT, cz, 0, 1, 0, c, NO_EDGE);
+    const D = raw.vert(dx, meshY(dx, dz) + DECAL_LIFT, dz, 0, 1, 0, c, NO_EDGE);
     raw.tri(A, B, C);
     raw.tri(B, D, C);
   };
-  for (let j = -m; j <= m; j++) {
-    for (let i = -n; i <= n; i++) {
-      edge(i, j, i + 1, j);
-      if ((i + j) & 1) edge(i, j, i, j + 1);
+  // Mown lawns: light stripes running with the avenue, a few to a lawn, on alternate sides.
+  const a: RoadPoint = { x: 0, z: 0, h: 0, tx: 0, tz: 1 };
+  const b: RoadPoint = { x: 0, z: 0, h: 0, tx: 0, tz: 1 };
+  let n = 0;
+  for (const leg of LEGS) {
+    const p = PATHS[leg.road];
+    if (p.kind !== 'spine' || leg.s1 - leg.s0 < 46) continue;
+    const side = n++ & 1 ? 1 : -1;
+    const mid = (leg.s0 + leg.s1) / 2 + (hash2(leg.road, n, 77) - 0.5) * 8;
+    const inner = p.width / 2 + SIDEWALK.spine + 2.6;
+    const stripes = tier === 'low' ? 3 : 4;
+    for (let k = 0; k < stripes; k++) {
+      const o0 = side * (inner + k * 3.2), o1 = side * (inner + k * 3.2 + 1.6);
+      for (let s = mid - 13; s < mid + 13 - 0.01; s += 3.25) {
+        roadPoint(p.index, s, a);
+        roadPoint(p.index, s + 3.25, b);
+        const x0 = a.x - a.tz * o0, z0 = a.z + a.tx * o0, x1 = a.x - a.tz * o1, z1 = a.z + a.tx * o1;
+        const x2 = b.x - b.tz * o0, z2 = b.z + b.tx * o0, x3 = b.x - b.tz * o1, z3 = b.z + b.tx * o1;
+        if (!openGrass(x0, z0, 0) || !openGrass(x1, z1, 0) || !openGrass(x2, z2, 0) || !openGrass(x3, z3, 0)) continue;
+        // Only on a level lawn: on a bank the ground bulges up through a flat stripe.
+        if (Math.abs(b.h - a.h) > 0.4) continue;
+        const sag = meshY((x0 + x1 + x2 + x3) / 4, (z0 + z1 + z2 + z3) / 4) - (meshY(x0, z0) + meshY(x1, z1) + meshY(x2, z2) + meshY(x3, z3)) / 4;
+        if (sag > 0.05 || Math.abs(meshY(x1, z1) - meshY(x0, z0)) > 0.3) continue;
+        if (side > 0) quad(x0, z0, x1, z1, x2, z2, x3, z3, C_MOWN);
+        else quad(x1, z1, x0, z0, x3, z3, x2, z2, C_MOWN);
+      }
+    }
+  }
+  // Patches: a lumpy round shape, two rings of triangles so it bends with the ground.
+  const rand = rng(4041);
+  const want = tier === 'low' ? 8 : 22;
+  let made = 0;
+  for (let tries = 0; tries < 900 && made < want; tries++) {
+    const ang = rand() * Math.PI * 2, d = Math.sqrt(rand()) * WORLD_RADIUS;
+    const x = Math.cos(ang) * d, z = Math.sin(ang) * d;
+    const earth = made % 3 === 2;
+    const R = earth ? 1.6 + rand() * 1.6 : 2.6 + rand() * 2.6;
+    if (!openGrass(x, z, R + 1)) continue;
+    const e = 2;
+    if (Math.hypot(heightAt(x + e, z) - heightAt(x - e, z), heightAt(x, z + e) - heightAt(x, z - e)) / (2 * e) > 0.2) continue;
+    made++;
+    const c = earth ? C_EARTH : C_CLOVER;
+    const seed = made * 13;
+    const N = 9;
+    const stretch = 0.7 + rand() * 0.6, turn = rand() * Math.PI;
+    const at = (k: number, f: number, out: [number, number]): void => {
+      const t = (k / N) * Math.PI * 2;
+      const r = R * f * (0.78 + 0.44 * noise2(Math.cos(t) * 1.3 + seed, Math.sin(t) * 1.3, 9));
+      const px = Math.cos(t) * r * stretch, pz = Math.sin(t) * r / stretch;
+      out[0] = x + px * Math.cos(turn) - pz * Math.sin(turn);
+      out[1] = z + px * Math.sin(turn) + pz * Math.cos(turn);
+    };
+    const q0: [number, number] = [0, 0], q1: [number, number] = [0, 0], q2: [number, number] = [0, 0], q3: [number, number] = [0, 0];
+    const centre = raw.vert(x, meshY(x, z) + DECAL_LIFT, z, 0, 1, 0, c, NO_EDGE);
+    for (let k = 0; k < N; k++) {
+      at(k, 0.5, q0); at(k + 1, 0.5, q1); at(k, 1, q2); at(k + 1, 1, q3);
+      const A = raw.vert(q0[0], meshY(q0[0], q0[1]) + DECAL_LIFT, q0[1], 0, 1, 0, c, NO_EDGE);
+      const B = raw.vert(q1[0], meshY(q1[0], q1[1]) + DECAL_LIFT, q1[1], 0, 1, 0, c, NO_EDGE);
+      raw.tri(centre, B, A);
+      quad(q2[0], q2[1], q0[0], q0[1], q3[0], q3[1], q1[0], q1[1], c);
     }
   }
 }
 
-function buildCracks(raw: Raw, tier: QualityTier): void {
-  const next = rng(20170);
-  const patches = tier === 'high' ? 64 : tier === 'medium' ? 40 : 18;
-  for (let i = 0; i < patches; i++) {
-    let x: number, z: number;
-    if (i % 4 !== 3) {
-      // Most patches lie beside a road, where a walker meets them.
-      const p = PATHS[Math.floor(next() * NR)];
-      roadPoint(p.index, next() * p.length, rp);
-      const side = (next() < 0.5 ? -1 : 1) * (p.width / 2 + 2 + next() * 22);
-      x = rp.x - rp.tz * side;
-      z = rp.z + rp.tx * side;
-    } else {
-      const a = next() * Math.PI * 2, r = Math.sqrt(next()) * (WORLD_RADIUS - 20);
-      x = Math.cos(a) * r;
-      z = Math.sin(a) * r;
-    }
-    crackPatch(raw, x, z, 7 + next() * 7, 100 + i * 7);
-  }
-}
-
 // ---------------------------------------------------------------------------------------------
-// Year stones and fingerposts
+// Street furniture: year lamps, street signs, the railing at the rim
 // ---------------------------------------------------------------------------------------------
 
-const ARM: [number, number][] = [[-1.0, -0.22], [0.72, -0.22], [1.02, 0], [0.72, 0.22], [-1.0, 0.22]];
+const C_GLOBE = '#fff1c4';
 
-function buildMarkers(kit: InkKit, group: THREE.Group): number {
+function buildMarkers(kit: InkKit, tier: QualityTier, group: THREE.Group): number {
   const b = kit.builder();
+  const low = tier === 'low';
+  const round = low ? 6 : 8;
   const spine = PATHS.find((p) => p.kind === 'spine');
+  // A year lamp: a lamp post on the sidewalk with the year lettered on a marble plate, both sides.
   if (spine) {
     for (const stone of YEAR_STONES) {
       const k = spine.stops.findIndex((s) => s.site.id === stone.at);
       if (k < 0) continue;
       const stop = spine.stops[k];
-      // On the way in, just before the pad. The first stone has no way in, so it stands on the way out.
-      const s = k === 0 ? stop.s + stop.site.radius * 1.1 : stop.s - stop.site.radius * 1.1;
+      // On the way in, a little before the crosswalk. The first has no way in, so it stands on the way out.
+      const reach = stop.site.radius * PLAZA + 8.5;
+      const s = k === 0 ? stop.s + reach : stop.s - reach;
       roadPoint(spine.index, s, rp);
-      const side = spine.width / 2 + 1.5;
-      const x = rp.x - rp.tz * side, z = rp.z + rp.tx * side;
-      const y = heightAt(x, z);
-      // Face the walker coming up the road, turned a little toward the road.
-      const yaw = Math.atan2(-rp.tx, -rp.tz) - 0.35;
-      const id = b.newId();
-      b.add(geo.bevelBox(1.5, 0.22, 0.8, 0.05), { color: palette.stoneShade, pos: [x, y - 0.04, z], rot: [0, yaw, 0] });
-      b.add(geo.bevelBox(1.12, 1.25, 0.4, 0.1), { color: palette.stone, pos: [x, y + 0.14, z], rot: [0, yaw, 0], id });
+      const side = spine.width / 2 + SIDEWALK.spine - 0.32;
+      const nx = -rp.tz, nz = rp.tx;
+      const x = rp.x + nx * side, z = rp.z + nz * side;
+      const y = rp.h + WALK_LIFT;
+      // The plate hangs square to the street so the year reads on the way up and on the way back.
+      const yaw = Math.atan2(-rp.tx, -rp.tz);
       const fx = Math.sin(yaw), fz = Math.cos(yaw);
+      const post = b.newId();
+      b.add(geo.bevelBox(0.5, 0.42, 0.5, 0.06), { color: palette.marble, pos: [x, y, z], rot: [0, yaw, 0] });
+      b.add(geo.cylinder(0.075, 0.1, 4.25, round), { color: palette.steel, pos: [x, y + 0.4, z], id: post });
+      b.add(geo.cylinder(0.15, 0.15, 0.1, round), { color: palette.verdigris, pos: [x, y + 0.42, z] });
+      b.add(geo.cylinder(0.12, 0.12, 0.09, round), { color: palette.verdigris, pos: [x, y + 3.25, z] });
+      // The arm leans out over the street and carries the globe.
+      const ax = x - nx * 0.62, az = z - nz * 0.62;
+      b.add(geo.tube([[x, y + 4.5, z], [x - nx * 0.22, y + 4.86, z - nz * 0.22], [ax, y + 4.9, az]], 0.05, { radial: 5, perSpan: low ? 2 : 3 }), { color: palette.steel, id: post });
+      b.add(geo.cone(0.26, 0.2, round), { color: palette.verdigris, pos: [ax, y + 4.82, az] });
+      b.add(geo.sphere(0.23, round, low ? 4 : 5), { color: C_GLOBE, pos: [ax, y + 4.66, az], flat: 0.85 });
+      // The plate, hung from two brackets on the grass side.
+      const cx = x + nx * 0.74, cz = z + nz * 0.74;
+      const plate = b.newId();
+      b.add(geo.box(1.34, 0.045, 0.045), { color: palette.steel, pos: [x + nx * 0.6, y + 2.96, z + nz * 0.6], rot: [0, yaw, 0], id: post });
+      b.add(geo.bevelBox(1.12, 0.6, 0.09, 0.03), { color: palette.marble, pos: [cx, y + 2.34, cz], rot: [0, yaw, 0], id: plate });
       const text = String(stone.year);
-      b.label({ text, size: 0.36, pos: [x + fx * 0.2, y + 0.8, z + fz * 0.2], rot: [0, yaw, 0], plate: palette.stone, id, jitter: 0.3 });
-      b.label({ text, size: 0.36, pos: [x - fx * 0.2, y + 0.8, z - fz * 0.2], rot: [0, yaw + Math.PI, 0], plate: palette.stone, id, jitter: 0.3 });
+      b.label({ text, size: 0.3, pos: [cx + fx * 0.05, y + 2.64, cz + fz * 0.05], rot: [0, yaw, 0], plate: palette.marble, id: plate, jitter: 0.25, pad: 0.3 });
+      b.label({ text, size: 0.3, pos: [cx - fx * 0.05, y + 2.64, cz - fz * 0.05], rot: [0, yaw + Math.PI, 0], plate: palette.marble, id: plate, jitter: 0.25, pad: 0.3 });
     }
   }
-  for (const p of PATHS) {
-    if (p.kind !== 'branch') continue;
-    const from = p.stops[0];
-    const to = p.stops[p.stops.length - 1];
-    roadPoint(p.index, from.s + from.site.radius * 1.08, rp);
-    const side = -(p.width / 2 + 1.3);
-    const x = rp.x - rp.tz * side, z = rp.z + rp.tx * side;
-    const y = heightAt(x, z);
-    // The board's long side runs along the road and its point aims where the road goes.
-    const yaw = Math.atan2(-rp.tz, rp.tx);
+  // A street sign where each side street leaves its plaza: a pole and a blade naming where it goes.
+  for (const leg of LEGS) {
+    const p = PATHS[leg.road];
+    if (p.kind !== 'branch' || leg.sFrom !== p.stops[0].s) continue;
+    const to = p.stops[p.stops.length - 1].site;
+    roadPoint(p.index, leg.s0 + 5.2, rp);
+    const side = -(p.width / 2 + SIDEWALK.branch - 0.28);
+    const nx = -rp.tz, nz = rp.tx;
+    const x = rp.x + nx * side, z = rp.z + nz * side;
+    const y = rp.h + WALK_LIFT;
+    // The blade hangs square to the street on the grass side, so it reads on the way out and on the way back.
+    const yaw = Math.atan2(-rp.tx, -rp.tz);
     const fx = Math.sin(yaw), fz = Math.cos(yaw);
-    const wood = '#8a5a3a';
-    b.add(geo.cylinder(0.07, 0.09, 2.9, 7), { color: wood, pos: [x, y - 0.1, z] });
-    b.add(geo.cone(0.11, 0.22, 7), { color: THREAD_COLORS[to.site.thread], pos: [x, y + 2.78, z] });
+    const tone = THREAD_COLORS[to.thread];
+    const ink = to.thread === 'life' ? undefined : palette.marble;
+    b.add(geo.cylinder(0.13, 0.15, 0.16, round), { color: palette.marble, pos: [x, y, z] });
+    b.add(geo.cylinder(0.055, 0.065, 3.45, round), { color: palette.steel, pos: [x, y + 0.14, z] });
+    b.add(geo.sphere(0.1, round, 4), { color: palette.verdigris, pos: [x, y + 3.62, z] });
+    const text = to.name.replace(/^The /, '').toUpperCase();
+    const size = Math.min(0.23, 1.5 / Math.max(1, text.length * 0.78));
+    const bx = x - nx * 1.02, bz = z - nz * 1.02;
     const id = b.newId();
-    const bx = x + rp.tx * 0.55, bz = z + rp.tz * 0.55;
-    b.add(geo.extrude(ARM, 0.08, { cacheKey: 'fingerpost-arm' }), { color: palette.stone, pos: [bx, y + 2.3, bz], rot: [0, yaw, 0], id });
-    const text = to.site.name.replace(/^The /, '').toUpperCase();
-    const size = Math.min(0.2, 1.25 / Math.max(1, text.length * 0.78));
-    b.label({ text, size, pos: [bx - rp.tx * 0.12 + fx * 0.045, y + 2.3, bz - rp.tz * 0.12 + fz * 0.045], rot: [0, yaw, 0], plate: palette.stone, id, jitter: 0.3, pad: 0.2 });
-    b.label({ text, size, pos: [bx - rp.tx * 0.12 - fx * 0.045, y + 2.3, bz - rp.tz * 0.12 - fz * 0.045], rot: [0, yaw + Math.PI, 0], plate: palette.stone, id, jitter: 0.3, pad: 0.2 });
+    b.add(geo.bevelBox(1.9, 0.44, 0.06, 0.02), { color: tone, pos: [bx, y + 2.9, bz], rot: [0, yaw, 0], id });
+    b.add(geo.box(0.16, 0.5, 0.1), { color: palette.steel, pos: [x - nx * 0.04, y + 2.87, z - nz * 0.04], rot: [0, yaw, 0] });
+    b.label({ text, size, pos: [bx + fx * 0.035, y + 3.12, bz + fz * 0.035], rot: [0, yaw, 0], plate: tone, ink, id, jitter: 0.25, pad: 0.2 });
+    b.label({ text, size, pos: [bx - fx * 0.035, y + 3.12, bz - fz * 0.035], rot: [0, yaw + Math.PI, 0], plate: tone, ink, id, jitter: 0.25, pad: 0.2 });
+  }
+  // A marble balustrade along a few stretches of the rim: posts, a rail, a low kerb.
+  const railId = b.newId();
+  const runs: [number, number][] = low ? [[0.4, 0.4], [3.6, 0.35]] : [[0.4, 0.5], [2.0, 0.34], [3.6, 0.42], [5.1, 0.3]];
+  for (const [start, sweep] of runs) {
+    const bays = Math.round((sweep * WORLD_RADIUS) / 5.4);
+    let px = 0, py = 0, pz = 0;
+    for (let i = 0; i <= bays; i++) {
+      const t = start + (sweep * i) / bays;
+      const r = rimRadius(Math.cos(t) * 100, Math.sin(t) * 100) - 1.6;
+      const x = Math.cos(t) * r, z = Math.sin(t) * r;
+      const y = heightAt(x, z) - 0.1;
+      b.add(geo.box(0.36, 1.12, 0.36), { color: palette.marble, pos: [x, y, z], rot: [0, -t, 0], id: railId });
+      if (i > 0) {
+        const dx = x - px, dy = y - py, dz = z - pz;
+        const len = Math.hypot(dx, dz);
+        const yaw = Math.atan2(-dz, dx);
+        const tilt = Math.atan2(dy, len);
+        const mx = (x + px) / 2, mz = (z + pz) / 2, my = (y + py) / 2;
+        b.add(geo.box(1, 0.12, 0.2), { color: palette.marble, pos: [mx, my + 0.9, mz], rot: [0, yaw, tilt], scale: [Math.hypot(len, dy), 1, 1], id: railId });
+        b.add(geo.box(1, 0.1, 0.14), { color: palette.marbleShade, pos: [mx, my + 0.42, mz], rot: [0, yaw, tilt], scale: [Math.hypot(len, dy), 1, 1], id: railId });
+      }
+      px = x; py = y; pz = z;
+    }
   }
   const tris = b.triangles();
-  const mesh = b.build('markers');
-  group.add(mesh);
+  group.add(b.build('markers'));
   return tris;
 }
 
@@ -1019,19 +1597,22 @@ function buildMarkers(kit: InkKit, group: THREE.Group): number {
 // Everything
 // ---------------------------------------------------------------------------------------------
 
-/** The mesa: ground in nine chunks, the cliff, road slabs with their thread lines, year stones, fingerposts.
- *  Twelve draw calls. Lettering needs `await kit.ready` first. */
+/** The island: lawn in nine chunks, the cut face under it, the buried pipes and tunnel mouths, one mesh of
+ *  streets, plazas and painted lawn, and one of year lamps, street signs and the rim railing.
+ *  Thirteen draw calls. Lettering needs `await kit.ready` first. */
 export function buildTerrain(kit: InkKit, tier: QualityTier): { group: THREE.Group; triangles: number } {
   const group = new THREE.Group();
   group.name = 'terrain';
   let triangles = buildGround(kit, tier, group);
   triangles += buildSkirt(kit, tier, group);
+  triangles += buildUnderside(kit, tier, group);
   const raw = new Raw();
-  buildRoads(kit, raw);
-  buildCracks(raw, tier);
+  buildStreets(kit, raw, tier);
+  buildPlazas(kit, raw, tier);
+  buildDecals(raw, tier);
   triangles += raw.triangles;
-  group.add(raw.mesh(kit, 'roads'));
-  triangles += buildMarkers(kit, group);
+  group.add(raw.mesh(kit, 'streets'));
+  triangles += buildMarkers(kit, tier, group);
   return { group, triangles };
 }
 
