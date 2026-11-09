@@ -286,7 +286,74 @@ export interface Palette {
   bone: ColorLike;
   leaf: ColorLike;
   leafDeep: ColorLike;
+  grass: ColorLike;
+  grassLight: ColorLike;
+  grassDeep: ColorLike;
+  moss: ColorLike;
+  marble: ColorLike;
+  marbleShade: ColorLike;
+  brick: ColorLike;
+  brickDeep: ColorLike;
+  pave: ColorLike;
+  paveShade: ColorLike;
+  asphalt: ColorLike;
+  steel: ColorLike;
+  glass: ColorLike;
+  verdigris: ColorLike;
   skin: ColorLike;
   hair: ColorLike;
   shadow: ColorLike;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The world, as the interface layer sees it
+// ---------------------------------------------------------------------------------------------
+
+export interface WorldStats {
+  calls: number;
+  triangles: number;
+  fps: number;
+  frameMs: number;
+  pixelRatio: number;
+  tier: QualityTier;
+}
+
+/** A point of interest the visitor can act on. `entry` is null for things that are not content (the map table). */
+export interface PoiHit {
+  entry: Entry | null;
+  prompt: string;
+  action: 'entry' | 'map';
+}
+
+export interface WorldEvents {
+  /** 0..1 while the world is being built. */
+  progress: number;
+  ready: void;
+  /** The district the visitor stands in changed. Null out on the open sand. */
+  district: DistrictSite | null;
+  /** The thing in reach changed. Null when nothing is in reach. */
+  poi: PoiHit | null;
+  /** The visitor pressed the interact key, tapped the touch button or tapped a marker, with something in reach. */
+  interact: PoiHit;
+  /** Tier or pixel ratio changed. */
+  quality: WorldStats;
+  /** Fires once, the first time the visitor moves. */
+  moved: void;
+}
+
+export interface WorldApi {
+  ready: boolean;
+  isTouch: boolean;
+  on<K extends keyof WorldEvents>(event: K, cb: (payload: WorldEvents[K]) => void): () => void;
+  /** The visitor chose Walk in: hand over control, ease the camera from the title orbit to play framing. */
+  start(): void;
+  /** An overlay is open: input off, world keeps rendering at reduced cost. */
+  setPaused(paused: boolean): void;
+  teleport(target: DistrictId | Vec2, yaw?: number): void;
+  player(): { x: number; z: number; yaw: number; district: DistrictId | null };
+  stats(): WorldStats;
+  setQuality(tier: QualityTier | 'auto'): void;
+  /** Districts the visitor has stood in this session. */
+  visited(): DistrictId[];
+  touchRoot(el: HTMLElement | null): void;
 }

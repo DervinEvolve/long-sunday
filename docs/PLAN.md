@@ -4,18 +4,20 @@ Dimanche is French for Sunday. This is a walk through my working life, built as 
 
 The look comes from the comics of Moebius: even ink lines, flat gouache colour, violet shadows drawn as hatching, and skies that take up most of the frame.
 
+The place is a future Queens that floats. Brick walk-ups with rooftop gardens, an elevated train running on Roman aqueduct arches, marble colonnades standing in the middle of city blocks, and green on everything.
+
 ## 1. What a visitor gets
 
 1. A title card over the live world. Two choices: **Walk in**, or **Read the index**.
 2. The index is the thirty second route for a recruiter. Every entry in the world as a plain, accessible list. It is also what loads when WebGL is missing or reduced motion is on.
-3. Walking in puts you at the Trailhead as a teenager with a curly afro and an oversized orange jacket. A road runs uphill to the north. Every job I have held sits on that road in date order. Side roads lead to experiments and to life outside work.
-4. Two lines are inlaid in the road: coral for people work, teal for technology. They run side by side and become one line at the top, at the Observatory.
+3. Walking in puts you at the Trailhead as a teenager with a short curly afro and an oversized orange jacket. An avenue runs uphill to the north. Every job I have held sits on that avenue in date order. Side streets lead to experiments and to life outside work.
+4. Two lines are inlaid in the avenue like two lines on a subway map: coral for people work, teal for technology. They run side by side and become one line at the top, at the Observatory.
 5. Each district has objects you can walk up to. Press E, or tap, and a caption panel opens with what I did there, in my words, with links.
 6. The sky changes colour as you walk between districts. Things float that should not. It should feel like walking around inside someone's head.
 
 ## 2. The world
 
-A floating mesa about 470 metres across. The numbers below live in `src/world/layout.ts`.
+A floating island of city about 470 metres across, green on top, bedrock and old foundations underneath. The numbers below live in `src/world/layout.ts`.
 
 | District | What it holds | Years | Thread |
 |---|---|---|---|
@@ -35,30 +37,31 @@ A floating mesa about 470 metres across. The numbers below live in `src/world/la
 
 Every object named here is something a visitor can stand next to. Entry ids in brackets match `src/content/content.ts`. Each district also letters its own name somewhere a visitor sees on arrival.
 
-**Trailhead.** A white stone arch lettered LONG SUNDAY that frames the road north. A signpost with arms pointing to the other districts. A small college bell tower flying two flags for the two degrees [elms]. A tripod camera under a cloth beside a line of hanging prints [camera]. A subway stairwell with a green globe lamp for New York [about]. Three greeting stones cut with Hello, Bonjou, Bonjour [languages].
+**Trailhead.** A street corner at the bottom of the avenue. A marble triumphal arch lettered LONG SUNDAY that frames the avenue north. A street sign pole whose blades point to the other districts. A row of brick walk-ups with stoops and street trees behind. A small college bell tower flying two flags for the two degrees [elms]. A tripod camera under a cloth beside a line of hanging prints [camera]. A subway stairwell with a green globe lamp for New York [about]. Three greeting stones cut with Hello, Bonjou, Bonjour [languages].
 
-**Switchboard.** A field of leaning telephone poles whose wires all run to one giant plugboard wall with lit sockets [tek-recruiter]. Lights travel along the wires. A desk with two phones and a giant rolodex wheel taller than the visitor [tek-am]. Client names appear only as lettering on rolodex cards.
+**Switchboard.** A block of leaning utility poles whose wires all run to one giant plugboard wall on the side of a brick telephone exchange [tek-recruiter]. Lights travel along the wires. A desk on the pavement with two phones and a giant rolodex wheel taller than the visitor [tek-am]. Client names appear only as lettering on rolodex cards. Ivy is taking the exchange.
 
-**Commons.** A sunken amphitheatre with whiteboard monoliths and about 160 stools [interview-prep]. A tall beacon tower with a slow turning light [black-at-boston]. A long workbench under a string of lanterns [hackathon]. Four rising stepping stones lettered L3 to L6 beside a sourcing desk [meta-sourcer].
+**Commons.** A campus green. A sunken Greek theatre of marble steps with whiteboard monoliths and about 160 stools [interview-prep]. A tall beacon tower with a slow turning light [black-at-boston]. A long workbench under a string of lanterns between two trees [hackathon]. Four rising stepping stones lettered L3 to L6 beside a sourcing desk [meta-sourcer].
 
-**Cloud Terraces.** Stepped white terraces and domes on thin stalks above a floor of drifting cloud. Seven pods, each lettered with one team name [google-recruiter]. A sealed round vault door with a wheel lock set in a cliff [sovereign-vault]. Two steps of an enormous ladder lettered L7 and L8 that rise out of the cloud [l7-l8]. A round stone table with a rubric tablet and a ring of seats [committees].
+**Cloud Terraces.** Stepped white marble terraces with colonnades and hanging gardens, and domes on thin stalks above a floor of drifting cloud. Seven pods, each lettered with one team name [google-recruiter]. A sealed round vault door with a wheel lock set in a retaining wall [sovereign-vault]. Two steps of an enormous ladder lettered L7 and L8 that rise out of the cloud [l7-l8]. A round stone table with a rubric tablet and a ring of seats [committees].
 
-**Mask Garden.** A garden of tall mask monoliths, all original abstract geometric designs, in tiers of size [mask-pass]. A founder's stone at the entrance [diaspora-origin]. Six workbenches in a ring [diaspora-team]. A stage facing rows of seats [consensus-demo] with a four chair panel table to one side [consensus-panel]. A billboard film frame with price tags hanging off objects in the picture [tokenized-video]. Three free standing door frames, each showing a differently tinted world through it [ar-lenses]. A fork where one path withers and the other leads to a small lab shed [pivot].
+**Mask Garden.** A community garden on a city lot, walled on two sides by brick. Tall mask monoliths among the planting beds, all original abstract geometric designs, in tiers of size [mask-pass]. A founder's stone at the entrance [diaspora-origin]. Six workbenches in a ring [diaspora-team]. A stage facing rows of seats [consensus-demo] with a four chair panel table to one side [consensus-panel]. A billboard film frame with price tags hanging off objects in the picture [tokenized-video]. Three free standing door frames, each showing a differently tinted world through it [ar-lenses]. A fork where one path withers and the other leads to a small lab shed [pivot].
 
-**Observatory.** The highest ground. A dome with a brass telescope [msai-role]. Constellations hung low enough to walk under, drawn as dots and lines like an org chart of the sky [talent-map]. An orrery with seven orbs lettered pre-training, post-training, multimodal, speech, text, inference, data [model-teams]. A mechanical bird circling a perch [scout]. A small white pavilion with a single lamp, no medical symbols [mayo]. A drifting swarm of paper lanterns [agent-swarms]. A stack of giant pages and task tablets [pm-hiring]. The coral and teal road lines join at the dome door.
+**Observatory.** The highest ground. A domed rotunda on a ring of fluted columns with a brass telescope through the roof [msai-role]. Constellations hung low enough to walk under, drawn as dots and lines like an org chart of the sky [talent-map]. An orrery with seven orbs lettered pre-training, post-training, multimodal, speech, text, inference, data [model-teams]. A mechanical bird circling a perch [scout]. A small white pavilion with a single lamp, no medical symbols [mayo]. A drifting swarm of paper lanterns [agent-swarms]. A stack of giant pages and task tablets [pm-hiring]. The coral and teal lines join at the rotunda door.
 
-**Studio.** A giant watercolour sheet on an easel with a bloom spreading across it and three brushes standing in a jar, one per painter [backrun]. A wall of comic panels with a microphone on a stand in front [hon]. Photo cards orbiting a cloud of small discs [memory-visualizer]. A shelf of labelled jars [ai-notebook]. A brass spyglass on a tripod [talentsniper]. A card three metres tall with a portal cut out of it [collectible-card].
+**Studio.** A corner block of artist lofts with the roll-up door open onto a yard. A giant watercolour sheet on an easel with a bloom spreading across it and three brushes standing in a jar, one per painter [backrun]. A wall of comic panels with a microphone on a stand in front [hon]. Photo cards orbiting a cloud of small discs [memory-visualizer]. A shelf of labelled jars [ai-notebook]. A brass spyglass on a tripod [talentsniper]. A card three metres tall with a portal cut out of it [collectible-card].
 
-**Greenhouse.** A glass and brass house holding one large plant and five small work stations around it [observable-lab]. Rows of seedling trays with numbered tags, one tall plant and several withered ones [research-lab]. A desk with seven chairs facing a wall of charts and a sign that reads CANNOT ROUTE ORDERS [tradingos].
+**Greenhouse.** A glass and brass house in a garden lot, holding one large plant that has outgrown the roof and five small work stations around it [observable-lab]. Rows of seedling trays with numbered tags, one tall plant and several withered ones [research-lab]. A desk with seven chairs facing a wall of charts and a sign that reads CANNOT ROUTE ORDERS [tradingos].
 
-**Sky Harbor.** A pier running out into open sky. A sky whale circled by a swarm of krill [krill], with a canal lock of milestone gates on the pier. Wheels within wheels, rimmed with eyes, turning above a great listening horn [ophanim]. A desk with a lamp and a microphone under the wheels [ophanim-desktop]. A listening booth with a history book and a three needle tone dial [empathy-archives].
+**Sky Harbor.** An elevated train platform that carries on past the edge as a pier into open sky. A sky whale circled by a swarm of krill [krill], with a canal lock of milestone gates on the pier. Wheels within wheels, rimmed with eyes, turning above a great listening horn [ophanim]. A desk with a lamp and a microphone under the wheels [ophanim-desktop]. A listening booth with a history book and a three needle tone dial [empathy-archives].
 
-**Boneyard.** A sunken basin with bleached rib arches. A toppled giant phone with a face scan grid on its screen [tribe]. Two empty standing picture frames [empty-pages]. A half buried ankh key [ankh]. Two blank tablets [contracts]. Green seedlings growing out of the bones [seedlings]. The mood is fond.
+**Boneyard.** A sunken vacant lot. Toppled marble columns and bleached rib arches. A fallen giant phone with a face scan grid on its screen [tribe]. Two empty standing picture frames [empty-pages]. A half buried ankh key [ankh]. Two blank tablets [contracts]. Green seedlings growing out of the ruins [seedlings]. The mood is fond.
 
-**Postcards.** A ring of nine standing postcards, each three metres tall, with a flat colour scene: Jamaica, El Salvador, Cape Town, Lisbon, Cape Verde, Puerto Rico, Vienna, Morocco, Tokyo [one entry each]. A moored hot air balloon that opens the map for fast travel. A campfire with log seats [community].
+**Postcards.** A pocket park. A ring of nine standing postcards, each three metres tall, with a flat colour scene: Jamaica, El Salvador, Cape Town, Lisbon, Cape Verde, Puerto Rico, Vienna, Morocco, Tokyo [one entry each]. A moored hot air balloon that opens the map for fast travel. A campfire with log seats [community].
 
 ## 4. The look
 
+- **Setting.** A future Queens with Greek and Roman stone in it, grown over. Three materials carry it: green, marble and brick. Grass, street trees, ivy and rooftop gardens. Fluted columns, colonnades, arches and pediments, some whole and some fallen. Brick walk-ups with fire escapes and water towers, an elevated train on aqueduct arches, street lamps, stoops, crosswalks. Glass towers with planted terraces on the horizon. The streets are wide and quiet and nothing is in a hurry.
 - **Line.** Constant width indigo ink around every object and every change of plane. The line is drawn in screen space after the scene, so it stays the same weight near and far.
 - **Fill.** Flat colour with two or three bands of light. No gloss, no texture maps, no realistic shadow.
 - **Shadow.** Violet, as hatching that gets denser where the form turns away from the sun.
@@ -72,7 +75,7 @@ Every object named here is something a visitor can stand next to. Entry ids in b
 
 ## 5. The character
 
-A teenager, Black, with a big curly afro. An oversized orange techwear jacket with a high collar, goggles pushed up into the hair, dark cargo trousers with straps, chunky white trainers with teal soles. Built from simple rigid shapes so the ink line reads cleanly. Idle, walk and run cycles. The design is original.
+A teenager, Black, with a short curly afro that sits close to the head. An oversized orange techwear jacket with a high collar, goggles pushed up into the hair, dark cargo trousers with straps, chunky white trainers with teal soles. Built from simple rigid shapes so the ink line reads cleanly. Idle, walk and run cycles. The design is original.
 
 ## 6. Controls
 
@@ -105,9 +108,9 @@ One shared material draws everything. Meshes are built by a kit that merges many
 | `src/engine/kit.ts` | The builder, instancing helper and lettering atlas. Documented in `docs/KIT.md` |
 | `src/engine/quality.ts` | Quality tiers and adaptive resolution |
 | `src/engine/input.ts` | Keyboard, mouse, touch, gamepad |
-| `src/engine/terrain.ts` | `heightAt(x, z)`, the mesa, roads, year stones |
-| `src/engine/sky.ts` | Sky palette blending, clouds, floating things |
-| `src/engine/scatter.ts` | Rocks and plants between districts |
+| `src/engine/terrain.ts` | `heightAt(x, z)`, the island, the avenue and side streets, year markers |
+| `src/engine/sky.ts` | Sky palette blending, clouds, the far skyline, floating things |
+| `src/engine/scatter.ts` | The city between districts: trees, columns, walk-ups, the elevated line |
 | `src/engine/character.ts` | The visitor's figure and its animation |
 | `src/engine/controller.ts` | Movement, collision, the follow camera |
 | `src/engine/world.ts` | Loads districts, culls them, tracks points of interest |

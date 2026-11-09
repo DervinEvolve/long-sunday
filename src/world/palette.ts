@@ -2,6 +2,8 @@ import type { Palette } from '../types';
 
 // One palette for the whole world. Flat, slightly chalky colour, the way gouache sits on paper.
 // Shadows are violet, never grey. The ink is a dark indigo, never pure black.
+// The place is a future Queens with classical stone in it, so the big three are green, marble and brick.
+// The sand and rock tones stay for bedrock, bare lots and the underside of the island.
 export const palette: Palette = {
   ink: '#1c1a33',
   paper: '#f6ecd9',
@@ -27,6 +29,20 @@ export const palette: Palette = {
   bone: '#efe6d2',
   leaf: '#7fb85a',
   leafDeep: '#3f8a57',
+  grass: '#8cc56c',
+  grassLight: '#bfe08f',
+  grassDeep: '#4f9c62',
+  moss: '#6ea884',
+  marble: '#f5f0e8',
+  marbleShade: '#d6cde4',
+  brick: '#c8684e',
+  brickDeep: '#93433c',
+  pave: '#ece4d6',
+  paveShade: '#d2c8cf',
+  asphalt: '#6d6796',
+  steel: '#8e8fbc',
+  glass: '#a4dbe2',
+  verdigris: '#6fc0a8',
   skin: '#7a4a2e',
   hair: '#231a1c',
   shadow: '#5f4fa3',
