@@ -1,0 +1,551 @@
+/*
+  Long Sunday, the map. Tokens and the shared pieces are in tokens.css.
+  Three layouts: one column on an upright phone, chart beside the list on a screen that is well
+  wider than tall, and a floating panel where there is room to leave the world showing round it.
+*/
+
+.ui-map {
+  /* The chart's own colours: grass and paving washed toward the paper, and the violet of a drawn shadow. */
+  --map-land: #dbe8b9;
+  --map-pave: #f3ecde;
+  --map-drop: #b7a2e6;
+  --map-bar: 3.5rem;
+  --map-pad: var(--ls-s3);
+  --map-side: min(100%, 38rem, calc(100dvh - var(--map-bar) - 2 * var(--map-pad) - var(--ls-safe-top)));
+
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--ls-surface);
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity var(--ls-dur-out) var(--ls-ease-out);
+}
+
+.ui-map.is-open {
+  opacity: 1;
+  transition-duration: var(--ls-dur-in);
+}
+
+.ui-map__bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ls-s3);
+  min-height: var(--map-bar);
+  padding: calc(var(--ls-s2) + var(--ls-safe-top)) calc(var(--ls-edge) + var(--ls-safe-right)) calc(var(--ls-s2) + 3px)
+    calc(var(--ls-edge) + var(--ls-safe-left));
+  border-bottom: var(--ls-rule) solid var(--ls-line);
+}
+
+.ui-map__title {
+  font-size: var(--ls-text-md);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ui-map__body {
+  display: grid;
+  flex: 1;
+  grid-template-areas: 'chart' 'key' 'side';
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--ls-s3);
+  min-height: 0;
+  padding: var(--map-pad) calc(var(--ls-edge) + var(--ls-safe-right)) calc(var(--ls-s5) + var(--ls-safe-bottom))
+    calc(var(--ls-edge) + var(--ls-safe-left));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 0.6rem, #000 calc(100% - 1.25rem), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 0.6rem, #000 calc(100% - 1.25rem), transparent 100%);
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* The chart                                                                                    */
+/* ------------------------------------------------------------------------------------------- */
+
+.ui-map__chart {
+  position: relative;
+  grid-area: chart;
+  justify-self: center;
+  width: var(--map-side);
+  aspect-ratio: 1;
+  container-type: inline-size;
+}
+
+.ui-map__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ui-map__land,
+.ui-map__drop {
+  stroke: var(--ls-line);
+  stroke-width: 3.2;
+  stroke-linejoin: round;
+}
+
+.ui-map__land {
+  fill: var(--map-land);
+}
+
+.ui-map__drop {
+  fill: var(--map-drop);
+}
+
+/* Streets the way a transit map draws them: the thread colours laid straight onto an ink line, so
+   each colour has ink on both sides of it whatever the size of the chart. */
+.ui-map__casing path,
+.ui-map__threads path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ui-map__casing path {
+  stroke: var(--ls-line);
+}
+
+.ui-map__casing--spine {
+  stroke-width: 10;
+}
+
+.ui-map__casing--branch {
+  stroke-width: 6.6;
+}
+
+.ui-map__threads path {
+  stroke-width: 3;
+}
+
+.ui-map__north path {
+  fill: none;
+  stroke: var(--ls-line);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ui-map__north text {
+  font-family: var(--ls-font-display);
+  font-size: 19px;
+  fill: var(--ls-text);
+}
+
+/* A place on the chart: its round plaza, drawn to scale. The box that takes the press is never
+   smaller than a thumb, however small the plaza comes out. In px like the chart itself, so larger
+   text does not swell the boxes into each other. */
+.ui-map__place {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: max(44px, var(--plaza));
+  height: max(44px, var(--plaza));
+  padding: 0;
+  background: none;
+  border: 0;
+  /* Round, so two neighbours on a small chart never share a corner. */
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Bare paving with a spot of the district's colour, until the visitor has stood there. Then the
+   whole plaza is coloured in. */
+.ui-map__dot {
+  position: relative;
+  display: block;
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  background: var(--map-pave);
+  border: 2px solid var(--ls-line);
+  border-radius: 50%;
+}
+
+.ui-map__dot::after {
+  content: '';
+  position: absolute;
+  inset: 26%;
+  background: var(--place, var(--ls-action));
+  border: 1.5px solid var(--ls-line);
+  border-radius: 50%;
+}
+
+.is-seen > .ui-map__dot,
+.ui-map__dot.is-seen {
+  background: var(--place, var(--ls-action));
+}
+
+.is-seen > .ui-map__dot::after,
+.ui-map__dot.is-seen::after {
+  content: none;
+}
+
+.ui-map__place .ui-map__dot {
+  width: var(--plaza);
+  height: var(--plaza);
+  border-width: clamp(2px, 0.5cqw, 2.5px);
+}
+
+.ui-map__place.is-lit .ui-map__dot {
+  box-shadow: 0 0 0 2px var(--ls-surface), 0 0 0 5px var(--ls-line);
+}
+
+.ui-map__place:active .ui-map__dot {
+  transform: scale(0.88);
+}
+
+/* Sized from the chart, like lettering on a drawing. The list beside it carries the same names at reading size. */
+.ui-map__name {
+  position: absolute;
+  width: max-content;
+  max-width: 5.6em;
+  font-family: var(--ls-font-display);
+  font-size: 12px;
+  font-size: clamp(11px, 3.3cqw, 16px);
+  line-height: 1.05;
+  color: var(--ls-text);
+  text-shadow:
+    1.5px 0 0 var(--ls-surface),
+    -1.5px 0 0 var(--ls-surface),
+    0 1.5px 0 var(--ls-surface),
+    0 -1.5px 0 var(--ls-surface),
+    1px 1px 0 var(--ls-surface),
+    -1px 1px 0 var(--ls-surface),
+    1px -1px 0 var(--ls-surface),
+    -1px -1px 0 var(--ls-surface);
+}
+
+.ui-map__place--n .ui-map__name,
+.ui-map__place--s .ui-map__name {
+  left: 50%;
+  text-align: center;
+  transform: translateX(calc(-50% + var(--slide)));
+}
+
+.ui-map__place--n .ui-map__name {
+  bottom: calc(50% + var(--plaza) / 2 + 2px);
+}
+
+.ui-map__place--s .ui-map__name {
+  top: calc(50% + var(--plaza) / 2 + 3px);
+}
+
+.ui-map__place--e .ui-map__name,
+.ui-map__place--w .ui-map__name {
+  top: 50%;
+  transform: translateY(calc(-50% + var(--slide)));
+}
+
+.ui-map__place--e .ui-map__name {
+  left: calc(50% + var(--plaza) / 2 + 4px);
+  text-align: left;
+}
+
+.ui-map__place--w .ui-map__name {
+  right: calc(50% + var(--plaza) / 2 + 4px);
+  text-align: right;
+}
+
+/* On a chart too small to letter, the plazas stand alone and the list beside them does the naming. */
+@container (max-width: 270px) {
+  .ui-map__name {
+    display: none;
+  }
+}
+
+/* Where the visitor stands, pointing the way they face. */
+.ui-map__you {
+  position: absolute;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  width: clamp(22px, 6cqw, 32px);
+  height: clamp(22px, 6cqw, 32px);
+  pointer-events: none;
+}
+
+.ui-map__dart {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.ui-map__dart path {
+  fill: var(--ls-action);
+  stroke: var(--ls-line);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.ui-map__dart path:first-child {
+  fill: none;
+  stroke: var(--ls-surface);
+  stroke-width: 5.5;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-map__place:hover .ui-map__dot {
+    box-shadow: 0 0 0 2px var(--ls-surface), 0 0 0 5px var(--ls-line);
+  }
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* The key                                                                                      */
+/* ------------------------------------------------------------------------------------------- */
+
+.ui-map__key {
+  display: flex;
+  flex-wrap: wrap;
+  grid-area: key;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  gap: var(--ls-s1) var(--ls-s5);
+  /* Narrow enough to break two and two on a phone. */
+  max-width: 18rem;
+  padding: 0;
+  list-style: none;
+  font-size: var(--ls-text-xs);
+  line-height: var(--ls-leading-snug);
+}
+
+.ui-map__key li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  white-space: nowrap;
+}
+
+.ui-map__key .ui-map__dart {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.ui-map__key .ui-map__dot {
+  width: 1rem;
+  height: 1rem;
+}
+
+.ui-map__thread {
+  flex: none;
+  width: 1.5rem;
+  height: 0.5rem;
+  background: var(--thread);
+  border: 1.5px solid var(--ls-line);
+  border-radius: 0.25rem;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* The places, as a list                                                                        */
+/* ------------------------------------------------------------------------------------------- */
+
+.ui-map__side {
+  display: flex;
+  flex-direction: column;
+  grid-area: side;
+  gap: var(--ls-s2);
+  min-width: 0;
+}
+
+.ui-map__lede {
+  font-size: var(--ls-text-base);
+  line-height: var(--ls-leading-snug);
+}
+
+.ui-map__group {
+  margin-top: var(--ls-s2);
+  padding-bottom: var(--ls-s1);
+  font-size: var(--ls-text-sm);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ls-text-soft);
+  border-bottom: 2px solid var(--ls-line);
+}
+
+.ui-map__list {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-map__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ls-s3);
+  width: 100%;
+  min-height: var(--ls-tap);
+  padding: var(--ls-s1) var(--ls-s2);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--ls-radius-small);
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.ui-map__list li + li .ui-map__row {
+  box-shadow: 0 -1.5px 0 var(--ls-line-faint);
+}
+
+.ui-map__row:focus-visible {
+  outline-offset: -3px;
+}
+
+.ui-map__row:active {
+  background: var(--ls-surface-sunk);
+}
+
+.ui-map__row-names {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--ls-s2);
+  min-width: 0;
+}
+
+.ui-map__row-name {
+  font-family: var(--ls-font-display);
+  font-size: var(--ls-text-md);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.ui-map__row-years {
+  font-size: var(--ls-text-sm);
+  line-height: var(--ls-leading-snug);
+  color: var(--ls-text-soft);
+}
+
+/* At the far end of the line while there is room, on a line of its own when there is not. */
+.ui-map__row-state {
+  margin-left: auto;
+  font-size: var(--ls-text-xs);
+  line-height: var(--ls-leading-snug);
+  white-space: nowrap;
+  color: var(--ls-text-soft);
+}
+
+.ui-map__row[aria-current] .ui-map__row-state {
+  font-weight: 600;
+  color: var(--ls-text);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-map__row:hover {
+    background: var(--ls-surface-hover);
+  }
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Wider than tall: the chart on the left, the key and the list beside it                       */
+/* ------------------------------------------------------------------------------------------- */
+
+/* The second condition is the floating panel below, which builds on this layout. */
+@media (min-aspect-ratio: 4/3) and (min-width: 37.5rem), (min-width: 60rem) and (min-height: 44rem) {
+  .ui-map {
+    --map-pad: var(--ls-s2);
+    --map-side: min(
+      36rem,
+      calc(100dvh - var(--map-bar) - 2 * var(--map-pad) - var(--ls-safe-top) - var(--ls-safe-bottom)),
+      calc(100vw - 19rem - var(--ls-safe-left) - var(--ls-safe-right))
+    );
+  }
+
+  .ui-map__body {
+    grid-template-areas: 'chart key' 'chart side';
+    grid-template-columns: var(--map-side) minmax(0, 30rem);
+    grid-template-rows: auto minmax(0, 1fr);
+    align-content: stretch;
+    justify-content: center;
+    gap: var(--ls-s2) var(--ls-s4);
+    padding-bottom: calc(var(--map-pad) + var(--ls-safe-bottom));
+    overflow: hidden;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .ui-map__chart {
+    align-self: start;
+  }
+
+  .ui-map__key {
+    justify-content: flex-start;
+    justify-self: stretch;
+    gap: var(--ls-s1) var(--ls-s4);
+    max-width: none;
+  }
+
+  /* The list scrolls by itself here. It asks for no height of its own, so the chart sets the row. */
+  .ui-map__side {
+    contain: size;
+    padding: var(--ls-s2) 0 var(--ls-s5);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 0.5rem, #000 calc(100% - 1.25rem), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 0.5rem, #000 calc(100% - 1.25rem), transparent 100%);
+  }
+
+  .ui-map__side > * {
+    flex: none;
+  }
+}
+
+/* Room to spare: a panel, with the world still showing round it. */
+@media (min-width: 60rem) and (min-height: 44rem) {
+  .ui-map {
+    --map-pad: var(--ls-s4);
+    --map-side: min(36rem, calc(100dvh - 12rem), calc(100vw - min(27rem, 56vw)));
+
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    width: min(62rem, calc(100% - 2 * var(--ls-edge) - 6px));
+    max-height: calc(100% - 2 * var(--ls-edge) - 6px);
+    border: solid var(--ls-line);
+    border-width: var(--ls-rule-widths);
+    border-radius: var(--ls-radius-panel);
+    box-shadow: var(--ls-drop-panel);
+    transform: translate(-50%, -50%);
+  }
+
+  .ui-map__bar {
+    padding: var(--ls-s2) var(--ls-s2) calc(var(--ls-s2) + 3px) var(--ls-s4);
+    border-bottom-width: 2px;
+  }
+
+  .ui-map__body {
+    grid-template-areas: 'chart side' 'key side';
+    grid-template-rows: auto auto;
+    gap: var(--ls-s2) var(--ls-s5);
+    padding: var(--map-pad);
+  }
+
+  .ui-map__key {
+    justify-content: center;
+  }
+
+  .ui-map__side {
+    gap: var(--ls-s1);
+    padding-top: 0;
+  }
+}
+
+/* A mouse needs less room than a thumb, and with it the whole list fits beside the chart. */
+@media (hover: hover) and (pointer: fine) {
+  .ui-map__row {
+    min-height: 2.375rem;
+  }
+}

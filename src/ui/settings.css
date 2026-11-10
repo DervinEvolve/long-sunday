@@ -1,0 +1,296 @@
+/*
+  Long Sunday, the settings. Tokens and the shared pieces are in tokens.css.
+  A small panel in the middle of a wide screen, a sheet along the bottom of a phone.
+*/
+
+.ui-settings {
+  container-type: inline-size;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  width: min(26rem, calc(100% - 2 * var(--ls-edge) - var(--ls-safe-left) - var(--ls-safe-right) - 6px));
+  max-height: calc(100% - 2 * var(--ls-edge) - var(--ls-safe-top) - var(--ls-safe-bottom) - 6px);
+  pointer-events: auto;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity var(--ls-dur-out) var(--ls-ease-out);
+}
+
+.ui-settings.is-open {
+  opacity: 1;
+  transition-duration: var(--ls-dur-in);
+}
+
+.ui-settings__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ls-s3);
+  padding: var(--ls-s2) var(--ls-s2) var(--ls-s2) var(--ls-s4);
+  border-bottom: 2px solid var(--ls-line);
+}
+
+.ui-settings__title {
+  font-size: var(--ls-text-md);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ui-settings__close {
+  flex: none;
+  margin-bottom: 3px;
+}
+
+.ui-settings__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ls-s5);
+  min-height: 0;
+  padding: var(--ls-s4) var(--ls-s4) var(--ls-s5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 0.75rem, #000 calc(100% - 1.25rem), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 0.75rem, #000 calc(100% - 1.25rem), transparent 100%);
+}
+
+.ui-settings__body > * {
+  flex: none;
+}
+
+.ui-settings__set {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ls-s2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ui-settings__label {
+  padding: 0;
+  font-family: var(--ls-font-display);
+  font-size: var(--ls-text-md);
+  font-weight: 400;
+  line-height: var(--ls-leading-snug);
+}
+
+.ui-settings__set > legend {
+  margin-bottom: var(--ls-s2);
+}
+
+.ui-settings__note {
+  font-size: var(--ls-text-sm);
+  line-height: var(--ls-leading-snug);
+  color: var(--ls-text-soft);
+}
+
+/* One of four, as a row of lettered keys. The chosen one is pressed in and coloured. */
+.ui-seg {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--ls-s2);
+  padding-bottom: 4px;
+}
+
+.ui-seg__item {
+  position: relative;
+  display: block;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.ui-seg__face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--ls-tap);
+  padding: 0.25rem 0.25rem 0.3rem;
+  font-family: var(--ls-font-display);
+  font-size: var(--ls-text-base);
+  line-height: 1.2;
+  background: var(--ls-surface);
+  border: var(--ls-rule) solid var(--ls-line);
+  border-radius: var(--ls-radius-control);
+  box-shadow: var(--ls-drop-small);
+}
+
+.ui-seg__item input:checked + .ui-seg__face {
+  background: var(--ls-action);
+  color: var(--ls-action-text);
+  box-shadow: none;
+  transform: translateY(3px);
+}
+
+.ui-seg__item input:focus-visible + .ui-seg__face {
+  outline: 3px solid var(--ls-focus);
+  outline-offset: 3px;
+}
+
+.ui-seg__item:active .ui-seg__face {
+  box-shadow: 0 1px 0 var(--ls-drop);
+  transform: translateY(2px);
+}
+
+/* Too narrow for four in a row, or the text is set large: two and two. */
+@container (max-width: 21rem) {
+  .ui-seg {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* A box with a drawn tick. */
+.ui-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ls-s3);
+  min-height: var(--ls-tap);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.ui-check__box {
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: 0.1rem 0 0;
+  background: var(--ls-surface) center / 78% no-repeat;
+  border: var(--ls-rule) solid var(--ls-line);
+  border-radius: var(--ls-radius-small);
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.ui-check__box:checked {
+  background-color: var(--ls-action);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231c1a33' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 12.8l5 5L19.5 6.5'/%3E%3C/svg%3E");
+}
+
+.ui-check__box:active {
+  background-color: var(--ls-surface-sunk);
+}
+
+.ui-check__words {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* What does what: the key or the gesture on the left, the action on the right. */
+.ui-controls {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  font-size: var(--ls-text-sm);
+}
+
+.ui-controls__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ls-s4);
+  min-height: 2.25rem;
+  padding: var(--ls-s1) 0;
+  border-top: 1.5px solid var(--ls-line-faint);
+}
+
+.ui-controls dt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ui-controls dd {
+  flex: none;
+  margin: 0;
+  color: var(--ls-text-soft);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-seg__item:hover input:not(:checked) + .ui-seg__face,
+  .ui-check:hover .ui-check__box:not(:checked) {
+    background-color: var(--ls-surface-hover);
+  }
+}
+
+/* A phone held upright: a sheet along the bottom, like the caption. */
+@media (max-width: 40rem) {
+  .ui-settings {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    max-height: 88dvh;
+    padding-bottom: var(--ls-safe-bottom);
+    border-width: 3px 0 0;
+    border-radius: 10px 12px 0 0;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .ui-settings__head {
+    padding-left: calc(var(--ls-s4) + var(--ls-safe-left));
+    padding-right: calc(var(--ls-s2) + var(--ls-safe-right));
+  }
+
+  .ui-settings__body {
+    padding-left: calc(var(--ls-s4) + var(--ls-safe-left));
+    padding-right: calc(var(--ls-s4) + var(--ls-safe-right));
+  }
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Reduce motion, chosen here                                                                   */
+/* ------------------------------------------------------------------------------------------- */
+
+/* Switched on by hand: still the same few things the device setting stills. */
+.ui--calm .ui-btn,
+.ui--calm .ui-icon-btn,
+.ui--calm .ui-title__fill,
+.ui--calm .ls-touch,
+.ui--calm .ls-hint,
+.ui--calm .ls-base,
+.ui--calm .ls-knob,
+.ui--calm .ls-btn {
+  transition: none;
+}
+
+.ui--calm .ui-plate__name {
+  animation: none;
+}
+
+.ui--calm .ui-prompt:active {
+  transform: none;
+}
+
+/* Switched off by hand on a device that asks for it: give those things back. */
+@media (prefers-reduced-motion: reduce) {
+  .ui--lively .ui-btn,
+  .ui--lively .ui-icon-btn {
+    transition: transform var(--ls-dur-press) var(--ls-ease-out), box-shadow var(--ls-dur-press) var(--ls-ease-out);
+  }
+
+  .ui--lively .ui-title__fill {
+    transition: transform var(--ls-dur-in) var(--ls-ease-out);
+  }
+
+  .ui--lively .ui-plate__name {
+    animation-name: ui-letter;
+  }
+
+  .ui--lively .ui-prompt:active {
+    transform: translate(2px, 3px);
+  }
+}

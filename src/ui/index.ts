@@ -1,7 +1,8 @@
 // The interface shell. main.ts hands over the world and the #ui element. From here on the title card
 // decides when the walk starts.
 //
-// Seams for what comes next (the map, the settings, deep links), each in a file of its own:
+// The map, the settings and the address bar each live in a file of their own (map.ts, settings.ts,
+// links.ts) and are wired in below. The seams they hang from:
 //   getUi().overlays          open and close a panel, one at a time, the world paused behind it
 //   getUi().hud               addCornerButton() for the map and settings
 //   getUi().setMapHandler(fn) fn then runs on the M key, the touch map button and at map points
@@ -11,15 +12,19 @@
 //   tokens.css                every colour, size and rule as a CSS custom property
 import './tokens.css';
 import './ui.css';
-import type { DistrictId, WorldApi } from '../types';
+import type { DistrictId, Entry, WorldApi } from '../types';
 import { ENTRY_BY_ID } from '../content/content';
 import { SITE_BY_ID } from '../world/layout';
 import { createCaption } from './caption';
 import { el } from './dom';
 import { createHud, type Hud } from './hud';
 import { createIndex } from './indexPage';
+import { createLinks } from './links';
+import { MAP_ICON, createMap } from './map';
 import { createOverlays, type Overlays } from './overlay';
+import { SETTINGS_ICON, createSettings } from './settings';
 import { createTitle } from './title';
+import { MORE } from './wordsMore';
 
 export type { Overlays, OverlaySpec } from './overlay';
 export type { CornerButton, Hud } from './hud';
@@ -60,7 +65,7 @@ export function mountUi(world: WorldApi, root: HTMLElement): void {
     onIndex: () => index.open(),
     onPrompt: (hit) => {
       if (hit.action === 'entry') {
-        if (hit.entry) caption.open(hit.entry);
+        if (hit.entry) showEntry(hit.entry);
       } else hud.mapHandler()?.();
     },
   });
@@ -68,8 +73,15 @@ export function mountUi(world: WorldApi, root: HTMLElement): void {
   root.append(hud.el, title.el);
 
   const overlays = createOverlays(root, world);
-  const caption = createCaption(overlays);
+  const links = createLinks();
+  const caption = createCaption(links.watch(overlays));
   const index = createIndex(overlays, goThere);
+
+  // Every caption opens through here, so the address bar always names what is on screen.
+  function showEntry(entry: Entry): void {
+    caption.open(entry);
+    links.setEntry(entry.id);
+  }
 
   function walkIn(): void {
     if (walking) return;
@@ -83,6 +95,7 @@ export function mountUi(world: WorldApi, root: HTMLElement): void {
     // The world may have named the place before I was listening.
     const at = world.player().district;
     if (at) hud.setDistrict(SITE_BY_ID[at]);
+    links.begin(at);
     hud.show();
     world.start();
     if (wantPlace) {
@@ -104,7 +117,7 @@ export function mountUi(world: WorldApi, root: HTMLElement): void {
   function openEntry(id: string): boolean {
     const entry = ENTRY_BY_ID[id];
     if (!entry) return false;
-    caption.open(entry);
+    showEntry(entry);
     return true;
   }
 
@@ -115,12 +128,15 @@ export function mountUi(world: WorldApi, root: HTMLElement): void {
 
   world.on('progress', (p) => title.setProgress(p));
   world.on('ready', whenReady);
-  world.on('district', (site) => hud.setDistrict(site));
+  world.on('district', (site) => {
+    hud.setDistrict(site);
+    links.setDistrict(site ? site.id : null);
+  });
   world.on('poi', (hit) => hud.setPoi(hit));
   world.on('moved', () => hud.moved());
   world.on('interact', (hit) => {
     if (hit.action === 'entry') {
-      if (hit.entry) caption.open(hit.entry);
+      if (hit.entry) showEntry(hit.entry);
     } else hud.mapHandler()?.();
   });
   if (world.ready) whenReady();
@@ -135,7 +151,7 @@ export function mountUi(world: WorldApi, root: HTMLElement): void {
   readTouch();
   window.addEventListener('pointerdown', () => window.setTimeout(readTouch, 0), { passive: true });
 
-  // The map belongs to whoever builds it. These are its three ways in, dead until a handler is set.
+  // The three ways into the map: the M key, the touch map button and a map point in the world.
   // The touch map button is drawn by the input layer (.ls-map), which only raises a flag the world
   // does not pass on, so I listen for its click here.
   const openMap = (): void => {
@@ -147,12 +163,33 @@ export function mountUi(world: WorldApi, root: HTMLElement): void {
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'KeyM' || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.target instanceof Element && e.target.closest('input,textarea,select,[contenteditable]')) return;
-    openMap();
+    // The same key puts the map away again.
+    if (map.isOpen()) overlays.close();
+    else openMap();
   });
   function setMapHandler(fn: (() => void) | null): void {
     hud.setMapHandler(fn);
     root.classList.toggle('ui--map', fn !== null);
   }
+
+  const map = createMap({ world, overlays, go: goThere });
+  const settings = createSettings({ world, overlays, root });
+  hud.addCornerButton({ label: MORE.map, icon: MAP_ICON, text: MORE.map, onClick: () => map.open() });
+  hud.addCornerButton({ label: MORE.settings, icon: SETTINGS_ICON, onClick: () => settings.open() });
+  setMapHandler(() => map.open());
+
+  // A link can open straight at a place (#d=) or at a caption (#e=). Before the walk has started the
+  // title card stays up over that place, the same as the ?d= switch.
+  function follow(): void {
+    const { entry, district } = links.read();
+    const place = entry ? entry.district : district;
+    if (!place) return;
+    if (walking) overlays.close();
+    world.teleport(place);
+    if (entry) showEntry(entry);
+  }
+  follow();
+  links.onChange(follow);
 
   shell = { overlays, hud, openEntry, openIndex: () => index.open(), goThere, setMapHandler };
   if (window.__world) window.__world.openEntry = openEntry;
@@ -166,18 +203,29 @@ export function mountFallback(root: HTMLElement): void {
   const title = createTitle({ onWalk: null, onIndex: () => index.open() });
   root.appendChild(title.el);
   const overlays = createOverlays(root, null);
-  const caption = createCaption(overlays);
+  const links = createLinks();
+  const caption = createCaption(links.watch(overlays));
   const index = createIndex(overlays, null);
+
+  function openEntry(id: string): boolean {
+    const entry = ENTRY_BY_ID[id];
+    if (!entry) return false;
+    caption.open(entry);
+    links.setEntry(id);
+    return true;
+  }
+  // No places to stand in here, but a link to a caption still opens it.
+  const follow = (): void => {
+    const { entry } = links.read();
+    if (entry) openEntry(entry.id);
+  };
+  follow();
+  links.onChange(follow);
 
   shell = {
     overlays,
     hud: null,
-    openEntry(id) {
-      const entry = ENTRY_BY_ID[id];
-      if (!entry) return false;
-      caption.open(entry);
-      return true;
-    },
+    openEntry,
     openIndex: () => index.open(),
     goThere() {},
     setMapHandler() {},

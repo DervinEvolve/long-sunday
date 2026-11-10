@@ -1,0 +1,7 @@
+/*
+  A link can open a caption before the walk has started. The title card waits out of sight behind
+  it, so it does not offer buttons that cannot be pressed yet, and comes back when the caption closes.
+*/
+.ui--overlay .ui-title {
+  opacity: 0;
+}
