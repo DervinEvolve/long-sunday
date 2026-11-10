@@ -1,0 +1,371 @@
+/*
+  Long Sunday, interface tokens.
+  One place for paper, ink, the accent, type, spacing and the comic panel rule.
+  Light only. Everything the interface draws sits inside #ui and reads from here.
+*/
+
+:root {
+  /* Palette. The same paper and ink the world is drawn with. */
+  --ls-paper: #f6ecd9;
+  --ls-paper-deep: #ecdfc6;
+  --ls-ink: #1c1a33;
+  --ls-ink-soft: #4b4763;
+  --ls-accent: #ef7a1e;
+  --ls-accent-deep: #b04907;
+
+  /* Roles. Components use these, never the palette steps. */
+  --ls-surface: var(--ls-paper);
+  --ls-surface-sunk: var(--ls-paper-deep);
+  --ls-text: var(--ls-ink);
+  --ls-text-soft: var(--ls-ink-soft);
+  --ls-line: var(--ls-ink);
+  --ls-line-faint: rgba(28, 26, 51, 0.22);
+  --ls-action: var(--ls-accent);
+  --ls-action-text: var(--ls-ink);
+  --ls-action-hover: #f58a34;
+  --ls-surface-hover: #fff7e6;
+  --ls-stamp: var(--ls-accent-deep);
+  --ls-focus: var(--ls-accent-deep);
+  --ls-drop: var(--ls-ink);
+
+  /* Type. Hand lettering for display, a plain system face for reading. */
+  --ls-font-display: 'Architects Daughter', 'Comic Sans MS', 'Segoe Print', 'Bradley Hand', cursive;
+  --ls-font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --ls-text-xs: 0.8125rem;
+  --ls-text-sm: 0.9375rem;
+  --ls-text-base: 1rem;
+  --ls-text-md: 1.125rem;
+  --ls-text-lg: 1.375rem;
+  --ls-text-xl: 1.75rem;
+  --ls-text-2xl: 2.25rem;
+  --ls-text-title: clamp(2rem, 11vw, 3rem);
+  --ls-leading-tight: 1.1;
+  --ls-leading-snug: 1.3;
+  --ls-leading-body: 1.55;
+
+  /* Spacing. */
+  --ls-s1: 0.25rem;
+  --ls-s2: 0.5rem;
+  --ls-s3: 0.75rem;
+  --ls-s4: 1rem;
+  --ls-s5: 1.5rem;
+  --ls-s6: 2rem;
+  --ls-s7: 3rem;
+
+  /* The panel rule: an ink line that is a little heavier on two sides, with corners that do not match. */
+  --ls-rule: 2.5px;
+  --ls-rule-widths: 2.5px 3px 3.5px 2.5px;
+  --ls-radius-panel: 5px 9px 6px 10px;
+  --ls-radius-control: 4px 7px 5px 8px;
+  --ls-radius-small: 3px 5px 4px 6px;
+  --ls-drop-panel: 5px 6px 0 var(--ls-drop);
+  --ls-drop-control: 0 4px 0 var(--ls-drop);
+  --ls-drop-small: 0 3px 0 var(--ls-drop);
+
+  /* Sizes. */
+  --ls-tap: 2.75rem;
+  --ls-measure: 38rem;
+
+  /* Screen edges, clear of notches and home bars. */
+  --ls-safe-top: env(safe-area-inset-top, 0px);
+  --ls-safe-right: env(safe-area-inset-right, 0px);
+  --ls-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ls-safe-left: env(safe-area-inset-left, 0px);
+  --ls-edge: clamp(0.75rem, 2.4vw, 1.5rem);
+
+  /* Motion. Short, and closing is quicker than opening. */
+  --ls-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ls-dur-press: 100ms;
+  --ls-dur-in: 220ms;
+  --ls-dur-out: 150ms;
+
+  /* Layers inside #ui. The touch controls sit at 0. */
+  --ls-z-hud: 10;
+  --ls-z-title: 20;
+  --ls-z-backdrop: 30;
+  --ls-z-overlay: 40;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Base, scoped to the interface root                                                           */
+/* ------------------------------------------------------------------------------------------- */
+
+#ui {
+  font-family: var(--ls-font-body);
+  font-size: var(--ls-text-base);
+  line-height: var(--ls-leading-body);
+  color: var(--ls-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(#ui) *,
+:where(#ui) *::before,
+:where(#ui) *::after {
+  box-sizing: border-box;
+}
+
+#ui [hidden] {
+  display: none !important;
+}
+
+:where(#ui) h1,
+:where(#ui) h2,
+:where(#ui) h3,
+:where(#ui) h4,
+:where(#ui) p,
+:where(#ui) ul {
+  margin: 0;
+}
+
+:where(#ui) h1,
+:where(#ui) h2,
+:where(#ui) h3,
+:where(#ui) h4 {
+  font-family: var(--ls-font-display);
+  font-weight: 400;
+  line-height: var(--ls-leading-tight);
+  text-wrap: balance;
+}
+
+:where(#ui) p,
+:where(#ui) li {
+  text-wrap: pretty;
+}
+
+:where(#ui) button {
+  font: inherit;
+  color: inherit;
+  margin: 0;
+}
+
+:where(#ui) button,
+:where(#ui) a,
+:where(#ui) summary {
+  touch-action: manipulation;
+}
+
+:where(#ui) button,
+:where(#ui) summary {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+:where(#ui) :focus {
+  outline: none;
+}
+
+:where(#ui) :focus-visible {
+  outline: 3px solid var(--ls-focus);
+  outline-offset: 3px;
+}
+
+/* Read aloud, not drawn. */
+.ui-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Shared pieces                                                                                */
+/* ------------------------------------------------------------------------------------------- */
+
+/* A comic panel: opaque paper, the uneven ink rule, a hard drop. */
+.ui-panel {
+  background: var(--ls-surface);
+  color: var(--ls-text);
+  border: solid var(--ls-line);
+  border-width: var(--ls-rule-widths);
+  border-radius: var(--ls-radius-panel);
+  box-shadow: var(--ls-drop-panel);
+}
+
+/* A lettered button. */
+.ui-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ls-s2);
+  min-height: var(--ls-tap);
+  padding: 0.4rem 1.05rem 0.45rem;
+  font-family: var(--ls-font-display);
+  font-size: var(--ls-text-md);
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  white-space: nowrap;
+  color: var(--ls-text);
+  background: var(--ls-surface);
+  border: var(--ls-rule) solid var(--ls-line);
+  border-radius: var(--ls-radius-control);
+  box-shadow: var(--ls-drop-control);
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: transform var(--ls-dur-press) var(--ls-ease-out), box-shadow var(--ls-dur-press) var(--ls-ease-out);
+}
+
+.ui-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--ls-drop);
+}
+
+.ui-btn--primary {
+  background: var(--ls-action);
+  color: var(--ls-action-text);
+}
+
+.ui-btn--small {
+  min-height: var(--ls-tap);
+  padding: 0.25rem 0.8rem 0.3rem;
+  font-size: var(--ls-text-base);
+  box-shadow: var(--ls-drop-small);
+}
+
+.ui-btn--small:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--ls-drop);
+}
+
+.ui-btn[aria-disabled='true'] {
+  cursor: progress;
+}
+
+.ui-btn svg {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* A square button that is only an icon. Always carries an aria-label. */
+.ui-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--ls-tap);
+  height: var(--ls-tap);
+  padding: 0;
+  color: var(--ls-text);
+  background: var(--ls-surface);
+  border: var(--ls-rule) solid var(--ls-line);
+  border-radius: var(--ls-radius-control);
+  box-shadow: var(--ls-drop-small);
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: transform var(--ls-dur-press) var(--ls-ease-out), box-shadow var(--ls-dur-press) var(--ls-ease-out);
+}
+
+.ui-icon-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--ls-drop);
+}
+
+.ui-icon-btn svg {
+  width: 1.375rem;
+  height: 1.375rem;
+}
+
+.ui-icon {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-btn:hover,
+  .ui-icon-btn:hover {
+    background: var(--ls-surface-hover);
+  }
+
+  .ui-btn--primary:hover {
+    background: var(--ls-action-hover);
+  }
+}
+
+/* A key on the keyboard. */
+.ui-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.7em;
+  height: 1.7em;
+  padding: 0 0.35em;
+  font-family: var(--ls-font-display);
+  font-size: 0.95em;
+  line-height: 1;
+  color: var(--ls-text);
+  background: var(--ls-surface);
+  border: 2px solid var(--ls-line);
+  border-bottom-width: 4px;
+  border-radius: var(--ls-radius-small);
+}
+
+/* A rubber stamp: status, pressed on a little crooked. */
+.ui-stamp {
+  display: inline-block;
+  flex: none;
+  padding: 0.12em 0.5em 0.08em;
+  font-family: var(--ls-font-display);
+  font-size: var(--ls-text-sm);
+  line-height: 1.25;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ls-stamp);
+  border: 2px solid var(--ls-stamp);
+  border-radius: var(--ls-radius-small);
+  transform: rotate(-3deg);
+}
+
+/* A link in running text. */
+.ui-link {
+  color: var(--ls-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--ls-accent-deep);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+  overflow-wrap: anywhere;
+  border-radius: 2px;
+}
+
+.ui-link svg {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-left: 0.25em;
+  vertical-align: -0.05em;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-link:hover {
+    color: var(--ls-accent-deep);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-btn,
+  .ui-icon-btn {
+    transition: none;
+  }
+}

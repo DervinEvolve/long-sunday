@@ -1,0 +1,798 @@
+/*
+  Long Sunday, the interface itself. Tokens and the shared pieces are in tokens.css.
+  #ui lets every press through to the world, so each piece that takes presses says so.
+*/
+
+/* ------------------------------------------------------------------------------------------- */
+/* Keys or thumbs                                                                               */
+/* ------------------------------------------------------------------------------------------- */
+
+.ui:not(.ui--touch) .ui-only-touch,
+.ui--touch .ui-only-keys {
+  display: none !important;
+}
+
+/* No world to draw: flat paper behind the card. */
+.ui--flat {
+  background: var(--ls-surface-sunk);
+  pointer-events: auto;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Title card                                                                                   */
+/* ------------------------------------------------------------------------------------------- */
+
+.ui-title {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ls-z-title);
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: calc(var(--ls-edge) + var(--ls-safe-top)) calc(var(--ls-edge) + var(--ls-safe-right))
+    calc(var(--ls-edge) + var(--ls-safe-bottom)) calc(var(--ls-edge) + var(--ls-safe-left));
+  pointer-events: none;
+  transition: opacity var(--ls-dur-out) var(--ls-ease-out);
+}
+
+.ui-title.is-gone {
+  opacity: 0;
+}
+
+.ui-title.is-gone .ui-title__card {
+  pointer-events: none;
+}
+
+.ui-title__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ls-s3);
+  width: min(100%, 25rem);
+  max-height: 100%;
+  margin-right: 6px;
+  margin-bottom: 6px;
+  padding: var(--ls-s5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+}
+
+.ui-title__owner {
+  font-family: var(--ls-font-display);
+  font-size: var(--ls-text-md);
+  line-height: var(--ls-leading-snug);
+}
+
+.ui-title__name {
+  margin-top: calc(var(--ls-s2) * -1);
+  font-size: var(--ls-text-title);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.ui-title__what {
+  font-size: var(--ls-text-md);
+  line-height: var(--ls-leading-snug);
+}
+
+.ui-title__note {
+  font-size: var(--ls-text-sm);
+  color: var(--ls-text-soft);
+}
+
+.ui-title__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--ls-s3);
+}
+
+.ui-title__label {
+  flex: none;
+  font-size: var(--ls-text-xs);
+  line-height: var(--ls-leading-snug);
+  color: var(--ls-text-soft);
+}
+
+.ui-title__track {
+  flex: 1;
+  min-width: 2rem;
+  height: 6px;
+  overflow: hidden;
+  background: var(--ls-surface-sunk);
+  border: 1.5px solid var(--ls-line);
+  border-radius: 3px;
+}
+
+.ui-title__fill {
+  height: 100%;
+  background: var(--ls-line);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--ls-dur-in) var(--ls-ease-out);
+}
+
+.ui-title__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ls-s3);
+  padding-bottom: 4px;
+}
+
+.ui-title__help {
+  font-size: var(--ls-text-xs);
+  line-height: 1.9;
+  color: var(--ls-text-soft);
+}
+
+.ui-title__help .ui-key {
+  margin-right: 2px;
+}
+
+.ui-title__help.ui-only-touch {
+  line-height: var(--ls-leading-body);
+}
+
+@media (max-height: 26rem) {
+  .ui-title__card {
+    gap: var(--ls-s2);
+    padding: var(--ls-s3) var(--ls-s4);
+  }
+}
+
+/* A narrow phone: keep the two buttons on one line so the card stays low. */
+@media (max-width: 24rem) {
+  .ui-title__card {
+    padding: var(--ls-s4);
+  }
+
+  .ui-title__actions {
+    gap: var(--ls-s2);
+  }
+
+  .ui-title__actions .ui-btn {
+    padding-inline: 0.75rem;
+  }
+}
+
+/* Nothing behind the card to keep clear of, so it takes the middle. */
+.ui--flat .ui-title {
+  align-items: center;
+  justify-content: center;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* HUD                                                                                          */
+/* ------------------------------------------------------------------------------------------- */
+
+.ui-hud {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ls-z-hud);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--ls-dur-in) var(--ls-ease-out), visibility 0s linear var(--ls-dur-in);
+}
+
+.ui-hud.is-on {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+/* The top row: the place name on the left, the buttons on the right. */
+.ui-hud__top {
+  position: absolute;
+  top: calc(var(--ls-edge) + var(--ls-safe-top));
+  left: calc(var(--ls-edge) + var(--ls-safe-left));
+  right: calc(var(--ls-edge) + var(--ls-safe-right));
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ls-s3);
+}
+
+.ui-hud__corner {
+  display: flex;
+  flex: none;
+  gap: var(--ls-s2);
+  margin-left: auto;
+  pointer-events: auto;
+}
+
+/* The name of the place, lettered in on arrival. */
+.ui-plate {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--ls-s2) var(--ls-s4) calc(var(--ls-s2) + 1px);
+  background: var(--ls-surface);
+  border: solid var(--ls-line);
+  border-width: var(--ls-rule-widths);
+  border-radius: var(--ls-radius-control);
+  opacity: 0;
+  transition: opacity 400ms var(--ls-ease-out);
+}
+
+.ui-plate.is-on {
+  opacity: 1;
+  transition-duration: var(--ls-dur-in);
+}
+
+.ui-plate__name {
+  font-family: var(--ls-font-display);
+  font-size: var(--ls-text-xl);
+  line-height: 1.15;
+  animation: ui-letter 500ms steps(12, end) both;
+}
+
+.ui-plate__years {
+  font-size: var(--ls-text-sm);
+  line-height: var(--ls-leading-snug);
+  color: var(--ls-text-soft);
+}
+
+@keyframes ui-letter {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* A narrow screen: the buttons keep the top line and the name goes under them. */
+@media (max-width: 30rem) {
+  .ui-hud__top {
+    flex-direction: column-reverse;
+  }
+
+  .ui-plate__name {
+    font-size: var(--ls-text-lg);
+  }
+}
+
+/* Over the world a ring needs paper under it to be seen against any sky. */
+.ui-hud :focus-visible {
+  box-shadow: 0 0 0 3px var(--ls-surface);
+}
+
+/* An open panel has the page to itself. */
+.ui--overlay .ui-hud.is-on {
+  opacity: 0;
+  transition-duration: var(--ls-dur-out);
+}
+
+/* The touch map button is drawn by the input layer. It stays away until there is a map to open. */
+.ui:not(.ui--map) .ls-map {
+  display: none;
+}
+
+/* The hint and the prompt, low and centred. */
+.ui-hud__low {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--ls-edge) + var(--ls-safe-bottom));
+  display: grid;
+  justify-items: center;
+  align-items: end;
+  width: max-content;
+  max-width: calc(100% - 2 * var(--ls-edge) - var(--ls-safe-left) - var(--ls-safe-right));
+  transform: translateX(-50%);
+  transition: opacity var(--ls-dur-out) var(--ls-ease-out);
+}
+
+/* One slot for the hint and the prompt. When both are up the hint steps onto the prompt's shoulders:
+   the first thing in reach is right at the start, and the hint has to be read there too. */
+.ui-hud__low > * {
+  grid-area: 1 / 1;
+}
+
+.ui-hud__low.has-prompt .ui-hint {
+  align-self: start;
+  transform: translateY(calc(-100% - var(--ls-s2)));
+}
+
+/* On a touch screen the stick and the look button own the bottom corners. Where there is room the
+   prompt sits between them. On an upright phone there is none, so it goes above them. */
+.ui--touch .ui-hud__low {
+  bottom: calc(26px + var(--ls-safe-bottom));
+  max-width: calc(100% - 2 * 184px - var(--ls-safe-left) - var(--ls-safe-right));
+}
+
+@media (max-width: 40rem) and (min-height: 421px) {
+  .ui--touch .ui-hud__low {
+    bottom: calc(192px + var(--ls-safe-bottom));
+    max-width: calc(100% - 2 * var(--ls-edge) - var(--ls-safe-left) - var(--ls-safe-right));
+  }
+}
+
+.ui-hint,
+.ui-prompt {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--ls-dur-out) var(--ls-ease-out), visibility 0s linear var(--ls-dur-out);
+}
+
+/* Only once the HUD itself is up. Something can be in reach before the walk starts, and a prompt
+   that set itself visible under the hidden HUD would take presses and the first Tab on the title. */
+.ui-hud.is-on .ui-hint.is-on,
+.ui-hud.is-on .ui-prompt.is-on {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--ls-dur-in) var(--ls-ease-out), visibility 0s;
+}
+
+.ui-hint {
+  padding: var(--ls-s1) var(--ls-s3);
+  font-size: var(--ls-text-sm);
+  line-height: 1.9;
+  text-align: center;
+  background: var(--ls-surface);
+  border: 2px solid var(--ls-line);
+  border-radius: var(--ls-radius-small);
+}
+
+.ui-hint .ui-key {
+  margin-right: 2px;
+}
+
+/* No key caps to make room for. */
+.ui--touch .ui-hint {
+  padding-block: var(--ls-s2);
+  line-height: var(--ls-leading-snug);
+}
+
+.ui-prompt {
+  display: flex;
+  align-items: center;
+  gap: var(--ls-s3);
+  min-height: 3.25rem;
+  max-width: 100%;
+  padding: var(--ls-s2) var(--ls-s4);
+  text-align: left;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.ui-prompt:active {
+  transform: translate(2px, 3px);
+  box-shadow: 2px 2px 0 var(--ls-drop);
+}
+
+.ui-prompt .ui-key {
+  flex: none;
+  font-size: var(--ls-text-md);
+}
+
+.ui-prompt__words {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ui-prompt__do {
+  font-size: var(--ls-text-xs);
+  line-height: var(--ls-leading-snug);
+  color: var(--ls-text-soft);
+}
+
+.ui-prompt__what {
+  font-family: var(--ls-font-display);
+  font-size: var(--ls-text-md);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.ui--touch .ui-prompt {
+  min-height: 3.75rem;
+  padding: var(--ls-s3) var(--ls-s5);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-prompt:hover {
+    background: var(--ls-surface-hover);
+  }
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Overlays                                                                                     */
+/* ------------------------------------------------------------------------------------------- */
+
+/* Catches a press outside the open panel. It draws nothing, so the world stays in view. */
+.ui-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ls-z-backdrop);
+  pointer-events: auto;
+}
+
+.ui-overlays {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ls-z-overlay);
+  pointer-events: none;
+}
+
+/* The panel takes focus so the keyboard starts inside it. It needs no ring for that. */
+.ui-overlays > :focus-visible {
+  outline: none;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Caption                                                                                      */
+/* ------------------------------------------------------------------------------------------- */
+
+.ui-caption {
+  position: absolute;
+  top: 50%;
+  right: calc(var(--ls-edge) + var(--ls-safe-right) + 6px);
+  display: flex;
+  flex-direction: column;
+  width: min(24rem, calc(100% - 2 * var(--ls-edge) - var(--ls-safe-left) - var(--ls-safe-right) - 6px));
+  max-height: calc(100% - 2 * var(--ls-edge) - var(--ls-safe-top) - var(--ls-safe-bottom) - 6px);
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity var(--ls-dur-out) var(--ls-ease-out);
+}
+
+.ui-caption.is-open {
+  opacity: 1;
+  transition-duration: var(--ls-dur-in);
+}
+
+.ui-caption__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ls-s3);
+  padding: var(--ls-s2) var(--ls-s2) var(--ls-s2) var(--ls-s4);
+  border-bottom: 2px solid var(--ls-line);
+}
+
+.ui-caption__where {
+  min-width: 0;
+  font-family: var(--ls-font-display);
+  font-size: var(--ls-text-sm);
+  line-height: var(--ls-leading-snug);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ui-caption__close {
+  flex: none;
+  margin-bottom: 3px;
+}
+
+.ui-caption__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ls-s3);
+  min-height: 0;
+  padding: var(--ls-s4) var(--ls-s4) var(--ls-s5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 0.75rem, #000 calc(100% - 1.25rem), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 0.75rem, #000 calc(100% - 1.25rem), transparent 100%);
+}
+
+.ui-caption__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ls-s2) var(--ls-s3);
+}
+
+.ui-caption__title {
+  font-size: var(--ls-text-xl);
+  overflow-wrap: anywhere;
+}
+
+.ui-caption__blurb {
+  font-size: var(--ls-text-base);
+}
+
+/* A phone held upright: a sheet along the bottom, so the thing itself stays in view above it. */
+@media (max-width: 40rem) {
+  .ui-caption {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    max-height: 64dvh;
+    padding-bottom: var(--ls-safe-bottom);
+    border-width: 3px 0 0;
+    border-radius: 10px 12px 0 0;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .ui-caption__head {
+    padding-left: calc(var(--ls-s4) + var(--ls-safe-left));
+    padding-right: calc(var(--ls-s2) + var(--ls-safe-right));
+  }
+
+  .ui-caption__body {
+    padding-left: calc(var(--ls-s4) + var(--ls-safe-left));
+    padding-right: calc(var(--ls-s4) + var(--ls-safe-right));
+  }
+}
+
+/* A small phone on its side: the sheet may take nearly all of the little height there is. */
+@media (max-width: 40rem) and (max-height: 26rem) {
+  .ui-caption {
+    max-height: 88dvh;
+  }
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* One entry, as the caption and the index both draw it                                         */
+/* ------------------------------------------------------------------------------------------- */
+
+.ui-entry__meta {
+  font-size: var(--ls-text-sm);
+  line-height: var(--ls-leading-snug);
+  color: var(--ls-text-soft);
+}
+
+.ui-entry__facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ls-s2);
+  padding-left: 1.15rem;
+  font-size: var(--ls-text-sm);
+}
+
+.ui-entry__facts li::marker {
+  color: var(--ls-text-soft);
+}
+
+.ui-entry__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--ls-s5);
+  padding: 0;
+  list-style: none;
+  font-size: var(--ls-text-sm);
+}
+
+.ui-entry__links .ui-link,
+.ui-contact .ui-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ls-tap);
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* The index                                                                                    */
+/* ------------------------------------------------------------------------------------------- */
+
+.ui-index {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block-start: 5.5rem;
+  background: var(--ls-surface);
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity var(--ls-dur-out) var(--ls-ease-out);
+}
+
+.ui-index.is-open {
+  opacity: 1;
+  transition-duration: var(--ls-dur-in);
+}
+
+.ui-index__bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ls-s3);
+  padding: calc(var(--ls-s2) + var(--ls-safe-top)) calc(var(--ls-edge) + var(--ls-safe-right)) calc(var(--ls-s2) + 3px)
+    calc(var(--ls-edge) + var(--ls-safe-left));
+  background: var(--ls-surface);
+  border-bottom: var(--ls-rule) solid var(--ls-line);
+}
+
+.ui-index__mark {
+  white-space: nowrap;
+  font-family: var(--ls-font-display);
+  font-size: var(--ls-text-md);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ui-index__page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ls-s6);
+  max-width: calc(var(--ls-measure) + 2 * var(--ls-edge));
+  margin: 0 auto;
+  padding: var(--ls-s6) calc(var(--ls-edge) + var(--ls-safe-right)) calc(var(--ls-s7) + var(--ls-safe-bottom))
+    calc(var(--ls-edge) + var(--ls-safe-left));
+}
+
+.ui-index__intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ls-s3);
+}
+
+.ui-index__sub {
+  font-family: var(--ls-font-display);
+  font-size: var(--ls-text-md);
+  line-height: var(--ls-leading-snug);
+}
+
+.ui-index__title {
+  font-size: var(--ls-text-2xl);
+}
+
+.ui-index__lede {
+  font-size: var(--ls-text-md);
+}
+
+.ui-index__note {
+  font-size: var(--ls-text-sm);
+  color: var(--ls-text-soft);
+}
+
+.ui-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--ls-s5);
+  padding: 0;
+  list-style: none;
+}
+
+/* A quiet label over each run of districts. */
+.ui-index__group {
+  padding-bottom: var(--ls-s2);
+  font-size: var(--ls-text-base);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ls-text-soft);
+  border-bottom: 2px solid var(--ls-line);
+}
+
+.ui-district {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ls-s2);
+}
+
+.ui-district__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ls-s3);
+}
+
+.ui-district__names {
+  min-width: 0;
+}
+
+.ui-district__name {
+  font-size: var(--ls-text-xl);
+}
+
+.ui-district__years {
+  font-size: var(--ls-text-sm);
+  color: var(--ls-text-soft);
+}
+
+.ui-district__go {
+  flex: none;
+}
+
+.ui-district__tagline {
+  font-size: var(--ls-text-md);
+  line-height: var(--ls-leading-snug);
+}
+
+.ui-entries {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--ls-s2);
+  padding: 0;
+  list-style: none;
+}
+
+.ui-entry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ls-s2);
+  padding: var(--ls-s4) 0 var(--ls-s3);
+  border-top: 1.5px solid var(--ls-line-faint);
+}
+
+.ui-entry__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ls-s2) var(--ls-s3);
+}
+
+.ui-entry__title {
+  margin: 0;
+  font-family: var(--ls-font-display);
+  font-size: var(--ls-text-md);
+  font-weight: 400;
+  line-height: var(--ls-leading-snug);
+  overflow-wrap: anywhere;
+}
+
+.ui-entry .ui-stamp {
+  font-size: var(--ls-text-xs);
+}
+
+.ui-entry__more summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ls-s2);
+  min-height: var(--ls-tap);
+  font-size: var(--ls-text-sm);
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.ui-entry__more summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Plus and minus as two ink strokes. The lettering face has a minus too faint to read. */
+.ui-entry__more summary::before {
+  content: '';
+  flex: none;
+  width: 1.35rem;
+  height: 1.35rem;
+  background:
+    linear-gradient(var(--ls-line), var(--ls-line)) center / 0.65rem 2px no-repeat,
+    linear-gradient(var(--ls-line), var(--ls-line)) center / 2px 0.65rem no-repeat;
+  border: 2px solid var(--ls-line);
+  border-radius: var(--ls-radius-small);
+}
+
+.ui-entry__more[open] summary::before {
+  background: linear-gradient(var(--ls-line), var(--ls-line)) center / 0.65rem 2px no-repeat;
+}
+
+.ui-entry__more > .ui-entry__facts {
+  margin: var(--ls-s1) 0 var(--ls-s2);
+}
+
+.ui-index__foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ls-s3);
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Reduced motion: a fade and nothing else                                                      */
+/* ------------------------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-plate__name {
+    animation: none;
+  }
+
+  .ui-title__fill {
+    transition: none;
+  }
+
+  .ui-prompt:active {
+    transform: none;
+  }
+}
