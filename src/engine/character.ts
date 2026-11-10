@@ -1,4 +1,4 @@
-// The visitor's figure. A Black teenager with his twists tied back in a short ponytail, an oversized
+// The visitor's figure. A Black teenager with his rope twists tied up in a short high ponytail, an oversized
 // orange jacket, cargo trousers and chunky trainers. Rigid segments on joints, each segment one kit mesh, animated by hand written maths.
 // He faces -z in his own space (yaw 0 looks north), so the back of the jacket is +z.
 import * as THREE from 'three';
@@ -11,8 +11,8 @@ export interface Character {
   group: THREE.Group;
   /** speed in m/s over the ground, turnRate in rad/s (positive is a left turn, yaw going up). */
   update(dt: number, t: number, speed: number, turnRate: number, grounded: boolean): void;
-  /** Top of the head, hair included, above the soles, metres. The tie and the top of the ponytail
-   *  stand a finger or so higher, behind the crown. */
+  /** Top of the head, scalp rows included, above the soles, metres. The tie sits behind the crown
+   *  and the bunch stands about a hand's width higher still. */
   height: number;
   /** Ground slope under him in world space (rise per metre east, rise per metre south). Tilts the
    *  contact shadow and plants the feet on the hill. Optional: flat ground if never called. */
@@ -31,7 +31,7 @@ const mix = (a: THREE.ColorRepresentation, b: THREE.ColorRepresentation, k: numb
 const INDIGO = '#34316e';
 const INDIGO_LIGHT = '#454189';
 const INDIGO_DARK = '#27244f';
-const SHEEN = mix(P.hair, P.violet, 0.4);
+const SHEEN = mix(P.hair, P.violet, 0.48);
 const JACKET_DEEP = mix(P.orange, P.red, 0.45);
 const GROUND_SHADE = mix(P.sand, P.shadow, 0.42);
 
@@ -55,27 +55,32 @@ const UPPER_ARM = 0.285;
 const STAND = 1.025; // pelvis pivot height standing still
 
 // ---------------------------------------------------------------------------------------------
-// Hair, the numbers a barber would argue about. Two strand twists tied back.
+// Hair, the numbers a barber would argue about. Fat rope twists, rowed back over the head, tied
+// high on the back of the crown, the ends standing up and back off the tie in a short bunch.
+// Everything here is sized to be read from the follow camera, where his head is twenty pixels wide:
+// fat twists, enough of them that the bunch has some body, a band you can see from across the street.
 // ---------------------------------------------------------------------------------------------
 
 export interface HairSpec {
-  /** Free twists in the ponytail. */
+  /** Free twists in the bunch. */
   twists: number;
-  /** Radius of a free twist, metres. Finger thick and a little more, so it holds a line. */
+  /** Radius of a free twist, metres. Thumb thick, so each one is a shape of its own at a distance. */
   twistR: number;
-  /** The longest twist, tie to tip. Kept short: the tips stop at the nape, above the collar. */
+  /** The longest twist, tie to tip, along the rope. Kept short: the bunch stands off the crown and
+   *  the tips never come down as far as the collar. */
   twistLen: number;
   /** Length of one turn of the rope. */
   turn: number;
   /** Where the tie sits on the back of the skull, radians up from level. */
   tieElev: number;
-  /** The bundle leaves the tie this far above level, radians. */
+  /** The bunch leaves the tie this far above level, radians. A quarter turn is straight up. */
   tieTilt: number;
-  /** How far the bundle fans. 0 is a tight rope, 1 is a mop. */
+  /** How far the bunch fans from side to side. 0 is a tight rope, 1 is a palm tree. Past about 0.9
+   *  the outer twists lie flat and the bunch reads as a bow from behind. */
   spread: number;
-  /** How far the bundle stands away from the head as it falls. 0 hangs straight down, 1 sticks out at 45 degrees. */
+  /** How far the tips are carried back behind the head as they fall. 0 drops them straight down. */
   back: number;
-  /** How much of the violet sheen the scalp rows carry, 0 to 1. Less than the ponytail, so the bundle stands out against them. */
+  /** How much of the violet sheen the scalp rows carry, 0 to 1. Less than the bunch, so the bunch stands out against them. */
   rowSheen: number;
   /** Short twists that got away at his right temple: 0, 1 or 2. */
   loose: number;
@@ -85,38 +90,45 @@ export interface HairSpec {
   rowH: number;
   /** Half width of a scalp twist at its widest. */
   rowW: number;
+  /** How much of its slice of the head a row fills. The rest is the parting. */
+  rowFill: number;
   /** Colour of the tie. */
   tie: ColorLike;
-  /** Colour under the twists, where a parting shows. */
+  /** Colour of the scalp where a parting shows. */
   part: ColorLike;
 }
 
 const HAIR: HairSpec = {
-  twists: 15,
-  twistR: 0.0155,
-  twistLen: 0.178,
-  turn: 0.023,
-  tieElev: 0.88,
-  tieTilt: 0.55,
-  spread: 0.3,
-  back: 0.7,
+  twists: 11,
+  twistR: 0.021,
+  twistLen: 0.175,
+  turn: 0.04,
+  tieElev: 1.0,
+  tieTilt: 1.13,
+  spread: 0.86,
+  back: 1,
   rowSheen: 0.3,
   loose: 0,
-  rows: 18,
-  rowH: 0.012,
-  rowW: 0.018,
+  rows: 12,
+  rowH: 0.014,
+  rowW: 0.03,
+  rowFill: 0.76,
   tie: P.yellow,
-  part: mix(P.hair, P.skin, 0.35),
+  part: mix(P.hair, P.skin, 0.72),
 };
 const GOGGLE_Y = 0.217; // middle of the lens
 const GOGGLE_Z = -0.097;
 const HAIR_LIFT = 0.004; // the dark under the twists stands this far off the skin
 const LOOSE_LEN = 0.075; // a loose twist at the temple, root to tip
 const LOOSE_R = 0.011;
-const TIE_R = 0.024; // the band, middle of the cord
-const TIE_CORD = 0.011; // and how fat the cord is
-const TAIL_K = 150; // ponytail spring: stiffness
+const TIE_R = 0.039; // the band: a cuff this fat
+const TIE_LEN = 0.04; // this long, wrapped round the foot of the bunch
+const TIE_OFF = 0.014; // and standing this far off the scalp
+const TAIL_K = 150; // bunch spring: stiffness
 const TAIL_C = 9; // and damping
+const LEAN_BACK = 0.5; // how far the bunch may lie back before the tips would touch the head
+const LEAN_FWD = 0.16; // and how far it may flick forward on a stop
+const LEAN_SIDE = 0.28;
 
 // ---------------------------------------------------------------------------------------------
 // Lofted tube: rings of ellipses stacked along y. This is most of his body.
@@ -301,7 +313,7 @@ function buildHead(kit: InkKit, hs: HairSpec, low: boolean): { mesh: THREE.Mesh;
   b.add(geo.box(0.022, 0.009, 0.01), { color: P.ink, pos: [0.022, 0.065, -0.099], rot: [0, -0.3, 0.55], flat: 1, outline: false });
   const tie = buildScalp(b, hs, low);
   // Goggles pushed up on the forehead, the frame sitting across the hairline. The strap runs round
-  // the back of the head over the twists and under the ponytail.
+  // the back of the head over the rows and under the tie.
   const band = (rx: number, rz: number, hy: number, half: number): THREE.BufferGeometry =>
     loft([{ y: -hy, rx, rz }, { y: hy, rx: rx * 0.97, rz: rz * 0.97 }], 10, { from: Math.PI - half, to: Math.PI + half });
   const tilt = 0.5;
@@ -319,11 +331,12 @@ function buildHead(kit: InkKit, hs: HairSpec, low: boolean): { mesh: THREE.Mesh;
 
 // ---------------------------------------------------------------------------------------------
 // Hair: two strand twists, laid back over the head in rows, gathered in a tie high on the back of
-// the crown, the ends falling in a short ponytail. It is all built from one thing, a rope: a tube
-// whose rings go fat, thin, fat, thin, each ring set a little askew so the turns run on the slant.
-// Hair and ink are nearly the same dark, so the line work cannot carry the texture. The violet
-// sheen does: every other half turn that faces the sky is drawn in the sheen tone, which stripes
-// each twist the way a pen would.
+// the crown, the ends standing off it in a short bunch. It is all built from one thing, a rope: a
+// tube whose rings go fat, thin, fat, thin, each ring set a little askew so the turns run on the
+// slant. Hair and ink are nearly the same dark, so the line work cannot carry the texture. The
+// violet sheen does: every other half turn is drawn in the sheen tone, which stripes each twist
+// the way a pen would. The visitor walks behind him the whole time, so the cut is judged from
+// there first: what he sees is the back of the head, the band, and the fan against the sky.
 // ---------------------------------------------------------------------------------------------
 
 const SKULL_Y = 0.125;
@@ -408,14 +421,18 @@ interface RopeSpec {
   seg: number;
   /** 0 or 1: which rings are the fat ones, so neighbours do not line up. */
   phase: number;
-  /** Which way is the sky for the sheen, and how squarely a face must look at it. */
+  /** Which way is the sky for the sheen, and how squarely a face must look at it. A cut of -1 or
+   *  less stripes the rope all the way round. */
   sun: THREE.Vector3;
   cut: number;
   capStart?: boolean;
   capEnd?: boolean;
+  /** A thin ring against a fat one, if not the usual. */
+  pinch?: number;
 }
 
-const ROPE_PINCH = 0.7; // a thin ring against a fat one
+const ROPE_PINCH = 0.62; // a thin ring against a fat one
+const TAIL_PINCH = 0.5; // the free twists are knottier, so the edge of each one is beaded against the sky
 const ROPE_SLANT = 0.42; // how far each ring is set askew, in widths
 
 function rope(o: RopeSpec): { dark: THREE.BufferGeometry | null; lit: THREE.BufferGeometry | null } {
@@ -438,7 +455,7 @@ function rope(o: RopeSpec): { dark: THREE.BufferGeometry | null; lit: THREE.Buff
       bn.copy(ref).addScaledVector(t, -ref.dot(t)).normalize();
       up.crossVectors(bn, t);
     }
-    const fat = (j + o.phase) % 2 === 0 ? 1 : ROPE_PINCH;
+    const fat = (j + o.phase) % 2 === 0 ? 1 : (o.pinch ?? ROPE_PINCH);
     const w = Math.max(1e-4, o.wide(j) * fat);
     const h = Math.max(1e-4, o.tall(j) * fat);
     for (let i = 0; i < cols; i++) {
@@ -467,13 +484,16 @@ function rope(o: RopeSpec): { dark: THREE.BufferGeometry | null; lit: THREE.Buff
       out.add(p, nr, b, d, c);
     }
   }
+  // The end is closed with a point, in the tone of the turn it closes.
   const cap = (j: number, sign: number): void => {
     t.copy(o.pts[Math.min(j + 1, n - 1)]).sub(o.pts[Math.max(j - 1, 0)]).normalize().multiplyScalar(sign);
-    q.copy(o.pts[j]).addScaledVector(t, o.wide(j) * 0.7);
+    q.copy(o.pts[j]).addScaledVector(t, o.wide(j) * 0.8);
     const tip = p.length / 3;
     p.push(q.x, q.y, q.z);
     nr.push(t.x, t.y, t.z);
-    for (let i = 0; i < o.seg; i++) dark.add(p, nr, j * cols + i, j * cols + (half ? i + 1 : (i + 1) % o.seg), tip);
+    const seg = sign > 0 ? j - 1 : j;
+    const out = o.cut <= -1 && (seg + o.phase) % 2 === 0 ? lit : dark;
+    for (let i = 0; i < o.seg; i++) out.add(p, nr, j * cols + i, j * cols + (half ? i + 1 : (i + 1) % o.seg), tip);
   };
   if (o.capStart) cap(0, -1);
   if (o.capEnd) cap(n - 1, 1);
@@ -481,7 +501,7 @@ function rope(o: RopeSpec): { dark: THREE.BufferGeometry | null; lit: THREE.Buff
 }
 
 /** Everything that sits still on the head: the dark under the twists, the rows, the tie.
- *  Goes into the head's own mesh. Returns where the tie is, which is where the ponytail hangs from. */
+ *  Goes into the head's own mesh. Returns the middle of the tie, which is what the bunch swings about. */
 function buildScalp(b: InkBuilder, hs: HairSpec, low: boolean): THREE.Vector3 {
   const dT = V(0, Math.sin(hs.tieElev), Math.cos(hs.tieElev)); // the tie, as a direction from the middle of the skull
   const u = V(0, Math.cos(hs.tieElev), -Math.sin(hs.tieElev)); // from the tie over the top towards the forehead
@@ -509,7 +529,9 @@ function buildScalp(b: InkBuilder, hs: HairSpec, low: boolean): THREE.Vector3 {
     return lo;
   };
 
-  // The dark under the twists. Its rim is the hairline, so the edge up is one clean line.
+  // The scalp under the twists. Its rim is the hairline, so the edge up is one clean line. No ink
+  // line of its own: every row is already dark as ink, and a line down both sides of each parting
+  // closed the partings up at walking distance. Left bare they show as pale lines running to the tie.
   {
     const cols = low ? 20 : 26;
     const steps = [0.1, 0.3, 0.5, 0.7, 0.86, 1];
@@ -541,14 +563,15 @@ function buildScalp(b: InkBuilder, hs: HairSpec, low: boolean): THREE.Vector3 {
         tris.add(p, n, c1 * m + j, c1 * m + j + 1, c * m + j + 1);
       }
     }
-    b.add(tris.geo()!, { color: hs.part, flat: 0.2 });
+    b.add(tris.geo()!, { color: hs.part, flat: 0.2, outline: false });
   }
 
-  // The rows. Evenly fanned round the tie, each one as wide as its slice of the head allows.
+  // The rows. Evenly fanned round the tie, each one as wide as its slice of the head allows, less
+  // the parting. Striped all the way round: from behind nothing on the back of the head faces the sky.
   const sun = V(0, 1, 0.25).normalize();
   const rowSheen = mix(P.hair, P.violet, hs.rowSheen);
-  const step = (hs.turn * (low ? 1.35 : 1.12)) / 2 / 0.118; // radians of skull per ring
-  const gather = 0.2;
+  const step = (hs.turn * (low ? 1.3 : 1)) / 2 / 0.118; // radians of skull per ring
+  const gather = (TIE_R * 0.7) / 0.118;
   for (let k = 0; k < hs.rows; k++) {
     const psi = ((k + 0.5) / hs.rows) * TAU;
     const far = edge(psi) - 0.035;
@@ -562,7 +585,7 @@ function buildScalp(b: InkBuilder, hs: HairSpec, low: boolean): THREE.Vector3 {
       pts.push(onSkull(d, 0.0005));
       ups.push(skullNormal(d));
       const slice = (0.118 * Math.sin(delta) * Math.PI) / hs.rows;
-      wide.push(clamp(slice * 0.97, hs.rowW * 0.55, hs.rowW));
+      wide.push(clamp(slice * hs.rowFill, hs.rowW * 0.3, hs.rowW));
     }
     const root = (j: number): number => (j === 0 ? 0.45 : j === 1 ? 0.9 : 1); // rounded where it leaves the scalp
     const g = rope({
@@ -570,10 +593,10 @@ function buildScalp(b: InkBuilder, hs: HairSpec, low: boolean): THREE.Vector3 {
       ups,
       wide: (j) => wide[j] * root(j),
       tall: (j) => (hs.rowH + HAIR_LIFT) * root(j),
-      seg: low ? 2 : 3,
+      seg: low ? 3 : 4,
       phase: k % 2,
       sun,
-      cut: 0.6,
+      cut: -1,
       capStart: true,
     });
     const id = b.newId();
@@ -613,62 +636,110 @@ function buildScalp(b: InkBuilder, hs: HairSpec, low: boolean): THREE.Vector3 {
     if (g.lit) b.add(g.lit, { color: SHEEN, id, flat: 0.4 });
   }
 
-  // The tie: one band where the rows meet, turned to face the way the bundle leaves.
-  const tie = onSkull(dT, 0.008).add(V(0, Math.sin(hs.tieTilt), Math.cos(hs.tieTilt)).multiplyScalar(0.022));
-  b.add(geo.torus(TIE_R, TIE_CORD, low ? 8 : 10, 5), { color: hs.tie, pos: [tie.x, tie.y, tie.z], rot: [Math.PI / 2 - hs.tieTilt, 0, 0], flat: 0.55 });
+  // The tie: a fat cuff where the rows meet, wrapped round the foot of the bunch and turned the
+  // way the bunch leaves. It stands a little off the head on a neck of gathered hair, so from
+  // behind it sits on the skyline: the one bright thing up there from across the street.
+  const D = V(0, Math.sin(hs.tieTilt), Math.cos(hs.tieTilt));
+  const tie = onSkull(dT, 0).addScaledVector(D, TIE_OFF + TIE_LEN * 0.5);
+  const hl = TIE_LEN / 2;
+  const turnTo: [number, number, number] = [Math.PI / 2 - hs.tieTilt, 0, 0];
+  b.add(
+    loft(
+      [
+        { y: -hl - TIE_OFF - 0.02, rx: TIE_R * 1.45, rz: TIE_R * 1.45 },
+        { y: -hl - TIE_OFF * 0.4, rx: TIE_R * 1.02, rz: TIE_R * 1.02 },
+        { y: -hl + 0.004, rx: TIE_R * 0.8, rz: TIE_R * 0.8 },
+      ],
+      low ? 8 : 12,
+    ),
+    { color: P.hair, pos: [tie.x, tie.y, tie.z], rot: turnTo },
+  );
+  b.add(
+    loft(
+      [
+        { y: -hl, rx: TIE_R * 0.84, rz: TIE_R * 0.84 },
+        { y: -hl * 0.5, rx: TIE_R, rz: TIE_R },
+        { y: hl * 0.5, rx: TIE_R, rz: TIE_R },
+        { y: hl, rx: TIE_R * 0.84, rz: TIE_R * 0.84 },
+      ],
+      low ? 8 : 12,
+      { top: true, bottom: true },
+    ),
+    // No line of its own: the hair either side of it is as dark as the ink, and at walking distance
+    // a line round something this small would eat half the yellow.
+    { color: hs.tie, pos: [tie.x, tie.y, tie.z], rot: turnTo, flat: 0.6, outline: false },
+  );
   return tie;
 }
 
-/** The ponytail, built round the tie. Two meshes so the short top twists can swing a beat behind
- *  the long ones underneath. */
+/** The bunch, built round the middle of the tie. The long twists are a fan seen flat on from
+ *  behind: the middle ones stand up and flop over, the outer ones arc out past the sides of the
+ *  crown and droop, like a short palm. That fan is the silhouette, so they are few and they part
+ *  towards the tips. Shorter twists lean out behind and fill the foot of it. Nothing falls across
+ *  the band from where the follow camera sits. Two meshes, so the long ones can swing a beat
+ *  behind the short. */
 function buildTail(kit: InkKit, hs: HairSpec, low: boolean, tie: THREE.Vector3): THREE.Mesh[] {
-  const under = kit.builder();
-  const over = kit.builder();
+  const inner = kit.builder();
+  const fan = kit.builder();
   const rnd = geo.seeded(23);
-  const D = V(0, Math.sin(hs.tieTilt), Math.cos(hs.tieTilt)); // the way the bundle leaves the tie
-  const X = V(1, 0, 0);
-  const Y = V(0, Math.cos(hs.tieTilt), -Math.sin(hs.tieTilt)); // up, across the band
-  const sun = V();
+  const D = V(0, Math.sin(hs.tieTilt), Math.cos(hs.tieTilt)); // the way the bunch leaves the tie
+  const sun = V(0, 1, 0);
   const step = (hs.turn * (low ? 1.3 : 1)) / 2;
-  const root = V();
-  const dir = V();
-  const fall = V();
-  const p1 = V();
-  const p2 = V();
+  // Three in five are long. The low tier keeps the fan and gives up two of the short ones.
+  const nLong = Math.max(1, Math.ceil(hs.twists * 0.6));
+  const nShort = Math.max(0, hs.twists - nLong - (low ? 2 : 0));
+  const count = nLong + nShort;
+  const P0 = V();
+  const P1 = V();
+  const P2 = V();
+  const P3 = V();
+  const F = V();
+  const G = V();
   const q = V();
-  for (let k = 0; k < hs.twists; k++) {
-    // Where it sits in the band: sunflower spacing fills the circle evenly.
-    const rr = Math.sqrt((k + 0.5) / hs.twists);
-    const ang = k * 2.39996 + 0.6;
-    const sx = rr * Math.cos(ang);
-    const sy = rr * Math.sin(ang);
-    const len = hs.twistLen * (0.84 - 0.2 * sy) * (0.94 + rnd() * 0.12); // the ones on top are shorter
-    const stem = 0.4 + 0.07 * sy;
-    root.set(0, 0, 0).addScaledVector(X, sx * TIE_R * 0.55).addScaledVector(Y, sy * TIE_R * 0.55).addScaledVector(D, -0.03);
-    dir.copy(D).addScaledVector(X, sx * hs.spread * 1.3).addScaledVector(Y, sy * (sy > 0 ? 0.12 : 0.45)).normalize();
-    fall.set(sx * hs.spread * 0.55, -1, hs.back * (0.8 + 0.4 * sy)).normalize();
-    p1.copy(root).addScaledVector(dir, len * stem);
-    p2.copy(p1).addScaledVector(fall, len * (1 - stem) * 1.08);
+  for (let k = 0; k < count; k++) {
+    const short = k >= nLong;
+    // u runs across the fan from his left to his right. The short ones sit between the long ones
+    // but lean so far back that from behind they only fill the foot of the fan: the gaps further
+    // out stay open, and the gaps are what part the fan into ropes from far off.
+    const u = short ? (nShort === 1 ? 0.2 : (((k - nLong + 0.5) / nShort) * 2 - 1) * 0.9) : nLong === 1 ? 0 : (k / (nLong - 1)) * 2 - 1;
+    const au = Math.abs(u);
+    // The middle ones have no side to fall to, so each is given one.
+    const flop = (k % 2 === 0 ? 1 : -1) * (0.3 + rnd() * 0.3) * (1 - au);
+    // theta: round from straight up, as seen from behind. beta: how far it leans back out of the fan.
+    const theta = u * hs.spread * (Math.PI / 2) * (short ? 0.8 : 1) + (short ? 0 : flop * 0.2);
+    const beta = short ? 0.5 + hs.back * 0.45 : hs.back * (0.3 + 0.2 * au);
+    const len = hs.twistLen * (short ? 0.52 : 0.68 + 0.32 * au) * (0.96 + rnd() * 0.08);
+    // Out of the band along the axis, then off its own way, then over with its own weight.
+    F.set(Math.sin(theta) * Math.cos(beta), Math.cos(theta) * Math.cos(beta), Math.sin(beta));
+    G.set(Math.sin(theta) * 0.45 + flop, -1, hs.back * 0.6).normalize();
+    const droop = short ? 0.2 : lerp(0.35, 0.78, au);
+    P0.set(Math.sin(theta) * TIE_R * 0.4, 0, 0).addScaledVector(D, -TIE_LEN * 0.4);
+    P1.copy(P0).addScaledVector(D, TIE_LEN * 0.9 + 0.006);
+    P2.copy(P1).addScaledVector(F, len * 0.46);
+    q.copy(F).multiplyScalar(1 - droop).addScaledVector(G, droop).normalize();
+    P3.copy(P2).addScaledVector(q, len * 0.38);
     // Walk the curve, then space the rings evenly along it.
     const fine: THREE.Vector3[] = [];
     const run: number[] = [0];
-    for (let i = 0; i <= 36; i++) {
-      const s = i / 36;
+    for (let n = 0; n <= 36; n++) {
+      const s = n / 36;
+      const r = 1 - s;
       q.set(0, 0, 0)
-        .addScaledVector(root, (1 - s) * (1 - s))
-        .addScaledVector(p1, 2 * s * (1 - s))
-        .addScaledVector(p2, s * s);
-      // Keep it off the back of the head: push any point that dips into the hair straight out again.
-      const hx = (q.x + tie.x) / (SKULL_RX + 0.014 + hs.twistR);
-      const hy = (q.y + tie.y - SKULL_Y) / (SKULL_RY + 0.014 + hs.twistR);
-      const hz = (q.z + tie.z) / (SKULL_RZ + 0.014 + hs.twistR);
+        .addScaledVector(P0, r * r * r)
+        .addScaledVector(P1, 3 * r * r * s)
+        .addScaledVector(P2, 3 * r * s * s)
+        .addScaledVector(P3, s * s * s);
+      // Keep it off the head: push any point that dips into the hair straight out again.
+      const hx = (q.x + tie.x) / (SKULL_RX + 0.02 + hs.twistR);
+      const hy = (q.y + tie.y - SKULL_Y) / (SKULL_RY + 0.02 + hs.twistR);
+      const hz = (q.z + tie.z) / (SKULL_RZ + 0.02 + hs.twistR);
       const f = Math.sqrt(hx * hx + hy * hy + hz * hz);
-      const push = smoothstep(0.12, 0.4, s);
+      const push = smoothstep(0.3, 0.55, s);
       if (f < 1) {
         const k2 = lerp(1, 1 / f, push);
         q.set((q.x + tie.x) * k2 - tie.x, (q.y + tie.y - SKULL_Y) * k2 + SKULL_Y - tie.y, (q.z + tie.z) * k2 - tie.z);
       }
-      if (i > 0) run.push(run[i - 1] + q.distanceTo(fine[i - 1]));
+      if (n > 0) run.push(run[n - 1] + q.distanceTo(fine[n - 1]));
       fine.push(q.clone());
     }
     const total = run[36];
@@ -680,30 +751,29 @@ function buildTail(kit: InkKit, hs: HairSpec, low: boolean, tie: THREE.Vector3):
       while (seg < 36 && run[seg] < at) seg++;
       pts.push(fine[seg - 1].clone().lerp(fine[seg], clamp((at - run[seg - 1]) / Math.max(1e-6, run[seg] - run[seg - 1]), 0, 1)));
     }
-    // The sheen sits on the outside of the bundle: up and back for the middle ones, round to the side for the outer ones.
-    sun.set(sx * 0.95, 0.5, 0.62).normalize();
-    const thick = hs.twistR * (0.94 + rnd() * 0.12);
+    const thick = hs.twistR * (short ? 0.92 : 1) * (0.96 + rnd() * 0.08);
     const taper = (j: number): number => {
       const left = rings - 1 - j;
-      if (j < 2) return j === 0 ? 0.6 : 0.8; // squeezed where the band holds it
-      return left === 0 ? 0.42 : left === 1 ? 0.72 : left === 2 ? 0.92 : 1;
+      if (j < 2) return j === 0 ? 0.55 : 0.85; // squeezed where the band holds it
+      return left === 0 ? 0.7 : left === 1 ? 0.92 : 1; // a blunt end, the way a twist is finished
     };
     const g = rope({
       pts,
       wide: (j) => thick * taper(j),
       tall: (j) => thick * taper(j),
-      seg: low ? 4 : 5,
+      seg: low ? 5 : 7,
       phase: k % 2,
       sun,
-      cut: 0.6,
+      cut: -1,
       capEnd: true,
+      pinch: TAIL_PINCH,
     });
-    const b = sy > 0.3 ? over : under;
+    const b = short ? inner : fan;
     const id = b.newId();
     if (g.dark) b.add(g.dark, { color: P.hair, id });
     if (g.lit) b.add(g.lit, { color: SHEEN, id, flat: 0.4 });
   }
-  return [under.build('figure-tail'), over.build('figure-tail-top')];
+  return [inner.build('figure-tail'), fan.build('figure-tail-top')];
 }
 
 function buildUpperArm(kit: InkKit, side: number): THREE.Mesh {
@@ -906,7 +976,7 @@ export function createCharacter(kit: InkKit, opts: CharacterOptions = {}): Chara
   const head = built.mesh;
   head.position.set(0, NECK_UP, 0);
   torso.add(head);
-  // The ponytail hangs from the tie. Long twists underneath, short ones on top a beat behind.
+  // The bunch stands on the tie. The long twists are their own mesh, a beat behind the short ones.
   const tail = buildTail(kit, hs, low, built.tie);
   for (const m of tail) {
     m.position.copy(built.tie);
@@ -954,9 +1024,9 @@ export function createCharacter(kit: InkKit, opts: CharacterOptions = {}): Chara
   let prevSpeed = 0;
   let roll = 0;
   let lagY = STAND;
-  let tailP = 0; // ponytail pitch about the tie, negative streams back
+  let tailP = 0; // the bunch about the tie: positive lies back
   let tailPV = 0;
-  let tailS = 0; // sway, positive to his right
+  let tailS = 0; // lean, positive to his right
   let tailSV = 0;
   let topP = 0;
   let topS = 0;
@@ -1052,20 +1122,36 @@ export function createCharacter(kit: InkKit, opts: CharacterOptions = {}): Chara
     head.rotation.set(lean * 0.8 - 0.03, twist * 0.6 + look, -roll * 0.6 + tip * 0.3);
     lagY = damp(lagY, py, 16, h);
 
-    // Ponytail: two damped springs about the tie. It streams back with speed, kicks back when he
-    // sets off, bounces a beat behind each footfall, swings out of a turn and across with the hips.
+    // The bunch: two damped springs about the tie. tailP is how far it lies back, tailS how far it
+    // leans to his right. It lies back with speed, is left behind when he sets off, flicks forward
+    // when he stops, nods a beat behind each footfall, is thrown to the outside of a turn.
     // With h at zero nothing moves, so a frozen frame keeps whatever swing it had.
     const drop = lagY - py; // positive while the head is on its way down
-    const wantP = -(0.1 + 0.22 * kr) * move - clamp(accel * 0.022, -0.2, 0.3) - clamp(drop * 9, -0.22, 0.22) - air * 0.25;
-    const wantS = clamp(turnRate * (0.05 + v * 0.008), -0.38, 0.38) - Math.cos(TAU * (phase - duty / 2) - 0.6) * lerp(0.07, 0.1, kr) * move + shift * 0.03;
+    const wantP = (0.12 + 0.2 * kr) * move + clamp(accel * 0.022, -0.2, 0.3) - clamp(drop * 8, -0.2, 0.2) - air * 0.12;
+    const wantS = clamp(turnRate * (0.05 + v * 0.008), -0.3, 0.3) - Math.cos(TAU * (phase - duty / 2) - 0.6) * lerp(0.06, 0.09, kr) * move + shift * 0.03;
     tailPV += ((wantP - tailP) * TAIL_K - tailPV * TAIL_C) * h;
     tailSV += ((wantS - tailS) * TAIL_K - tailSV * TAIL_C) * h;
-    tailP = clamp(tailP + tailPV * h, -0.9, 0.07);
-    tailS = clamp(tailS + tailSV * h, -0.5, 0.5);
-    topP = damp(topP, tailP * 1.35, 11, h);
-    topS = damp(topS, tailS * 1.3, 11, h);
-    tail[0].rotation.set(tailP, 0, tailS);
-    tail[1].rotation.set(topP, 0, topS);
+    tailP += tailPV * h;
+    tailS += tailSV * h;
+    // At the stops the swing is spent, or it would buzz against them.
+    if (tailP > LEAN_BACK) {
+      tailP = LEAN_BACK;
+      if (tailPV > 0) tailPV = 0;
+    } else if (tailP < -LEAN_FWD) {
+      tailP = -LEAN_FWD;
+      if (tailPV < 0) tailPV = 0;
+    }
+    if (tailS > LEAN_SIDE) {
+      tailS = LEAN_SIDE;
+      if (tailSV > 0) tailSV = 0;
+    } else if (tailS < -LEAN_SIDE) {
+      tailS = -LEAN_SIDE;
+      if (tailSV < 0) tailSV = 0;
+    }
+    topP = damp(topP, clamp(tailP * 1.3, -LEAN_FWD, LEAN_BACK), 11, h);
+    topS = damp(topS, tailS * 1.25, 11, h);
+    tail[0].rotation.set(tailP, 0, -tailS);
+    tail[1].rotation.set(topP, 0, -topS);
 
     // Arms swing against the legs. Elbows fold as the pace picks up.
     const swing = Math.cos(TAU * phase + 0.35);
