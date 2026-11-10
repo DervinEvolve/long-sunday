@@ -51,7 +51,7 @@ const MAX_SPOTS = 160;
 /** The whole picture has to stay under this. */
 export const BUDGET = { calls: 150, triangles: 400000 };
 /** What ground, sky, scatter, the figure, the markers and the ink pass cost with no district in view (measured, rounded up). */
-const RESERVE = { calls: 48, triangles: 165000 };
+const RESERVE = { calls: 60, triangles: 200000 };
 const MARK_IDLE = new THREE.Color('#ef7a1e');
 const MARK_ACTIVE = new THREE.Color('#ffe98a');
 
