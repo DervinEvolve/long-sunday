@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "build:single": "tsc --noEmit && vite build --mode single",
+    "build:locked": "node scripts/lock.mjs --check && npm run build:single && node scripts/lock.mjs",
     "preview": "vite preview --port 4173 --strictPort",
+    "preview:locked": "vite preview --outDir dist-locked --port 4174 --strictPort",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

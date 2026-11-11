@@ -198,3 +198,152 @@ Measured with all eleven districts built, 1280 by 720, high tier: 47 to 78 draw 
 heaviest districts on their own are Sky Harbor (9 calls, 38,400 triangles) and the Mask Garden (7 calls,
 36,800). The overview sits close to the triangle limit, so anything added to the ground, sky or city
 has to come out of somewhere else.
+
+## The locked copy
+
+The hosted page has a password. The copy that goes on a public address holds only an unlock screen
+and the whole application sealed inside it. View source shows no caption, no name of an employer and
+no code of the world, only the unlock page and a block of sealed text.
+
+### Build it here
+
+```
+LONG_SUNDAY_PASSWORD='five or six random words' npm run build:locked
+npm run preview:locked     # http://localhost:4174
+```
+
+`build:locked` runs the single file build, then `scripts/lock.mjs` wraps `dist-single/index.html`
+into `dist-locked/index.html`. That one file is the site. It also opens straight from disk.
+
+The password comes from the environment and nowhere else. It has to be at least 12 characters.
+Spaces at either end are dropped, at build time and in the page, so a stray space from a paste does
+no harm. Without a password, or with a short one, the build stops before Vite runs, exits with an
+error and leaves no `dist-locked` behind. The script never prints the password or writes it anywhere.
+To keep it out of the shell history, read it in first:
+
+```
+read -rs LONG_SUNDAY_PASSWORD && export LONG_SUNDAY_PASSWORD
+npm run build:locked
+```
+
+What the script does: gzip the application, make a key from the password with PBKDF2 (HMAC-SHA-256,
+600,000 rounds, a new random 16 byte salt every build), seal the gzip with AES-256-GCM under a new
+random 12 byte nonce, and put salt, nonce, round count and sealed bytes into the unlock page as
+base64 in one JSON script tag (`#ls-box`). The unlock page is written by hand in `src/lock/`
+(`lock.html`, `lock.css`, `lock.js`) and inlined as it is. Both sides use the standard Web Crypto API.
+Before it writes anything the script opens its own result again and checks that no part of the
+application and no password can be read in it.
+
+In the page, a right password opens the box and the page writes the application over itself, so it
+runs exactly as the single file build does, at the same address. A wrong password and a damaged file
+both get the same line: "That is not it. Try again."
+
+### Host it on GitHub Pages
+
+1. Repository, Settings, Secrets and variables, Actions: add a repository secret named
+   `LONG_SUNDAY_PASSWORD`.
+2. Settings, Pages: set the source to "GitHub Actions".
+3. Actions, "Deploy locked copy to Pages", Run workflow.
+
+The workflow (`.github/workflows/pages.yml`) only runs when started by hand. It builds the locked
+copy and uploads `dist-locked`, nothing else. With the secret missing the build step fails and
+nothing is deployed. Pages from a private repository needs a paid GitHub plan. On the free plan,
+use Vercel.
+
+A project site without a custom domain lives at `<user>.github.io/<repo>/`, the same address as
+every other Pages site on the account. That matters for "Stay unlocked", see below.
+
+### Host it on Vercel
+
+1. In Vercel, import the private repository. `vercel.json` already says what to build
+   (`npm run build:locked`) and what to serve (`dist-locked`), with no framework preset.
+2. Project, Settings, Environment Variables: add `LONG_SUNDAY_PASSWORD` for Production and mark it
+   sensitive. Add it for Preview too if branch previews should build. Without it a build fails and
+   nothing is published.
+3. Deploy.
+
+Vercel builds again on every push. `vercel.json` also sets three headers: the page is checked for a
+newer copy on every visit, `nosniff`, and a referrer policy of `no-referrer`. GitHub Pages cannot set
+headers, so the unlock page carries the same referrer policy in a meta tag. It also asks search
+engines not to list it.
+
+### The one click link
+
+Put the password in the fragment:
+
+```
+https://example.org/long-sunday/#k=five-or-six-random-words
+https://example.org/long-sunday/#k=five-or-six-random-words&d=studio
+```
+
+The page takes `k` out of the address bar before it does anything else, keeps the other parts
+(`#d=` and `#e=` still work) and opens. It does the same when a key link is followed in a tab that
+already shows the page, locked or open. A browser never sends the fragment to the server. If the
+key in the link is wrong the form shows, with no error. A password made of letters, digits and
+hyphens can go in as it is. Anything else has to be encoded first:
+
+```
+node -p 'encodeURIComponent(process.env.LONG_SUNDAY_PASSWORD)'
+```
+
+Out of the address bar does not mean gone. The browser still keeps the full link, key included, in
+its history and its restore-tabs list, and it syncs it if sync is on. Anyone who uses that browser
+can find it there, and address bar suggestions can show it. No page can take a link out of the
+browser's history. Mail link scanners and link shorteners can also rewrite the whole URL, fragment
+included, into a query string that reaches their servers. Where any of that matters, send the plain
+address and give the password another way.
+
+### Stay unlocked
+
+The box under the field, off by default, keeps the derived key (never the password) in this
+browser's localStorage under `long-sunday.lock`, tied to the salt of the build it opened. Every
+build has a new salt, so every new deploy asks for the password again, even when the password has
+not changed. To lock a device again, clear the site's data in the browser, or run
+`localStorage.removeItem('long-sunday.lock')` in the console.
+
+The stored key opens the current build without the password, so it is only as private as this
+site's storage. On GitHub Pages without a custom domain, every Pages site on the account shares this
+storage, so only use Stay unlocked there if this is the only one, or use Vercel or a custom domain.
+
+### Side files (`real/`)
+
+Files the world fetches while it runs go in `public/real/`. `build:locked` seals every file under
+`public/real/` with the same key into `dist-locked/real/`, at the same paths. Nothing else is read:
+`build:locked` never writes `dist/`, so a `dist/real/` on disk is left over from an older build and
+stays out. Each file gets its own nonce, stored in front of the sealed bytes. `.glb`, `.webp`, `.ktx2`, `.avif`,
+`.jpg` and `.png` go in as they are, everything else is gzipped first. File names stay readable. The
+contents do not.
+
+The contract is one line. In the locked build `window.__lsAsset(path)` exists before the world
+starts. It takes a path relative to the page, fetches the sealed file, opens it and resolves with
+the plain bytes as an `ArrayBuffer`. It rejects with an `Error` when the file is missing or does not
+open. In a plain build it does not exist, so:
+
+```ts
+const bytes = await (window.__lsAsset?.(path) ?? fetch(path).then((r) => r.arrayBuffer()));
+```
+
+The type is in `src/lock/asset.d.ts`. Side files need a server. A page opened from disk cannot fetch
+them, locked or plain.
+
+### What the lock does and does not do
+
+- The sealed file is public. Anyone can download it and try guesses against it for as long as they
+  like, at their own pace, and nothing can slow them down or lock them out. The lock is exactly as
+  strong as the password. Use a long passphrase of five or six random words.
+- Anyone who has the password can pass it on. The same goes for the one click link: the link is the
+  password, and it stays in a resume, an email or a chat for as long as those exist.
+- The one click link also stays in the browser that opened it: in its history, in its restore-tabs
+  list, and on the visitor's other devices if sync is on. Anyone who uses that browser can find it
+  there. A mail link scanner or a link shortener can pass the whole link, key included, to its own
+  servers.
+- "Stay unlocked" leaves a key in the browser that opens the current build with no password. Any
+  script that runs at the same address can read it. On GitHub Pages without a custom domain that
+  includes every other Pages site on the account.
+- Changing the password means building and deploying again. The old copy, if someone saved it,
+  still opens with the old password.
+- The unlocked copies made by `npm run build` and `npm run build:single` must not be hosted in
+  public if the lock matters.
+- The repository has to stay private for the same reason. A public repository holds every caption
+  in plain text, and the lock would then guard only the hosted link.
+- Once the page is open, everything in it is open: a visitor can save what they see.

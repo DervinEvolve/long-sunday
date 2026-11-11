@@ -1,0 +1,302 @@
+/*
+  The unlock page. The real stylesheet is locked away with everything else, so the few values this
+  page needs are copied from src/ui/tokens.css. Keep the two in step by hand.
+*/
+
+@font-face {
+  font-family: 'Architects Daughter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../../node_modules/@fontsource/architects-daughter/files/architects-daughter-latin-400-normal.woff2') format('woff2');
+}
+
+:root {
+  --ls-paper: #f6ecd9;
+  --ls-paper-deep: #ecdfc6;
+  --ls-ink: #1c1a33;
+  --ls-ink-soft: #4b4763;
+  --ls-accent: #ef7a1e;
+  --ls-accent-deep: #b04907;
+
+  --ls-surface: var(--ls-paper);
+  --ls-surface-sunk: var(--ls-paper-deep);
+  --ls-surface-hover: #fff7e6;
+  --ls-text: var(--ls-ink);
+  --ls-text-soft: var(--ls-ink-soft);
+  --ls-line: var(--ls-ink);
+  --ls-action: var(--ls-accent);
+  --ls-action-hover: #f58a34;
+  --ls-focus: var(--ls-accent-deep);
+
+  --ls-font-display: 'Architects Daughter', 'Comic Sans MS', 'Segoe Print', 'Bradley Hand', cursive;
+  --ls-font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --ls-rule: 2.5px;
+  --ls-radius-panel: 5px 9px 6px 10px;
+  --ls-radius-control: 4px 7px 5px 8px;
+  --ls-tap: 2.75rem;
+  --ls-edge: clamp(0.75rem, 2.4vw, 1.5rem);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--ls-surface-sunk);
+  color: var(--ls-text);
+  font-family: var(--ls-font-body);
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The card sits in the middle, and the page scrolls when a short screen cannot hold it. */
+body {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  padding: calc(var(--ls-edge) + env(safe-area-inset-top, 0px)) calc(var(--ls-edge) + env(safe-area-inset-right, 0px))
+    calc(var(--ls-edge) + env(safe-area-inset-bottom, 0px)) calc(var(--ls-edge) + env(safe-area-inset-left, 0px));
+}
+
+[hidden] {
+  display: none !important;
+}
+
+p,
+h1 {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 3px solid var(--ls-focus);
+  outline-offset: 3px;
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The same comic panel as the title card: paper, an uneven ink rule, a hard drop. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: min(100% - 6px, 25rem);
+  margin: auto;
+  padding: 1.5rem;
+  background: var(--ls-surface);
+  border: solid var(--ls-line);
+  border-width: 2.5px 3px 3.5px 2.5px;
+  border-radius: var(--ls-radius-panel);
+  box-shadow: 5px 6px 0 var(--ls-line);
+}
+
+.owner {
+  font-family: var(--ls-font-display);
+  font-size: 1.125rem;
+  line-height: 1.3;
+}
+
+.name {
+  margin-top: -0.5rem;
+  font-family: var(--ls-font-display);
+  font-size: clamp(1.5rem, 11vw, 3rem);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.what {
+  font-size: 1.125rem;
+  line-height: 1.3;
+  text-wrap: pretty;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+}
+
+.label {
+  font-family: var(--ls-font-display);
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+/* With very large text the button drops under the field instead of squeezing it shut. */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 0.5rem;
+  /* Room for the drop under the button. */
+  padding-bottom: 4px;
+}
+
+.input {
+  flex: 1 1 9rem;
+  min-width: 0;
+  min-height: var(--ls-tap);
+  margin: 0;
+  padding: 0.4rem 0.75rem;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--ls-text);
+  background: var(--ls-surface-hover);
+  border: var(--ls-rule) solid var(--ls-line);
+  border-radius: var(--ls-radius-control);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* No line is held open for it. Once it has shown it keeps its line, so a second try does not make the card twitch. */
+.error {
+  min-height: 1.4em;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.error:empty:not(.is-kept),
+.status:empty {
+  display: none;
+}
+
+.keep {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: var(--ls-tap);
+  margin-top: -0.5rem;
+  font-size: 1rem;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.check {
+  flex: none;
+  width: 1.375rem;
+  height: 1.375rem;
+  margin: 0;
+  background: var(--ls-surface-hover) center / 80% no-repeat;
+  border: var(--ls-rule) solid var(--ls-line);
+  border-radius: 3px 5px 4px 6px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.check:checked {
+  background-color: var(--ls-line);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.6l3.2 3.1L13 4.6' fill='none' stroke='%23f6ecd9' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--ls-tap);
+  max-width: 100%;
+  min-height: var(--ls-tap);
+  margin: 0;
+  padding: 0.4rem 1.05rem 0.45rem;
+  font-family: var(--ls-font-display);
+  font-size: 1.125rem;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: var(--ls-text);
+  background: var(--ls-surface);
+  border: var(--ls-rule) solid var(--ls-line);
+  border-radius: var(--ls-radius-control);
+  box-shadow: 0 4px 0 var(--ls-line);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: transform 100ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 100ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--ls-line);
+}
+
+/* Wide enough that "Open" turning into "Opening" does not move its edge. The same for Show and Hide. */
+.btn--show {
+  min-width: 5.25rem;
+}
+
+.btn--primary {
+  min-width: min(7.5rem, 100%);
+  margin-bottom: 4px;
+  background: var(--ls-action);
+}
+
+.btn[aria-disabled='true'] {
+  cursor: progress;
+}
+
+/* Shown while a kept key or a link is tried. With the form up the button says it, and this line is only read aloud. */
+.status {
+  font-size: 1.125rem;
+  line-height: 1.3;
+  color: var(--ls-text-soft);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover {
+    background: var(--ls-surface-hover);
+  }
+
+  .btn--primary:hover {
+    background: var(--ls-action-hover);
+  }
+}
+
+@media (max-width: 24rem) {
+  .card {
+    padding: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+}
+
+/* With forced colours the drawn tick would vanish, so the system draws the box. */
+@media (forced-colors: active) {
+  .check {
+    -webkit-appearance: auto;
+    appearance: auto;
+  }
+}

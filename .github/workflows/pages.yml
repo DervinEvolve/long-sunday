@@ -1,0 +1,65 @@
+# Publishes the locked copy to GitHub Pages. It only runs when I start it by hand:
+# Actions, "Deploy locked copy to Pages", Run workflow.
+#
+# The build needs the repository secret LONG_SUNDAY_PASSWORD. Without it the build step fails and
+# nothing is deployed. Only dist-locked is ever uploaded, and that folder is only written by
+# scripts/lock.mjs, so an unlocked build cannot get out this way.
+#
+# Without a custom domain the site shares <user>.github.io with every other Pages site on the
+# account, and so its browser storage too. docs/DEV.md, "Stay unlocked", says what that means.
+name: Deploy locked copy to Pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build the locked copy
+        env:
+          LONG_SUNDAY_PASSWORD: ${{ secrets.LONG_SUNDAY_PASSWORD }}
+        run: npm run build:locked
+
+      # A second look before anything leaves: the page must be the lock, with no application in the clear.
+      - name: Check that the page is locked
+        run: |
+          test -s dist-locked/index.html
+          grep -q 'id="ls-box"' dist-locked/index.html
+          if grep -q -e '<canvas' -e 'type="module"' dist-locked/index.html; then
+            echo "The page holds application markup in the clear."
+            exit 1
+          fi
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist-locked
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
