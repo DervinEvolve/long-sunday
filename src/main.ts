@@ -11,6 +11,7 @@
 //   ?cam=x,y,z,tx,ty,tz   a fixed camera looking from the first point at the second
 //   ?yaw=deg         face this way on arrival (0 is north, 90 is west)
 //   ?ui=0            skip the interface even when it exists
+//   ?look=real       start in the real look, when this build and this device have it
 import type { DistrictId, PoiHit, QualityTier, WorldApi } from './types';
 import { createInk } from './engine/ink';
 import { createQuality } from './engine/quality';
@@ -131,7 +132,7 @@ function debugReadout(world: World): () => void {
     const s = world.stats();
     const p = world.player();
     box.textContent =
-      `calls ${s.calls}   tris ${s.triangles}\n` +
+      `calls ${s.calls}   tris ${s.triangles}   ${world.look()}\n` +
       `frame ${s.frameMs.toFixed(1)} ms   ratio ${s.pixelRatio.toFixed(2)}   ${s.tier}\n` +
       `at ${p.x.toFixed(1)}, ${p.z.toFixed(1)}   yaw ${((p.yaw * 180) / Math.PI).toFixed(0)}   ${p.district ?? 'open ground'}\n` +
       `colliders near ${world.nearColliders().length}   built ${world.built().length}`;
@@ -181,6 +182,8 @@ function boot(): void {
   if (cam) world.setFreeCamera(cam, cam.slice(3));
   if (debug) world.showColliders(true);
   const readout = debug ? debugReadout(world) : null;
+  // The page opens as the drawing either way. The real look follows as soon as its files are in.
+  if (params.get('look') === 'real' && world.lookAvailable()) world.setLook('real').catch(() => {});
 
   const hooks = world as WorldHooks;
   hooks.openEntry = () => {};

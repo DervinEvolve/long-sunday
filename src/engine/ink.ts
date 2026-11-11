@@ -37,9 +37,16 @@ export interface Ink {
   setStill(still: boolean): void;
   /** Reduced motion: plants stop swaying and the paper grain stops boiling. The line itself is unchanged. */
   setCalm(calm: boolean): void;
-  render(scene: THREE.Scene, camera: THREE.PerspectiveCamera, timeSeconds: number): void;
-  /** Draw calls and triangles of the last frame, the full screen pass included. The same object every call. */
+  /** Draws the frame. With `into` the finished page goes to that target and not to the screen: the
+   *  second look uses it during a change-over, to dissolve from one picture into the other. */
+  render(scene: THREE.Scene, camera: THREE.PerspectiveCamera, timeSeconds: number, into?: THREE.WebGLRenderTarget | null): void;
+  /** Draw calls and triangles of the last frame, the full screen pass included. The same object every call.
+   *  Whoever draws the frame fills it in, so it is true in both looks. */
   stats(): { calls: number; triangles: number };
+  /** Depth of the scene as the last ink frame saw it. The change-over sweeps through it. */
+  depth(): THREE.DepthTexture;
+  /** True between a lost WebGL context and its return. */
+  lost(): boolean;
   dispose(): void;
 }
 
@@ -651,7 +658,7 @@ export function createInk(canvas: HTMLCanvasElement, tier: QualityTier): Ink | n
       calm = on;
       inkU.uSway.value = on ? 0 : sway;
     },
-    render(scene, camera, timeSeconds) {
+    render(scene, camera, timeSeconds, into) {
       if (lost) return;
       renderer.info.reset();
       inkU.uTime.value = still ? 0 : timeSeconds;
@@ -667,14 +674,17 @@ export function createInk(canvas: HTMLCanvasElement, tier: QualityTier): Ink | n
       (cu.uFwd.value as THREE.Vector3).set(-e[8], -e[9], -e[10]);
       (cu.uCam.value as THREE.Vector2).set(camera.near, camera.far);
 
-      renderer.setRenderTarget(null);
+      renderer.setRenderTarget(into ?? null);
       renderer.render(tri, triCam);
+      if (into) renderer.setRenderTarget(null);
       count.calls = renderer.info.render.calls;
       count.triangles = renderer.info.render.triangles;
     },
     stats() {
       return count;
     },
+    depth: () => depthTexture,
+    lost: () => lost,
     dispose() {
       canvas.removeEventListener('webglcontextlost', onLost, false);
       canvas.removeEventListener('webglcontextrestored', onRestored, false);

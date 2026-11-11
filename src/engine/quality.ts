@@ -37,6 +37,12 @@ export interface Quality {
   setTier(tier: QualityTier | 'auto'): void;
   /** Called after any change to tier, pixelRatio or auto. Returns a function that removes the listener. */
   onChange(cb: (q: Quality) => void): () => void;
+  /** The world has two looks and they cost very different amounts to draw, so what was learned in
+   *  one says little about the other. Each look keeps its own tier and resolution. On a change of
+   *  look the pair in use is put away under the old name, and the pair last used under the new name
+   *  comes back. A look seen for the first time starts from where things stand. A tier the visitor
+   *  pinned stays through both. */
+  setLook(name: string): void;
 }
 
 type AnyGL = WebGLRenderingContext | WebGL2RenderingContext;
@@ -200,6 +206,9 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
   let descentMs = 0; // and the frame time there
   let trialFrom: QualityTier = 'medium'; // the tier a trial stepped down from
   let trialAllowedAt = 0;
+  // What each look last ran at. See `setLook`.
+  const looks = new Map<string, { tier: QualityTier; pixelRatio: number; auto: boolean }>();
+  let lookName = 'ink';
 
   function resetStats(): void {
     slowFor = 0;
@@ -550,6 +559,30 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
         const i = listeners.indexOf(cb);
         if (i >= 0) listeners.splice(i, 1);
       };
+    },
+
+    setLook(name: string): void {
+      if (name === lookName) return;
+      const tier0 = q.tier;
+      const ratio0 = q.pixelRatio;
+      // A probe or a trial in flight belongs to the look that is leaving. Put its values back first.
+      if (probing !== 0) {
+        if (probing >= 3) q.tier = trialFrom;
+        q.pixelRatio = Math.min(probeSaved, pixelRatioCap(q.tier));
+        probing = 0;
+      }
+      looks.set(lookName, { tier: q.tier, pixelRatio: q.pixelRatio, auto: !tierPinned });
+      lookName = name;
+      const back = looks.get(name);
+      if (back) {
+        if (!tierPinned && back.auto) q.tier = back.tier;
+        q.pixelRatio = Math.min(back.pixelRatio, pixelRatioCap(q.tier));
+      }
+      if (tierPinned && fromUrl !== null) q.pixelRatio = pixelRatioCap(q.tier);
+      // Whatever the frames said belongs to the other picture. Start counting again, after the files have gone up.
+      resetStats();
+      holdUntil = clock + TIER_SETTLE;
+      if (q.tier !== tier0 || q.pixelRatio !== ratio0) emit();
     },
   };
 

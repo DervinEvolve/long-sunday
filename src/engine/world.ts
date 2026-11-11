@@ -12,6 +12,7 @@ import type {
   DistrictId,
   DistrictModule,
   DistrictSite,
+  Look,
   PoiHit,
   QualityTier,
   Vec2,
@@ -22,6 +23,7 @@ import type {
 import type { Ink } from './ink';
 import type { Input } from './input';
 import type { Quality } from './quality';
+import type { RealDebug, RealLook } from '../real/api';
 import { buildTerrain, heightAt, inBounds } from './terrain';
 import { createSky, skyColors, skyHex, type Sky, type SkyHex } from './sky';
 import { buildScatter } from './scatter';
@@ -58,6 +60,18 @@ export const BUDGET = { calls: 150, triangles: 400000 };
  *  the whole budget. The full detail level of a tier applies from the next load. */
 const TRI_BUDGET: Record<QualityTier, number> = { low: 260000, medium: 320000, high: 400000 };
 const TIER_RANK: Record<QualityTier, number> = { low: 0, medium: 1, high: 2 };
+/** The real look's picture has its own ceiling. Its base set alone (ground, city, far sky) is 320,000
+ *  triangles and 68 draw calls, the same on every tier, so the tiers differ in how many districts ride on top. */
+export const REAL_BUDGET = { calls: 250, triangles: 700000 };
+const REAL_TRI_BUDGET: Record<QualityTier, number> = { low: 480000, medium: 600000, high: 700000 };
+/** Seconds the change-over between the two looks takes. A straight cut with reduced motion. */
+const LOOK_SECONDS = 0.6;
+/** After the visitor goes back to the ink look, the real look's files stay on the graphics card for
+ *  this many seconds, so flipping back and forth is instant. Then they are freed and the ink look
+ *  holds exactly what it held before. */
+const REAL_KEEP: Record<QualityTier, number> = { low: 10, medium: 25, high: 45 };
+const NO_REAL = 'The built version is not available here.';
+const REAL_FAILED = 'The built version did not load. You are still in the drawing.';
 /** With reduced motion the ambient clock runs at this fraction of real time: clouds, markers and
  *  district machinery creep where they used to move. */
 const CALM_RATE = 0.05;
@@ -113,6 +127,18 @@ export interface World extends WorldApi {
   budget: { calls: number; triangles: number };
   /** Every district collider in world space. For tests. */
   districtColliders(id: DistrictId): readonly Collider[];
+  /** The real look's own ceiling, live like `budget`. */
+  realBudget: { calls: number; triangles: number };
+  /** What the real look holds right now, or null while its code has not been loaded. For tests. */
+  realInfo(): (RealDebug & { mix: number; keptFor: number }) | null;
+  /** Free the real look's files now, without waiting out the grace time. Only does anything in the ink look. For tests. */
+  dropReal(): void;
+  /** What three.js counts on the graphics card right now, in either look. For tests. */
+  gpu(): { geometries: number; textures: number; programs: number; names: string[] };
+  /** Set one of the real picture's dials (a shared uniform, by name). For tuning and tests. */
+  realTune(name: string, value: number | readonly number[]): void;
+  /** Stop the next change-over when this share of the picture (0..1) is the real look, to look at it. null lets it finish. For tests. */
+  holdLook(mix: number | null): void;
 }
 
 interface Place {
@@ -303,14 +329,28 @@ export function createWorld(opts: WorldOpts): World {
   let useFree = false;
   let aspect = 1;
 
+  // -------------------------------------------------------------------------------------------
+  // The second look. Its code lives in src/real and is fetched the first time it is asked for.
+  // -------------------------------------------------------------------------------------------
+  let real: RealLook | null = null;
+  const fogNow = { near: FOG_NEAR, far: fogFar(quality.tier) };
+  const sizeNow = { width: 1, height: 1, pixelRatio: 1 };
+  /** Both looks fade into the distance over the same range, so a district arrives pale in either. */
+  function setFog(near: number, far: number): void {
+    fogNow.near = near;
+    fogNow.far = far;
+    ink.setFog(near, far);
+    if (real) real.setFog(near, far);
+  }
+
   ink.setSun(SUN);
-  ink.setFog(FOG_NEAR, fogFar(quality.tier));
+  setFog(FOG_NEAR, fogFar(quality.tier));
   ink.setStill(still);
 
   // -------------------------------------------------------------------------------------------
   // Events
   // -------------------------------------------------------------------------------------------
-  const listeners: Listeners = { progress: [], ready: [], district: [], poi: [], interact: [], quality: [], moved: [] };
+  const listeners: Listeners = { progress: [], ready: [], district: [], poi: [], interact: [], quality: [], moved: [], look: [] };
 
   function on<K extends keyof WorldEvents>(event: K, cb: (payload: WorldEvents[K]) => void): () => void {
     const list = listeners[event] as ((payload: WorldEvents[K]) => void)[];
@@ -576,6 +616,7 @@ export function createWorld(opts: WorldOpts): World {
     }
     builtOrder.push(site.id);
     if (wantColliders) showColliders(true);
+    if (real) real.rescan();
   }
 
   // -------------------------------------------------------------------------------------------
@@ -701,7 +742,10 @@ export function createWorld(opts: WorldOpts): World {
       colliderView.geometry.dispose();
       colliderView = null;
     }
-    if (!on) return;
+    if (!on) {
+      if (real) real.rescan();
+      return;
+    }
     const b = kit.builder();
     const add = (c: Collider): void => {
       const y = heightAt(c.x, c.z) - 0.2;
@@ -715,6 +759,7 @@ export function createWorld(opts: WorldOpts): World {
     colliderView = b.build('debug-colliders');
     colliderView.frustumCulled = false;
     scene.add(colliderView);
+    if (real) real.rescan();
   }
 
   // -------------------------------------------------------------------------------------------
@@ -746,10 +791,18 @@ export function createWorld(opts: WorldOpts): World {
       byDistance[j + 1] = v;
     }
 
-    let calls = reserve.calls;
-    let triangles = reserve.triangles;
+    // The real look counts its own way: baked chunks where they are in, the ink geometry where they are not.
+    const rl = real !== null && real.active() ? real : null;
+    const kept = rl ? rl.reserve() : reserve;
+    const budget = rl ? REAL_BUDGET : BUDGET;
+    let calls = kept.calls;
+    let triangles = kept.triangles;
     const now = quality.tier;
-    const maxTriangles = TIER_RANK[now] < TIER_RANK[builtTier] ? Math.min(BUDGET.triangles, TRI_BUDGET[now]) : BUDGET.triangles;
+    const maxTriangles = rl
+      ? Math.min(REAL_BUDGET.triangles, REAL_TRI_BUDGET[now])
+      : TIER_RANK[now] < TIER_RANK[builtTier]
+        ? Math.min(BUDGET.triangles, TRI_BUDGET[now])
+        : BUDGET.triangles;
     let drawn = 0;
     let stand = -1;
     for (let n = 0; n < byDistance.length; n++) {
@@ -761,11 +814,12 @@ export function createWorld(opts: WorldOpts): World {
       const inView = frustum.intersectsSphere(place.bounds);
       let shown = place.shown ? dEye < far + 12 : dEye < far;
       if (shown && inView) {
+        const cost = (rl ? rl.cost(s.id) : null) ?? place.cost;
         // The first one in view is always drawn, whatever it costs.
-        if (drawn > 0 && (calls + place.cost.calls > BUDGET.calls || triangles + place.cost.triangles > maxTriangles)) shown = false;
+        if (drawn > 0 && (calls + cost.calls > budget.calls || triangles + cost.triangles > maxTriangles)) shown = false;
         else {
-          calls += place.cost.calls;
-          triangles += place.cost.triangles;
+          calls += cost.calls;
+          triangles += cost.triangles;
           drawn++;
         }
       }
@@ -775,6 +829,7 @@ export function createWorld(opts: WorldOpts): World {
         if (markers) markers.instanceMatrix.needsUpdate = true;
       }
       place.group.visible = shown && inView;
+      if (rl) rl.setShown(s.id, shown && inView);
 
       const d = Math.hypot(px - s.center.x, pz - s.center.z);
       place.near = d < s.radius + UPDATE_MARGIN;
@@ -825,8 +880,13 @@ export function createWorld(opts: WorldOpts): World {
   }
 
   function frame(dt: number): void {
-    // Under an overlay the picture hardly matters: draw every other frame.
-    if (paused && (pausedTick++ & 1) === 1) return;
+    // Under an overlay the picture hardly matters: draw every other frame. A change-over keeps its pace.
+    if (paused && (pausedTick++ & 1) === 1) {
+      lookOwed += dt;
+      return;
+    }
+    stepLook(dt + lookOwed);
+    lookOwed = 0;
     const step = still ? 0 : dt;
     const drift = calm ? step * CALM_RATE : step;
     simT += step;
@@ -848,6 +908,8 @@ export function createWorld(opts: WorldOpts): World {
     }
 
     const cam = useFree ? free : rig;
+    const realOn = real !== null && real.active();
+    if (realOn) real!.update(dt, px, py, pz);
     trackDistricts(drift, px, py, pz, cam);
     trackSpots(px, pz);
     if (started && !paused) {
@@ -867,7 +929,8 @@ export function createWorld(opts: WorldOpts): World {
       ink.setSky(skyHex(skyRGB, skyNow));
     }
     if (scatterUpdate) scatterUpdate(drift, ambT);
-    ink.render(scene, cam, simT);
+    if (realOn) real!.render(scene, cam, simT, lookMix, lookAim === 1);
+    else ink.render(scene, cam, simT);
   }
 
   // A tap on the marker of the thing in reach does what the interact key does.
@@ -882,6 +945,201 @@ export function createWorld(opts: WorldOpts): World {
     const sx = rect.left + (tapAt.x * 0.5 + 0.5) * rect.width;
     const sy = rect.top + (-tapAt.y * 0.5 + 0.5) * rect.height;
     if (Math.hypot(clientX - sx, clientY - sy) < 64) emit('interact', s.hit);
+  });
+
+  // -------------------------------------------------------------------------------------------
+  // The two looks. 'ink' is the drawing and what the page starts in. 'real' is the same place built
+  // and photographed. One call swaps them where the visitor stands: the walk never stops, the camera
+  // never moves. Nothing of the real look is fetched, not even its code, until the first request.
+  // -------------------------------------------------------------------------------------------
+  /** What look() answers. */
+  let lookNow: Look = 'ink';
+  /** The latest request, and whether it has landed. */
+  let lookWanted: Look = 'ink';
+  let lookSettled = true;
+  /** Share of the picture that is the real look, and where that is heading (0 or 1). */
+  let lookMix = 0;
+  let lookAim = 0;
+  let lookOwed = 0;
+  /** Bumped by every new request. A load that finds a newer number steps aside. */
+  let lookSeq = 0;
+  let waiting: { resolve: () => void; reject: (err: Error) => void }[] = [];
+  let realComing: Promise<RealLook> | null = null;
+  let realMissing = false;
+  let capable: boolean | null = null;
+  /** When the real look's files are freed, in seconds on the page clock. Infinity while it is on screen. */
+  let releaseAt = Infinity;
+  let lookHold: number | null = null;
+
+  function lookAvailable(): boolean {
+    if (realMissing) return false;
+    if (capable === null) {
+      capable = false;
+      try {
+        const r = ink.renderer;
+        // The files sit beside the page. A page opened from disk cannot fetch them. The single file
+        // build has none, unless it is inside the locked copy, which brings its own way to open them.
+        const filesThere = location.protocol !== 'file:' && (import.meta.env.MODE !== 'single' || typeof window.__lsAsset === 'function');
+        const canDraw =
+          r.capabilities.maxTextureSize >= 2048 && (r.extensions.has('EXT_color_buffer_float') || r.extensions.has('EXT_color_buffer_half_float'));
+        capable = filesThere && canDraw && typeof DecompressionStream === 'function';
+      } catch {
+        capable = false;
+      }
+    }
+    return capable;
+  }
+
+  function settleLook(err?: Error): void {
+    const list = waiting;
+    waiting = [];
+    for (const w of list) {
+      if (err) w.reject(err);
+      else w.resolve();
+    }
+  }
+
+  /** The change-over has run its course: the wanted look fills the screen. */
+  function landLook(): void {
+    if (lookAim === 0 && real) {
+      real.setActive(false);
+      releaseAt = performance.now() / 1000 + REAL_KEEP[quality.tier];
+    }
+    // Each look has its own tier and resolution: a heavy real frame must not leave the drawing blurred.
+    quality.setLook(lookAim === 1 ? 'real' : 'ink');
+    lookSettled = true;
+    emit('look', { look: lookAim === 1 ? 'real' : 'ink', state: 'on' });
+    settleLook();
+  }
+
+  function stepLook(dt: number): void {
+    if (real && !real.active() && lookWanted === 'ink') {
+      const now = performance.now() / 1000;
+      // Back in the drawing with the real look's files still held (a load that was called off lands
+      // here too): start the clock, and when it runs out give the memory back.
+      if (releaseAt === Infinity) {
+        if (real.holding()) releaseAt = now + REAL_KEEP[quality.tier];
+      } else if (now > releaseAt) {
+        lookSeq++;
+        real.release();
+        releaseAt = Infinity;
+      }
+    }
+    if (lookMix === lookAim) return;
+    const move = calm ? 1 : dt / LOOK_SECONDS;
+    let next = lookAim > lookMix ? Math.min(1, lookMix + move) : Math.max(0, lookMix - move);
+    // A test can stop the change-over part way to look at it.
+    if (lookHold !== null) next = lookAim > lookMix ? Math.min(next, Math.max(lookMix, lookHold)) : Math.max(next, Math.min(lookMix, lookHold));
+    lookMix = next;
+    if (lookMix === lookAim) landLook();
+  }
+
+  function loadReal(): Promise<RealLook> {
+    if (!realComing) {
+      const coming = import('../real/index').then((m) => {
+        const made = m.createReal({
+          scene,
+          ink,
+          canvas,
+          tier: () => quality.tier,
+          camera: () => (useFree ? free : rig),
+          sites: SITES.map((s) => ({ id: s.id, x: s.center.x, y: s.height, z: s.center.z, radius: s.radius })),
+        });
+        made.setFog(fogNow.near, fogNow.far);
+        made.setSize(sizeNow.width, sizeNow.height, sizeNow.pixelRatio);
+        real = made;
+        return made;
+      });
+      coming.catch(() => {
+        if (realComing === coming) realComing = null;
+      });
+      realComing = coming;
+    }
+    return realComing;
+  }
+
+  async function bringReal(seq: number): Promise<void> {
+    try {
+      emit('look', { look: 'real', state: 'loading', progress: 0 });
+      if (!ready) await new Promise<void>((resolve) => void on('ready', () => resolve()));
+      if (seq !== lookSeq) return;
+      const r = await loadReal();
+      if (seq !== lookSeq) return;
+      await r.prepare(
+        controller.position,
+        (p) => {
+          if (seq === lookSeq) emit('look', { look: 'real', state: 'loading', progress: p });
+        },
+        () => seq === lookSeq,
+      );
+      if (seq !== lookSeq) return;
+      r.setActive(true);
+      releaseAt = Infinity;
+      lookNow = 'real';
+      lookAim = 1;
+      // frame() carries the picture across and settles the promises when it has arrived.
+    } catch (err) {
+      if (seq !== lookSeq) return; // a newer request took over, and it settles everyone
+      lookSeq++; // files still on their way must not report progress after this
+      console.error('[world] the real look did not load', err);
+      if ((err as { code?: string } | null)?.code === 'no-manifest') realMissing = true;
+      lookWanted = 'ink';
+      lookSettled = true;
+      if (real && !real.active()) releaseAt = performance.now() / 1000 + REAL_KEEP[quality.tier];
+      emit('look', { look: 'real', state: 'failed' });
+      settleLook(new Error(realMissing ? NO_REAL : REAL_FAILED));
+    }
+  }
+
+  function setLook(next: Look): Promise<void> {
+    if (next !== 'ink' && next !== 'real') return Promise.reject(new Error('There is no look called that.'));
+    if (next === 'real' && !lookAvailable()) return Promise.reject(new Error(NO_REAL));
+    return new Promise<void>((resolve, reject) => {
+      if (next === lookWanted) {
+        // Already there, or already on its way: one job, and everyone who asked hears when it lands.
+        if (lookSettled) resolve();
+        else waiting.push({ resolve, reject });
+        return;
+      }
+      waiting.push({ resolve, reject });
+      lookWanted = next;
+      lookSettled = false;
+      const seq = ++lookSeq;
+      if (next === 'real') {
+        void bringReal(seq);
+        return;
+      }
+      lookNow = 'ink';
+      lookAim = 0;
+      if (real && !real.active()) releaseAt = performance.now() / 1000 + REAL_KEEP[quality.tier];
+      // Pressed while the real look was still loading: there is nothing to cross back from.
+      if (lookMix === 0) landLook();
+    });
+  }
+
+  // A lost graphics context takes every texture and buffer with it. three rebuilds the ink look by
+  // itself. The real look's files are let go and fetched again (the browser has them cached).
+  canvas.addEventListener('webglcontextrestored', () => {
+    if (!real) return;
+    const was = lookWanted;
+    lookSeq++;
+    real.release();
+    releaseAt = Infinity;
+    lookMix = 0;
+    lookAim = 0;
+    lookNow = 'ink';
+    lookWanted = 'ink';
+    lookSettled = true;
+    quality.setLook('ink');
+    const list = waiting;
+    waiting = [];
+    if (was === 'real') {
+      const again = setLook('real');
+      again.then(
+        () => list.forEach((w) => w.resolve()),
+        (err: Error) => list.forEach((w) => w.reject(err)),
+      );
+    } else list.forEach((w) => w.resolve());
   });
 
   // -------------------------------------------------------------------------------------------
@@ -903,8 +1161,9 @@ export function createWorld(opts: WorldOpts): World {
     ink.setQuality(quality.tier);
     if (fogTier !== quality.tier) {
       fogTier = quality.tier;
-      if (!useFree) ink.setFog(FOG_NEAR, fogFar(quality.tier));
+      if (!useFree) setFog(FOG_NEAR, fogFar(quality.tier));
     }
+    if (real) real.setTier(quality.tier);
   };
   quality.onChange(() => {
     followTier();
@@ -943,7 +1202,7 @@ export function createWorld(opts: WorldOpts): World {
   function setFreeCamera(eye: readonly number[] | null, look?: readonly number[]): void {
     if (!eye || eye.length < 3) {
       useFree = false;
-      ink.setFog(FOG_NEAR, fogFar(quality.tier));
+      setFog(FOG_NEAR, fogFar(quality.tier));
       return;
     }
     useFree = true;
@@ -956,7 +1215,7 @@ export function createWorld(opts: WorldOpts): World {
     free.updateProjectionMatrix();
     // Nobody walks this far out. From high up, push the haze back so the whole island reads.
     const reach = Math.hypot(eye[0] - lx, eye[1] - ly, eye[2] - lz);
-    ink.setFog(Math.max(FOG_NEAR, reach * 0.65), Math.max(FOG_FAR, reach * 4));
+    setFog(Math.max(FOG_NEAR, reach * 0.65), Math.max(FOG_FAR, reach * 4));
   }
 
   const world: World = {
@@ -994,13 +1253,20 @@ export function createWorld(opts: WorldOpts): World {
     touchRoot(el) {
       input.setTouchUi(el);
     },
+    look: () => lookNow,
+    lookAvailable,
+    setLook,
 
     scene,
     camera: () => (useFree ? free : rig),
     frame,
     resize(width, height, pixelRatio) {
       aspect = width / Math.max(1, height);
+      sizeNow.width = width;
+      sizeNow.height = height;
+      sizeNow.pixelRatio = pixelRatio;
       ink.setSize(width, height, pixelRatio);
+      if (real) real.setSize(width, height, pixelRatio);
       controller.setAspect(aspect);
       free.aspect = aspect;
       free.updateProjectionMatrix();
@@ -1008,7 +1274,12 @@ export function createWorld(opts: WorldOpts): World {
     built: () => builtOrder.slice(),
     costs() {
       const out: Partial<Record<DistrictId, DistrictCost>> = {};
-      for (const p of places) if (p.cost) out[p.site.id] = p.cost;
+      const rl = real !== null && real.active() ? real : null;
+      for (const p of places) {
+        if (!p.cost) continue;
+        const baked = rl ? rl.cost(p.site.id) : null;
+        out[p.site.id] = baked ? { ...p.cost, calls: baked.calls, triangles: baked.triangles } : p.cost;
+      }
       return out;
     },
     setFreeCamera,
@@ -1019,6 +1290,26 @@ export function createWorld(opts: WorldOpts): World {
       spots.map((s) => ({ entry: s.hit.entry ? s.hit.entry.id : null, action: s.hit.action, x: s.x, y: s.y, z: s.z, reach: s.reach, district: places[s.place].site.id })),
     budget: BUDGET,
     districtColliders: (id) => places.find((p) => p.site.id === id)?.colliders ?? [],
+    realBudget: REAL_BUDGET,
+    realInfo: () => (real ? { ...real.debug(), mix: lookMix, keptFor: Number.isFinite(releaseAt) ? Math.max(0, releaseAt - performance.now() / 1000) : -1 } : null),
+    dropReal() {
+      if (real && !real.active() && lookWanted === 'ink') {
+        lookSeq++;
+        real.release();
+        releaseAt = Infinity;
+      }
+    },
+    gpu() {
+      const info = ink.renderer.info;
+      const programs = info.programs ?? [];
+      return { geometries: info.memory.geometries, textures: info.memory.textures, programs: programs.length, names: programs.map((p) => p.name) };
+    },
+    realTune(name, value) {
+      if (real) real.tune(name, value);
+    },
+    holdLook(mix) {
+      lookHold = mix === null ? null : Math.min(1, Math.max(0, mix));
+    },
   };
 
   construct().catch((err) => console.error('[world] could not finish building', err));

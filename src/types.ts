@@ -4,6 +4,9 @@ import type * as THREE from 'three';
 
 export type ColorLike = number | string;
 export type QualityTier = 'low' | 'medium' | 'high';
+/** The two looks of the one world. 'ink' is the drawing. 'real' is the same place as if it had been
+ *  built from the same blueprints and photographed late in the day. */
+export type Look = 'ink' | 'real';
 
 /** A point on the ground plane. x is east, z is south. Metres. */
 export interface Vec2 {
@@ -342,6 +345,9 @@ export interface WorldEvents {
   quality: WorldStats;
   /** Fires once, the first time the visitor moves. */
   moved: void;
+  /** A change of look. 'loading' repeats with `progress` going 0..1 while the real look's files come
+   *  in. 'on' fires when that look fills the screen. 'failed' means the world stayed in the ink look. */
+  look: { look: Look; state: 'loading' | 'on' | 'failed'; progress?: number };
 }
 
 export interface WorldApi {
@@ -366,4 +372,14 @@ export interface WorldApi {
   /** Districts the visitor has stood in this session. */
   visited(): DistrictId[];
   touchRoot(el: HTMLElement | null): void;
+  /** The look on screen, or the one the picture is turning into once a change-over has begun. */
+  look(): Look;
+  /** False when the real look's files are not there (the single file build) or the device cannot
+   *  draw it. Costs nothing to ask: no file is fetched until the first setLook('real'). */
+  lookAvailable(): boolean;
+  /** Swap looks where the visitor stands. Resolves when that look is on screen. If the real look
+   *  cannot load, the world stays in the ink look and this rejects with an Error whose message can be
+   *  shown as it is. Asking again while a change is under way is fine: the last request wins, and
+   *  every pending call settles when it has. */
+  setLook(look: Look): Promise<void>;
 }

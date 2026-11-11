@@ -199,6 +199,97 @@ heaviest districts on their own are Sky Harbor (9 calls, 38,400 triangles) and t
 36,800). The overview sits close to the triangle limit, so anything added to the ground, sky or city
 has to come out of somewhere else.
 
+## The second look
+
+The world has two looks. `ink` is the drawing and what every page opens in. `real` is the same place
+as if it had been built from the same blueprints and photographed late in the day. The pipeline that
+makes the real look's files is in `docs/REAL.md`. This section is about the page.
+
+```ts
+world.look()              // 'ink' or 'real'
+world.lookAvailable()     // false in the single file build, from disk, or on a device that cannot draw it
+world.setLook('real')     // a promise: resolves when that look fills the screen
+world.on('look', (e) => {})   // { look, state: 'loading' | 'on' | 'failed', progress? }
+```
+
+`?look=real` in the address starts the switch as soon as the world is ready. The page still opens as
+the drawing and crosses over when the files are in.
+
+What I hold myself to:
+
+- The ink look pays next to nothing: 2.9 kB gzipped in the first bundle, for the switch itself.
+  Everything else is in `src/real/` behind one dynamic import in `src/engine/world.ts`. No file
+  under `real/` is asked for, and not a line of that code is loaded, until the first
+  `setLook('real')`. Asking `lookAvailable()` fetches nothing.
+- The switch is in place. Same spot, same camera, the walk goes on. The first switch loads the
+  manifest, the sky, the base set (ground, city, far sky) and the district nearest the visitor, then
+  the picture crosses over in 0.6 seconds, spreading out from where he stands. With reduced motion it
+  is a cut. The other districts stream in by distance after that.
+- There is never a hole. Until a district's baked files arrive it is drawn from the ink geometry with
+  a stand-in material that reads the same vertex attributes. Everything that moves is always drawn
+  that way: the figure, the markers, the train, the whale, flags, clouds. A mesh the manifest does
+  not name at all is newer than the bake, and it is drawn the same way. A change inside a mesh the
+  bake already covers does not show until the pipeline bakes that district again.
+- `setLook` can be called at any time, twice, or during a load. The last call wins and every promise
+  settles when it lands, so after a promise resolves ask `look()` which look that was. When the files
+  cannot be loaded the world stays in the drawing and the promise rejects with a sentence that can be
+  shown as it is. The base set has to load. A district that fails keeps its stand-in and is tried
+  again twice.
+- During the 0.6 seconds of a change-over both looks are drawn, so those frames cost about the two
+  added together.
+- Going back to the drawing keeps the real look's files on the graphics card for a short while (10
+  seconds on low, 25 on medium, 45 on high), so flipping back and forth is instant. Then they are
+  freed and the card holds what it held before.
+
+### Tiers
+
+| | low | medium | high |
+| --- | --- | --- | --- |
+| Files | half size lightmaps and textures | full size | full size |
+| Samples per pixel | 1 | 4 | 4 |
+| Sun shadow map for what moves | none, a soft patch under his feet | 1024 | 2048 |
+| Bloom | no | no | yes |
+| Memory ceiling for baked chunks | 100 MB | 230 MB | 340 MB |
+| Triangles in a frame, at most | 480,000 | 600,000 | 700,000 |
+
+A phone or tablet, and any device that reports 4 GB of memory or less, gets the half size files on
+every tier, and with them the 100 MB ceiling. Which files to fetch is decided at the first switch.
+A tier change after that turns bloom, the shadow map and the extra samples on or off at once and
+leaves the files alone.
+
+The quality governor keeps a tier and a resolution for each look (`quality.setLook` in
+`src/engine/quality.ts`). The real look costs more to draw, and what it teaches the governor stays
+with it: coming back to the drawing brings back the drawing's own tier and resolution. A tier pinned
+in the settings holds in both.
+
+### Budgets
+
+The real look has its own ceiling: 250 draw calls and 700,000 triangles on high (`REAL_BUDGET` in
+`src/engine/world.ts`). The culling is the same code as for the drawing. It asks the real look what a
+district costs right now: the baked chunk plus that district's moving parts when the chunk is in, the
+ink geometry when it is not. The base set is 320,000 triangles and 68 draw calls and is always there.
+`stats()` and `costs()` report what is on screen in either look.
+
+### Looking at it
+
+`?debug=1` shows which look is on beside the counts. In the console:
+
+```
+await __world.setLook('real')
+__world.realInfo()        // chunks loaded, loading, failed; megabytes held; bloom, shadows, samples; mix; reserve
+__world.gpu()             // geometries, textures and programs as three.js counts them
+__world.holdLook(0.5)     // stop the next change-over half way, null lets it finish
+__world.dropReal()        // back in the drawing: free the real look's files now, without the wait
+__world.realBudget.triangles = 500000
+__world.realTune('uShine', [1, 1, 2, 1])   // mirrored sky, sun glint, closed-in power, horizon
+__world.realTune('uAo', 0.6)               // how much the joints shade
+```
+
+`scripts/shot.mjs` takes its picture as soon as the world is ready, so for the real look open the
+page with `?look=real` and wait for `__world.realInfo().loading.length === 0` before the shot.
+Under software GL the first switch takes about half a minute and every district is in after two to
+four. I have not timed it on a graphics card.
+
 ## The locked copy
 
 The hosted page has a password. The copy that goes on a public address holds only an unlock screen
