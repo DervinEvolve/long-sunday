@@ -13,7 +13,7 @@
 // the furniture are one mesh, the train is one more because it moves.
 import * as THREE from 'three';
 import type { Collider, InkKit, QualityTier } from '../types';
-import { ROADS } from '../world/layout';
+import { ROADS, SITE_BY_ID, SPAWN } from '../world/layout';
 import { palette } from '../world/palette';
 import {
   Claims, Frame, ROAD_CLEAR, aqueduct, bench, clearGround, groundRange, hydrant, item, lampPost, padGap, planter, roadGap, sightGap, slab, walkUp, archGap,
@@ -40,6 +40,57 @@ const scl = new THREE.Vector3();
 const quat = new THREE.Quaternion();
 const euler = new THREE.Euler();
 const tint = new THREE.Color();
+
+// The Trailhead's column with the bronze figure holding up the sun stands on the arch roof, on the
+// spawn's north line and 1.45 m behind the middle of the arch (trailhead.ts). Walking in on the spine
+// it is the first thing of the place you see, so no tree crown may sit on the line from the spine to
+// it. The line starts where the spine, coming back from the Switchboard, is 80 m out and walking
+// toward the Trailhead.
+const LANDMARK_X = SPAWN.x;
+const LANDMARK_Z = SITE_BY_ID.trailhead.center.z + 6.5 - 1.45;
+let landmarkLines: number[] | null = null;
+
+// Which way the nearest view line lies from the last point asked about: a unit step away from it.
+let awayX = 0;
+let awayZ = 0;
+
+/** Metres from (x, z) to the view line onto the Trailhead column. A tree right beside the walker
+ *  stands to the side of the picture, so the line starts 12 m out from where he stands. */
+function landmarkGap(x: number, z: number): number {
+  if (!landmarkLines) {
+    landmarkLines = [];
+    const c = SITE_BY_ID.trailhead.center;
+    const len = roadLength(0);
+    let before = 0;
+    for (let s = 0; s <= len; s += 0.5) {
+      roadPoint(0, s, rp);
+      const d = Math.hypot(rp.x - c.x, rp.z - c.z);
+      if (before > 80 && d <= 80) {
+        landmarkLines.push(rp.x, rp.z);
+        break;
+      }
+      before = d;
+    }
+  }
+  let best = Infinity;
+  for (let i = 0; i < landmarkLines.length; i += 2) {
+    const ax = landmarkLines[i], az = landmarkLines[i + 1];
+    const dx = LANDMARK_X - ax, dz = LANDMARK_Z - az, L = Math.hypot(dx, dz);
+    const t = ((x - ax) * dx + (z - az) * dz) / L;
+    if (t < 12 || t > L) continue;
+    const side = ((x - ax) * dz - (z - az) * dx) / L;
+    if (Math.abs(side) < best) {
+      best = Math.abs(side);
+      const sg = side < 0 ? -1 : 1;
+      awayX = (dz / L) * sg;
+      awayZ = (-dx / L) * sg;
+    }
+  }
+  return best;
+}
+
+/** A crown of this size would cut the view of the Trailhead column. The crown is about 2.4 m across per unit of size. */
+const onLandmark = (x: number, z: number, size: number) => landmarkGap(x, z) < 0.8 + 2.3 * size;
 
 /** Turn a list of items into one instanced mesh per wedge that has any. `wedges` false keeps them in one. */
 function instanced(kit: InkKit, group: THREE.Group, name: string, shape: THREE.BufferGeometry, items: Item[], wedges = true): number {
@@ -454,6 +505,23 @@ function ruin(plan: Plan, x: number, z: number, seed: number): void {
 
 /** One tree. `kind` 0 is round, 1 is layered. */
 function tree(plan: Plan, kind: number, x: number, z: number, size: number, yaw: number, color: string, room = 1.5): boolean {
+  // In the view of the Trailhead column it steps sideways off the line to the first free ground
+  // within 10 m, on its own side first, and may stand as close as a street tree to its neighbours.
+  // If there is none it is not planted.
+  if (onLandmark(x, z, size)) {
+    const sx = awayX, sz = awayZ;
+    let found = false;
+    for (const dir of [1, -1]) {
+      for (let k = 1; k <= 10 && !found; k++) {
+        const tx = x + sx * k * dir, tz = z + sz * k * dir;
+        if (onLandmark(tx, tz, size) || !clearGround(tx, tz, 0.4) || sightGap(tx, tz) < TREE_SIGHT || plan.claims.taken(tx, tz, Math.min(room, 1))) continue;
+        x = tx;
+        z = tz;
+        found = true;
+      }
+    }
+    if (!found) return false;
+  }
   if (!clearGround(x, z, 0.4) || sightGap(x, z) < TREE_SIGHT || plan.claims.taken(x, z, room)) return false;
   (kind === 0 ? plan.round : plan.layered).push(item(x, heightAt(x, z) - 0.05, z, yaw, size, color));
   plan.out.colliders.push({ kind: 'circle', x, z, r: 0.34 * size });
@@ -610,11 +678,20 @@ function streetTrees(plan: Plan): void {
           const pick = next(), size = 0.82 + next() * 0.3, yaw = next() * 6.28, color = leaf(next), j = (next() - 0.5) * 1.6;
           if (pick > plan.share + 0.3) continue;
           const [x, z] = beside(road, s + j, side, off);
-          if (tree(plan, 0, x, z, size, yaw, color, 1.0) || sightGap(x, z) >= TREE_SIGHT) continue;
+          if (tree(plan, 0, x, z, size, yaw, color, 1.0)) continue;
+          // In the view of the Trailhead column and with no room beside the line, it moves along the row.
+          if (onLandmark(x, z, size)) {
+            for (const along of [0.35, -0.35, 0.5, -0.5]) {
+              const [ax, az] = beside(road, s + j + along * gap, side, off);
+              if (tree(plan, 0, ax, az, size, yaw, color, 1.0)) break;
+            }
+            continue;
+          }
+          if (sightGap(x, z) >= TREE_SIGHT) continue;
           // On a line of sight it stands further back from the street, if there is room well clear of the line.
           for (const back of [4.5, 9]) {
             const [bx, bz] = beside(road, s + j, side, off + back);
-            if (sightGap(bx, bz) >= TREE_SIGHT + 4 && tree(plan, 0, bx, bz, size, yaw, color, 1.0)) break;
+            if (sightGap(bx, bz) >= TREE_SIGHT + 4 && !onLandmark(bx, bz, size + 0.3) && tree(plan, 0, bx, bz, size, yaw, color, 1.0)) break;
           }
         }
       }

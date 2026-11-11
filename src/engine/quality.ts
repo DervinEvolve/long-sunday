@@ -16,6 +16,11 @@
 // reports 16.7 ms however little work there was. That is why "there is headroom" is judged against the
 // steady rhythm of the display rather than against a fixed number, and why stepping up is a guess that
 // backs off when it turns out wrong.
+//
+// An even 30 that resolution does not move is either a capped browser or a device that is short of
+// 60 by more than pixels. The tier below can tell them apart, so Auto tries it once: if it holds the
+// display's rhythm it stays, smooth and a bit plainer beats sharp and juddering. If it does not, the
+// tier goes back after five seconds and the 30 is taken as the rhythm.
 import type { QualityTier } from '../types';
 
 export interface Quality {
@@ -58,6 +63,9 @@ const RETRY_MAX = 240;
 const PROBE_SETTLE = 0.4;
 const PROBE_MEASURE = 0.8;
 const PROBE_AGAIN = 60;
+const TRIAL_SETTLE = 2.0; // a trial of the tier below: seconds to let it settle
+const TRIAL_MEASURE = 3.0; // then seconds to time it. The tier never comes back up sooner than these two.
+const TRIAL_AGAIN = 300;
 
 /** The highest pixel ratio a tier will use on this screen. */
 export function pixelRatioCap(tier: QualityTier): number {
@@ -190,6 +198,8 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
   let gaveUp = false; // the floor did not make it fast either, so the sharpness went back
   let descentFrom = 0; // the pixel ratio a run of steps down began at
   let descentMs = 0; // and the frame time there
+  let trialFrom: QualityTier = 'medium'; // the tier a trial stepped down from
+  let trialAllowedAt = 0;
 
   function resetStats(): void {
     slowFor = 0;
@@ -201,6 +211,7 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
     upFrom = 0;
     probing = 0;
     probeAllowedAt = 0;
+    trialAllowedAt = 0;
     pixelsMatter = false;
     pixelsIdle = false;
     gaveUp = false;
@@ -270,7 +281,12 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
       // Resolution is not what sets the pace, so blur buys nothing: put the sharpness back either way.
       q.pixelRatio = probeSaved;
       if (after <= 0.036) {
-        // And the pace is bearable. Call it the display's rhythm.
+        // A steady 30 or so. If the tier is still mine to move, see whether the one below makes 60.
+        if (!tierPinned && q.tier !== 'low' && after > 0.024 && clock >= trialAllowedAt) {
+          startTrial(after);
+          return;
+        }
+        // Otherwise the pace is bearable. Call it the display's rhythm.
         base = after;
         smoothed = after;
       } else {
@@ -288,19 +304,66 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
     q.pixelRatio = Math.max(MIN_PIXEL_RATIO, Math.sqrt((MIN_PIXEL_RATIO * MIN_PIXEL_RATIO + probeSaved * probeSaved) / 2) * STEP_DOWN);
   }
 
+  // Step the tier down for a few seconds, at the floor resolution where it has its best chance, and
+  // time it. See `finishTrial`.
+  function startTrial(before: number): void {
+    probing = 3;
+    probeBefore = before;
+    trialFrom = q.tier;
+    trialAllowedAt = clock + TRIAL_AGAIN;
+    q.tier = q.tier === 'high' ? 'medium' : 'low';
+    q.pixelRatio = MIN_PIXEL_RATIO;
+    probeUntil = clock + TRIAL_SETTLE;
+    probeSum = 0;
+    probeCount = 0;
+    clearWindow();
+  }
+
+  function finishTrial(): void {
+    probing = 0;
+    slowFor = 0;
+    fastFor = 0;
+    floorFor = 0;
+    const mean = probeCount > 0 ? probeSum / probeCount : probeBefore;
+    if (mean < probeBefore * 0.8) {
+      // The tier below keeps time. It stays, and resolution climbs from the floor the ordinary way.
+      smoothed = mean;
+      failedAt = Infinity;
+      retryAt = 0;
+      backoff = RETRY_FIRST;
+      upFrom = 0;
+      pixelsMatter = false;
+      pixelsIdle = false;
+      gaveUp = false;
+      descentFrom = 0;
+      probeAllowedAt = clock + PROBE_AGAIN;
+      holdUntil = clock + SETTLE;
+      return;
+    }
+    // No faster. Put everything back and take the slower pace as this device's rhythm.
+    q.tier = trialFrom;
+    q.pixelRatio = Math.min(probeSaved, pixelRatioCap(q.tier));
+    base = probeBefore;
+    smoothed = probeBefore;
+    holdUntil = clock + TIER_SETTLE;
+  }
+
   function adapt(dt: number): void {
     const cap = pixelRatioCap(q.tier);
 
     if (probing !== 0) {
-      if (probing === 1) {
+      if (probing === 1 || probing === 3) {
         if (clock >= probeUntil) {
-          probing = 2;
-          probeUntil = clock + PROBE_MEASURE;
+          probeUntil = clock + (probing === 1 ? PROBE_MEASURE : TRIAL_MEASURE);
+          probing++;
         }
       } else {
         probeSum += dt;
         probeCount++;
-        if (clock >= probeUntil) finishProbe();
+        if (clock >= probeUntil) {
+          if (probing === 2) finishProbe();
+          else finishTrial();
+        }
       }
       return;
     }
@@ -445,8 +508,9 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
         clearWindow();
         if (holdUntil < clock + SETTLE) holdUntil = clock + SETTLE;
         if (probing !== 0) {
+          if (probing >= 3) q.tier = trialFrom;
           probing = 0;
-          q.pixelRatio = Math.min(probeSaved, cap);
+          q.pixelRatio = Math.min(probeSaved, pixelRatioCap(q.tier));
         }
       }
 
