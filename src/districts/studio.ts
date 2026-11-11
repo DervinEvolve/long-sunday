@@ -8,6 +8,8 @@
 // Round the edges: a tree in a brick planter, a cloud of small discs with photographs circling it,
 // a card three metres tall with a portal cut through it, a spyglass on a tripod aimed back down the
 // road at the Commons, and a broken marble colonnade with ivy on it.
+// Behind that colonnade, for whoever wanders that far, a small bone shrine to Hush: a black stone
+// figure with its eyes closed and one finger up, a star beside it, and something under a cloth.
 //
 // One road comes in, from the west south west (the side street from the Commons). The arrival point
 // and the line from it to the middle of the yard are kept clear.
@@ -65,6 +67,241 @@ function bloomOutline(seed: number, r: number, n: number): P2[] {
     out.push([Math.cos(t) * r * k, Math.sin(t) * r * k]);
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Hush. My own brand colours and the mark, measured off my brand sheet.
+// ---------------------------------------------------------------------------------------------
+const HUSH_INK = '#0b0b0c';
+const HUSH_NIGHT = '#151517';
+const HUSH_GRAPHITE = '#232326';
+const HUSH_BONE = '#f7f3ea';
+const HUSH_STONE = '#d9d3c7';
+const HUSH_ASH = '#8e8a84';
+const HUSH_IRIS = '#b9aaf2';
+
+/** The blob as circles: x, y, radius. One unit is half its width. The origin sits just above the fingertip. */
+const HUSH_LOBES: readonly (readonly [number, number, number])[] = [
+  [0.0, -0.08, 0.38],
+  [0.16, 0.56, 0.35],
+  [-0.67, 0.19, 0.34],
+  [0.75, 0.05, 0.26],
+  [-0.66, -0.57, 0.32],
+  [0.68, -0.52, 0.31],
+  [-0.26, -0.5, 0.27],
+  [0.22, -0.5, 0.27],
+  [-0.27, 0.2, 0.2],
+  [0.3, -0.14, 0.28],
+  [0.5, -0.2, 0.31],
+  [-0.5, -0.19, 0.33],
+  [-0.1, 0.44, 0.21],
+];
+/** The raised hand, as the one line the mark draws it with. Left edge up, round the tip, down over the knuckles. */
+const HUSH_HAND: readonly P2[] = [
+  [-0.4, -0.88],
+  [-0.347, -0.77],
+  [-0.096, -0.268],
+  [-0.072, -0.225],
+  [-0.036, -0.213],
+  [0.0, -0.232],
+  [0.017, -0.28],
+  [0.0, -0.411],
+  [-0.041, -0.519],
+  [0.036, -0.519],
+  [0.084, -0.555],
+  [0.115, -0.591],
+  [0.167, -0.627],
+  [0.191, -0.675],
+  [0.167, -0.711],
+  [0.132, -0.723],
+  [0.144, -0.77],
+  [0.15, -0.88],
+];
+
+/** How far the edge of the blob is from the origin, for 360 evenly spaced angles. */
+function hushEdge(): number[] {
+  const n = 360;
+  const r: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const t = (i / n) * Math.PI * 2;
+    const dx = Math.cos(t);
+    const dy = Math.sin(t);
+    let far = 0.05;
+    for (const [cx, cy, cr] of HUSH_LOBES) {
+      const along = dx * cx + dy * cy;
+      const disc = along * along - (cx * cx + cy * cy - cr * cr);
+      if (disc >= 0) far = Math.max(far, along + Math.sqrt(disc));
+    }
+    r.push(far);
+  }
+  // Round the notches between the lobes, the way the mark does.
+  for (let pass = 0; pass < 3; pass++) {
+    const s = r.slice();
+    for (let i = 0; i < n; i++) r[i] = (s[(i + n - 1) % n] + 2 * s[i] + s[(i + 1) % n]) / 4;
+  }
+  return r;
+}
+
+function meshOf(pos: number[], idx: number[]): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/** The blob as a thick stone pillow facing +z. `unit` is half its width in metres, `front` and `back`
+ *  how far it swells each way. Also returns the height of the front surface over any point of the face. */
+function hushBody(seg: number, fronts: number[], backs: number[], unit: number, front: number, back: number): { geometry: THREE.BufferGeometry; zAt: (x: number, y: number) => number } {
+  const edge = hushEdge();
+  const mean = edge.reduce((a, c) => a + c, 0) / edge.length;
+  const at = (t: number): number => {
+    const f = ((((t / (Math.PI * 2)) % 1) + 1) % 1) * edge.length;
+    const i = Math.floor(f) % edge.length;
+    const k = f - Math.floor(f);
+    return edge[i] * (1 - k) + edge[(i + 1) % edge.length] * k;
+  };
+  // Radius of the ring at depth u (-1 the back, 0 the rim, 1 the front). The lobes soften toward
+  // the middle of the face so the eyes and the hand sit on calm stone.
+  const radius = (t: number, u: number): number => {
+    const e = at(t);
+    if (u <= 0) return e * Math.pow(1 - u * u, 0.4);
+    const c = Math.pow(1 - Math.pow(u, 2.6), 1 / 2.6);
+    const s = Math.min(1, Math.max(0, (u - 0.6) / 0.4));
+    const k = 0.9 * s * s * (3 - 2 * s);
+    return Math.min(e * Math.pow(c, 0.2), (e * (1 - k) + mean * k) * c);
+  };
+  // The points go round at even steps of distance along the edge, packed closer deep in the
+  // notches, so the pocket under the top lobe keeps its floor.
+  const fine = edge.length;
+  const reach = Math.max(...edge);
+  const cum: number[] = [0];
+  for (let i = 0; i < fine; i++) {
+    const t0 = (i / fine) * Math.PI * 2;
+    const t1 = ((i + 1) / fine) * Math.PI * 2;
+    const e0 = edge[i];
+    const e1 = edge[(i + 1) % fine];
+    const deep = 1 + 2 * (1 - Math.min(e0, e1) / reach);
+    cum.push(cum[i] + deep * Math.hypot(Math.cos(t1) * e1 - Math.cos(t0) * e0, Math.sin(t1) * e1 - Math.sin(t0) * e0));
+  }
+  const angles: number[] = [];
+  for (let i = 0, k = 0; i < seg; i++) {
+    const want = (i / seg) * cum[fine];
+    while (cum[k + 1] < want) k++;
+    angles.push(((k + (want - cum[k]) / (cum[k + 1] - cum[k])) / fine) * Math.PI * 2);
+  }
+  const us = [...backs, 0, ...fronts];
+  const pos: number[] = [];
+  const idx: number[] = [];
+  for (const u of us) {
+    for (let i = 0; i < seg; i++) {
+      const t = angles[i];
+      const r = radius(t, u) * unit;
+      pos.push(Math.cos(t) * r, Math.sin(t) * r, u > 0 ? u * front : u * back);
+    }
+  }
+  const poleBack = pos.length / 3;
+  pos.push(0, 0, -back);
+  const poleFront = poleBack + 1;
+  pos.push(0, 0, front);
+  for (let j = 0; j < us.length - 1; j++) {
+    for (let i = 0; i < seg; i++) {
+      const a = j * seg + i;
+      const c = j * seg + ((i + 1) % seg);
+      const d = (j + 1) * seg + i;
+      const f = (j + 1) * seg + ((i + 1) % seg);
+      idx.push(a, c, d, c, f, d);
+    }
+  }
+  const last = (us.length - 1) * seg;
+  for (let i = 0; i < seg; i++) {
+    const n = (i + 1) % seg;
+    idx.push(poleBack, n, i);
+    idx.push(poleFront, last + i, last + n);
+  }
+  const zAt = (x: number, y: number): number => {
+    const rho = Math.hypot(x, y) / unit;
+    const t = Math.atan2(y, x);
+    if (rho >= at(t)) return 0;
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 18; i++) {
+      const mid = (lo + hi) / 2;
+      if (radius(t, mid) > rho) lo = mid;
+      else hi = mid;
+    }
+    return lo * front;
+  };
+  return { geometry: meshOf(pos, idx), zAt };
+}
+
+/** One closed eye: a crescent hanging down. Width `2 * hw`, counter-clockwise. */
+function hushEye(hw: number, sag: number, thick: number, n: number): P2[] {
+  const out: P2[] = [];
+  const mid = (s: number): number => -sag * (1 - s * s);
+  const half = (s: number): number => thick * (0.18 + 0.82 * Math.sqrt(Math.max(0, 1 - s * s)));
+  for (let i = 0; i <= n; i++) {
+    const s = -1 + (2 * i) / n;
+    out.push([hw * s, mid(s) - half(s)]);
+  }
+  for (let i = n; i >= 0; i--) {
+    const s = -1 + (2 * i) / n;
+    out.push([hw * s, mid(s) + half(s)]);
+  }
+  return out;
+}
+
+/** A four point star with sides that curve in. Counter-clockwise, first point on the right. */
+function hushStar(w: number, h: number, per: number): P2[] {
+  const out: P2[] = [];
+  const n = per * 4;
+  for (let i = 0; i < n; i++) {
+    const t = (i / n) * Math.PI * 2;
+    const c = Math.cos(t);
+    const s = Math.sin(t);
+    out.push([w * Math.sign(c) * Math.pow(Math.abs(c), 3.2), h * Math.sign(s) * Math.pow(Math.abs(s), 3.2)]);
+  }
+  return out;
+}
+
+/** A cloth laid over something small on a slab, its front edge hanging over the lip of the slab.
+ *  The slab top is y = 0, x runs across, +z comes toward whoever stands at the altar, and the slab
+ *  ends at z = `lip`. What is under the cloth stays under it. */
+function hushCloth(cols: number, rows: number, lip: number): THREE.BufferGeometry {
+  const bump = (x: number, z: number, r: number): number => Math.exp(-Math.pow((x * x + z * z) / (r * r), 1.3));
+  const lump = (x: number, z: number): number => 0.17 * bump(x + 0.02, z - 0.04, 0.12) + 0.09 * bump(x - 0.105, z - 0.075, 0.085);
+  const HALF = 0.36;
+  const BACK = -0.24;
+  const HANG = 2;
+  const pos: number[] = [];
+  const idx: number[] = [];
+  for (let j = 0; j <= rows + HANG; j++) {
+    for (let i = 0; i <= cols; i++) {
+      const a = i / cols;
+      const side = Math.abs(a * 2 - 1);
+      if (j <= rows) {
+        const f = j / rows;
+        const x = (a * 2 - 1) * (HALF + 0.02 * Math.sin(f * 5 + 0.4));
+        const z = BACK + (lip - BACK) * f + (j === 0 ? 0.025 * Math.sin(a * 8 + 0.7) : 0);
+        // Loose folds toward the hem, none over the thing itself.
+        const loose = Math.max(side * side, (1 - f) * (1 - f));
+        const fold = 0.02 * loose * (0.5 + 0.5 * Math.sin(a * 13 + f * 4 + 1.1));
+        pos.push(x, lump(x, z) + 0.008 + fold, z);
+      } else {
+        const h = (j - rows) / HANG;
+        const len = 0.1 + 0.08 * Math.sin(a * Math.PI) + 0.025 * Math.sin(a * 11 + 0.5);
+        pos.push((a * 2 - 1) * (HALF + 0.02 * Math.sin(5.4)), 0.008 - len * h, lip + 0.016 + 0.014 * h * Math.sin(a * 12 + 0.3));
+      }
+    }
+  }
+  const w = cols + 1;
+  for (let j = 0; j < rows + HANG; j++) {
+    for (let i = 0; i < cols; i++) {
+      const p0 = j * w + i;
+      idx.push(p0, p0 + w, p0 + 1, p0 + 1, p0 + w, p0 + w + 1);
+    }
+  }
+  return meshOf(pos, idx);
 }
 
 export const district: DistrictModule = {
@@ -787,6 +1024,148 @@ function buildStudio(ctx: DistrictContext): DistrictBuild {
     pois.push({ entry: 'talentsniper', x: pp[0], z: pp[2], y: 2.6, reach: 4.2, prompt: 'Look through the spyglass' });
   }
 
+  // ------------------------------------------------------------------------------------------
+  // Hush. A small shrine behind the broken colonnade, looking back at the yard between two of its
+  // columns. A black stone figure with its eyes closed and one finger up, in a little bone temple.
+  // On the altar in front of it, one thing under a cloth. I say nothing more about it here.
+  // ------------------------------------------------------------------------------------------
+  const HUSH_X = 21.2;
+  const HUSH_Z = low ? 11.5 : 10.7;
+  const HUSH_YAW = -Math.PI / 2;
+  const HUSH_U = 1.25; // half the width of the figure, metres
+  const HUSH_TOP = 1.0; // top of its plinth
+  const HUSH_MID = HUSH_TOP + 0.84 * HUSH_U - 0.02; // height of the mark's origin
+  if (has('hush')) {
+    const H = frame(HUSH_X, HUSH_Z, HUSH_YAW);
+    const rH: V3 = [0, HUSH_YAW, 0];
+    const U = HUSH_U;
+
+    // Paving he stands on, flush with the yard.
+    b.add(geo.box(5.6, FLUSH - 0.003, 5.0), { color: HUSH_STONE, pos: H(0, 0, 1.15), rot: rH, flat: 0.4 });
+    b.add(geo.box(5.1, FLUSH, 4.5), { color: HUSH_BONE, pos: H(0, 0, 1.15), rot: rH, flat: 0.4 });
+
+    // The floor of the little temple, one step up, and the back wall.
+    const STEP = 0.2;
+    const floor = b.add(geo.box(4.6, STEP, 2.1), { color: HUSH_BONE, pos: H(0, 0, -0.05), rot: rH });
+    b.label({ text: 'SHH.', size: 0.055, pos: H(1.62, 0.1, 1.0), rot: rH, ink: HUSH_ASH, plate: HUSH_BONE, id: floor, pad: 0.1, jitter: 0.2, lift: 0.006 });
+    const WALL_H = 3.4;
+    b.add(geo.box(4.3, WALL_H - STEP, 0.3), { gradient: { bottom: mix(HUSH_STONE, HUSH_ASH, 0.25), top: HUSH_STONE }, color: HUSH_STONE, pos: H(0, STEP, -0.9), rot: rH, hatch: 0.06 });
+
+    // Two short columns in front, two flat ones against the wall behind.
+    const shaft = geo.prism(10, 0.17, 0.2, 2.84);
+    for (const s of [-1, 1]) {
+      b.add(geo.bevelBox(0.52, 0.12, 0.52, 0.03), { color: HUSH_STONE, pos: H(s * 1.95, STEP, 0.65), rot: rH });
+      b.add(shaft, { gradient: { bottom: HUSH_STONE, top: HUSH_BONE }, color: HUSH_BONE, pos: H(s * 1.95, STEP + 0.12, 0.65), rot: rH });
+      b.add(geo.cylinder(0.27, 0.18, 0.13, 10), { color: HUSH_BONE, pos: H(s * 1.95, STEP + 2.96, 0.65) });
+      b.add(geo.bevelBox(0.56, 0.11, 0.56, 0.03), { color: HUSH_STONE, pos: H(s * 1.95, STEP + 3.09, 0.65), rot: rH });
+      b.add(geo.box(0.34, WALL_H - STEP, 0.4), { color: HUSH_BONE, pos: H(s * 1.98, STEP, -0.85), rot: rH });
+    }
+    // Beam, cornice and the little pediment, with one bone star in dark stone.
+    b.add(geo.box(4.5, 0.3, 2.05), { color: HUSH_BONE, pos: H(0, WALL_H, -0.05), rot: rH });
+    b.add(geo.box(4.8, 0.1, 2.3), { color: HUSH_STONE, pos: H(0, WALL_H + 0.3, -0.05), rot: rH });
+    const PED = WALL_H + 0.4;
+    b.add(geo.extrude([[-2.4, 0], [2.4, 0], [0, 0.85]], 2.3, { cacheKey: 'studio-hush-ped' }), { color: HUSH_BONE, pos: H(0, PED, -0.05), rot: rH });
+    b.add(geo.extrude([[-1.75, 0], [1.75, 0], [0, 0.6]], 0.06, { cacheKey: 'studio-hush-tymp' }), { color: HUSH_GRAPHITE, pos: H(0, PED + 0.09, 1.1), rot: rH, hatch: 0.1 });
+    b.add(geo.extrude(hushStar(0.1, 0.12, 4), 0.04, { cacheKey: 'studio-hush-star-s' }), { color: HUSH_BONE, pos: H(0, PED + 0.3, 1.14), rot: rH, flat: 0.6 });
+    cast(geo.box(4.6, PED + 0.4, 2.1), H(0, 0, -0.05), rH);
+
+    // The plinth, two tiers of bone marble, with the name cut in it.
+    b.add(geo.box(2.7, 0.25, 1.45), { color: HUSH_STONE, pos: H(0, STEP, -0.02), rot: rH });
+    const plinth = b.add(geo.box(2.3, HUSH_TOP - STEP - 0.25, 1.25), { color: HUSH_BONE, pos: H(0, STEP + 0.25, -0.02), rot: rH });
+    const PF = 0.605; // front face of the upper tier
+    {
+      const name = 'H U S H   L A B S';
+      const line = 'Q U I E T E R   T O O L S ,   B R I G H T E R   P E O P L E';
+      b.label({ text: name, size: fit(name, 0.15, 1.75), pos: H(0, 0.8, PF), rot: rH, ink: HUSH_NIGHT, plate: HUSH_BONE, id: plinth, pad: 0.1, jitter: 0.12, lift: 0.008 });
+      b.label({ text: line, size: fit(line, 0.05, 2.0), pos: H(0, 0.58, PF), rot: rH, ink: HUSH_ASH, plate: HUSH_BONE, id: plinth, pad: 0.1, jitter: 0.12, lift: 0.008 });
+    }
+
+    // The figure. One thick rounded stone, lobed like a small cloud.
+    const BZ = -0.08;
+    const body = hushBody(low ? 56 : 96, low ? [0.45, 0.8, 0.96] : [0.3, 0.55, 0.75, 0.9, 0.975], low ? [-0.6] : [-0.8, -0.45], U, 0.42, 0.3);
+    b.add(body.geometry, { gradient: { bottom: mix(HUSH_NIGHT, HUSH_GRAPHITE, 0.4), top: mix(HUSH_GRAPHITE, HUSH_ASH, 0.2) }, color: HUSH_GRAPHITE, pos: H(0, HUSH_MID, BZ), rot: rH, hatch: 0.2 });
+    // Two closed eyes, bone, set into the face.
+    const EYE_Y = -0.045;
+    for (const ex of [-0.328, 0.234]) {
+      const eye = geo.extrude(hushEye(0.16 * U, 0.075 * U, 0.033 * U, low ? 6 : 10), 0.08);
+      const p = eye.getAttribute('position');
+      for (let i = 0; i < p.count; i++) p.setZ(i, p.getZ(i) + body.zAt(ex * U + p.getX(i), EYE_Y * U + p.getY(i)));
+      b.add(eye, { color: HUSH_BONE, pos: H(ex * U, HUSH_MID + EYE_Y * U, BZ), rot: rH, flat: 0.7 });
+    }
+    // The hand: the same stone, standing proud of the face, and the one bone line that draws it.
+    // From the side it is a fist low down with one finger leaning in toward where the mouth would be.
+    const HAND_Z = BZ + 0.42 + 0.13;
+    {
+      const lean = (y: number): number => {
+        const yn = y / U;
+        if (yn <= -0.56) return 0.1;
+        if (yn <= -0.5) return 0.1 - ((yn + 0.56) / 0.06) * 0.07;
+        return 0.03 - Math.min(1, (yn + 0.5) / 0.29) * 0.08;
+      };
+      const shape: P2[] = HUSH_HAND.map((p) => [p[0] * U, p[1] * U] as P2).reverse();
+      const hand = geo.extrude(shape, 0.36);
+      const hp = hand.getAttribute('position');
+      for (let i = 0; i < hp.count; i++) if (hp.getZ(i) > 0) hp.setZ(i, hp.getZ(i) + lean(hp.getY(i)));
+      hand.computeVertexNormals();
+      b.add(hand, { color: HUSH_GRAPHITE, pos: H(0, HUSH_MID, HAND_Z - 0.18), rot: rH, hatch: 0.08 });
+      const at = (x: number, y: number): [number, number, number] => [x * U, y * U, lean(y * U)];
+      const line = HUSH_HAND.map((p) => at(p[0], p[1]));
+      const stroke = b.newId();
+      const radial = low ? 3 : 5;
+      b.add(geo.tube(line, 0.028, { radial, perSpan: 2, cacheKey: `studio-hush-line-${radial}` }), { color: HUSH_BONE, pos: H(0, HUSH_MID, HAND_Z), rot: rH, flat: 0.7, id: stroke });
+      b.add(geo.tube([at(0.01, -0.64), at(0.06, -0.632), at(0.11, -0.645)], 0.024, { radial, perSpan: 2, cacheKey: `studio-hush-fold-${radial}` }), { color: HUSH_BONE, pos: H(0, HUSH_MID, HAND_Z), rot: rH, flat: 0.7, id: stroke });
+    }
+
+    // The altar: a dark slab on a bone block, close enough to touch.
+    const AZ = 1.5;
+    const AT = 0.5;
+    b.add(geo.box(1.5, AT - 0.08, 0.56), { color: HUSH_BONE, pos: H(0, 0, AZ), rot: rH });
+    b.add(geo.bevelBox(1.76, 0.08, 0.74, 0.02), { color: HUSH_GRAPHITE, pos: H(0, AT - 0.08, AZ), rot: rH, hatch: 0.1 });
+    cast(geo.box(1.76, AT, 0.74), H(0, 0, AZ), rH);
+    // One thing under a cloth.
+    b.add(hushCloth(low ? 8 : 12, low ? 6 : 10, 0.37 + 0.06), { gradient: { bottom: HUSH_STONE, top: HUSH_BONE }, color: HUSH_BONE, pos: H(-0.06, AT, AZ - 0.06), rot: rH, flat: 0.15 });
+    // What people leave: three candles nobody has lit, a few small stars, a folded note.
+    const wax: [number, number, number][] = [[-0.7, -0.12, 0.2], [-0.58, 0.1, 0.13], [0.7, -0.15, 0.17]];
+    for (const [x, z, h] of wax) {
+      b.add(geo.cylinder(0.065, 0.055, 0.016, 8), { color: HUSH_STONE, pos: H(x, AT, AZ + z) });
+      b.add(geo.cylinder(0.03, 0.034, h, 8), { color: HUSH_BONE, pos: H(x, AT + 0.016, AZ + z) });
+      b.add(geo.cylinder(0.009, 0.009, 0.03, 4), { color: HUSH_INK, pos: H(x, AT + 0.016 + h, AZ + z), outline: false });
+    }
+    const tiny = geo.extrude(hushStar(0.045, 0.055, 3), 0.02, { cacheKey: 'studio-hush-star-t' });
+    const left: [number, number, number][] = low ? [[0.46, 0.2, 0.4]] : [[0.46, 0.2, 0.4], [0.54, -0.02, -0.7], [-0.62, 0.27, 1.2]];
+    for (const [x, z, turn] of left) b.add(tiny, { color: HUSH_BONE, pos: H(x, AT + 0.012, AZ + z), rot: yawed([-Math.PI / 2, 0, turn], HUSH_YAW), flat: 0.5 });
+    if (!low) {
+      const note = b.newId();
+      b.add(geo.box(0.13, 0.012, 0.09), { color: HUSH_STONE, pos: H(0.72, AT, AZ + 0.2), rot: yawed([0, 0.5, 0], HUSH_YAW), id: note });
+      b.add(geo.box(0.13, 0.012, 0.09), { color: HUSH_BONE, pos: H(0.72, AT + 0.02, AZ + 0.2), rot: yawed([0.3, 0.5, 0], HUSH_YAW), id: note });
+    }
+
+    // Green taking it, a little.
+    clump(H(-2.0, PED + 0.25, 0.75), [0.6, 0.4, 0.55], LEAVES[2], undefined, 4, 0.08);
+    clump(H(-2.2, PED - 0.35, 0.95), [0.3, 0.6, 0.3], LEAVES[4], undefined, 3, 0.15);
+    clump(H(2.15, 0.3, -0.55), [0.5, 0.4, 0.5], P.moss as string, undefined, 3, 0);
+    if (!low) {
+      clump(H(-1.2, PED + 0.55, -0.6), [0.9, 0.35, 0.6], LEAVES[0], undefined, 4, 0.08);
+      clump(H(-2.25, 0.25, 0.3), [0.4, 0.3, 0.45], P.moss as string, undefined, 3, 0);
+      clump(H(1.3, STEP + 0.08, 0.72), [0.26, 0.14, 0.22], P.moss as string, undefined, 3, 0);
+    }
+
+    // Ivy up the back of it, where nobody looks.
+    for (let i = 0; i < (low ? 3 : 6); i++) {
+      const t = i / 5;
+      clump(H(1.5 - t * 1.6 + (i % 2) * 0.5, 0.5 + t * 2.4, -1.12), [0.2, 0.55, 0.7 - t * 0.25], LEAVES[i % 2 === 0 ? 2 : 4], undefined, 3, 0.04);
+    }
+
+    // Solid: the temple with everything in it, and the altar on its own so he can stand beside it.
+    const tc = H(0, 0, -0.05);
+    colliders.push({ kind: 'box', x: tc[0], z: tc[2], hw: 1.1, hd: 2.35 });
+    const ac = H(0, 0, AZ);
+    colliders.push({ kind: 'box', x: ac[0], z: ac[2], hw: 0.4, hd: 0.9 });
+    // The marker hangs to the left of the altar, clear of the face.
+    const pp = H(-1.85, 0, 2.25);
+    pois.push({ entry: 'hush', x: pp[0], z: pp[2], y: 2.0, reach: 4.2, prompt: 'Say less' });
+  }
+
   // A patch of herringbone brick paving at the bay door, and lawn beside the road in.
   {
     b.add(geo.box(6.6, FLUSH, 2.6), { color: mix(P.brick, P.pave, 0.35), pos: [-8, 0, NF + 1.4], flat: 0.3 });
@@ -880,11 +1259,30 @@ function buildStudio(ctx: DistrictContext): DistrictBuild {
   drift.rotation.y = yE;
   group.add(drift);
 
+  // The star by the Hush figure. The one thing at the shrine that moves, and the one bit of iris.
+  let star: THREE.Mesh | null = null;
+  const STAR_Y = HUSH_MID + 0.557 * HUSH_U;
+  if (has('hush')) {
+    const sb = kit.builder();
+    sb.add(geo.extrude(hushStar(0.154 * HUSH_U, 0.184 * HUSH_U, low ? 4 : 6), 0.07, { cacheKey: `studio-hush-star-${low ? 4 : 6}` }), { color: HUSH_IRIS, flat: 1 });
+    star = sb.build('studio-hush-star');
+    const sp = frame(HUSH_X, HUSH_Z, HUSH_YAW)(1.033 * HUSH_U, STAR_Y, 0.15);
+    star.position.set(sp[0], sp[1], sp[2]);
+    star.rotation.y = HUSH_YAW;
+    group.add(star);
+  }
+
   return {
     group,
     colliders,
     pois,
     update(_dt, t) {
+      if (star) {
+        // It turns a little way and back, and breathes. Slowly.
+        star.rotation.y = HUSH_YAW + Math.sin(t * 0.32) * 0.7;
+        star.position.y = STAR_Y + Math.sin(t * 0.5) * 0.03;
+        star.scale.setScalar(1 + Math.sin(t * 0.8) * 0.05);
+      }
       if (cards) cards.rotation.y = t * 0.22;
       drift.position.y = Math.sin(t * 0.45) * 0.45;
       drift.rotation.y = yE + Math.sin(t * 0.2) * 0.05;

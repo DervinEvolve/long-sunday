@@ -458,6 +458,15 @@ export const ENTRIES: Entry[] = [
     blurb:
       'A 3D card of me built in Spline, with a Gaussian splat portal cut into it. A business card you can fall into.',
   },
+  {
+    id: 'hush',
+    district: 'studio',
+    kind: 'experiment',
+    status: 'ongoing',
+    title: 'Hush',
+    blurb:
+      'Hush Labs. Quieter tools, brighter people. I am building something here. It stays under the cloth until it is ready.',
+  },
 
   // ----------------------------------------------------------------------------------- Greenhouse
   {
