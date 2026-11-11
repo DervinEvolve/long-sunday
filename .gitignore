@@ -5,3 +5,5 @@ dist-single
 *.log
 test-results
 .shots
+dist-locked
+src/content/notes.ts

@@ -1,4 +1,6 @@
 // Every caption in the world. First person, plain, facts only.
+// Where each fact comes from, and what I still have to confirm, lives in notes.ts. Nothing here may
+// import it: this file ships, that one does not.
 import type { DistrictId, Entry } from '../types';
 
 export const SITE = {
@@ -7,7 +9,7 @@ export const SITE = {
   intro:
     'I recruit the people who build AI, and I build things to understand what they are building. This is both halves of that, laid out as a place you can walk through.',
   nameNote: 'Dimanche is French for Sunday.',
-  hint: 'Follow the road uphill for the career, in order. The side roads are the experiments.',
+  hint: 'Follow the road uphill for the career, in order. The side roads lead to my experiments, and one leads to the life outside work.',
   email: 'dervindim@gmail.com',
   github: 'https://github.com/DervinEvolve',
   githubLabel: 'github.com/DervinEvolve',
@@ -25,7 +27,7 @@ export const ENTRIES: Entry[] = [
     bullets: [
       'Nine years in technical recruiting, from a staffing desk to an AI lab.',
       'The same nine years spent building things on the side to see how they work.',
-      'The road ahead runs uphill in date order. The side roads are experiments, shipped and failed.',
+      'The road ahead runs uphill in date order. The side roads lead to my experiments, shipped and failed, and one leads to the life outside work.',
     ],
     links: [
       { label: 'GitHub', url: 'https://github.com/DervinEvolve' },
@@ -111,7 +113,7 @@ export const ENTRIES: Entry[] = [
     id: 'interview-prep',
     district: 'commons',
     kind: 'role',
-    title: '160 seats a month',
+    title: 'More than 160 a month',
     org: 'Meta',
     dates: '2019 to 2021',
     blurb:
@@ -126,7 +128,7 @@ export const ENTRIES: Entry[] = [
     org: 'Meta, Cambridge office',
     dates: '2019 to 2021',
     blurb:
-      'I founded the Black@Boston employee resource group at the Cambridge office. A beacon is the right shape for it.',
+      'I founded the Black@Boston employee resource group at the Cambridge office.',
     bullets: [
       'Collaborated monthly with the Black employee groups at Google and at Microsoft in Cambridge.',
       'Hosted fireside chats with influencers and authors.',
@@ -139,7 +141,7 @@ export const ENTRIES: Entry[] = [
     title: "The first Black@ hackathon",
     org: 'Meta',
     blurb:
-      "I co-led Meta's first Black@ hackathon. A long bench, a lot of lanterns, and people building next to each other.",
+      "I co-led Meta's first Black@ hackathon.",
   },
 
   // ------------------------------------------------------------------------------------- Terraces
@@ -151,7 +153,7 @@ export const ENTRIES: Entry[] = [
     org: 'Google Cloud',
     dates: 'Jul 2021 to Jun 2023',
     blurb:
-      'I was the primary recruiting contact for seven Google Cloud teams. Each pod up here is one of them.',
+      'I was the primary recruiting contact for seven Google Cloud teams.',
     bullets: [
       'Cloud Center of Excellence, AI Industry Solutions, Managed Infrastructure, Sovereign Cloud, Conversational AI, Applied AI and ML Learning Solutions.',
       'Partnered with hiring leaders to refine evaluation criteria and improve hiring committee rubrics.',
@@ -171,7 +173,7 @@ export const ENTRIES: Entry[] = [
     id: 'l7-l8',
     district: 'terraces',
     kind: 'role',
-    title: 'The tall steps',
+    title: 'The top of the ladder',
     org: 'Google Cloud',
     dates: '2021 to 2023',
     blurb:
@@ -232,7 +234,7 @@ export const ENTRIES: Entry[] = [
     kind: 'experiment',
     status: 'shipped',
     title: 'On stage at Consensus',
-    org: 'Consensus by CoinDesk 2023',
+    org: 'Consensus by CoinDesk',
     dates: '2023',
     blurb:
       'We built a tokenized video advertising prototype on Solana infrastructure and I demoed it to more than 200 attendees.',
@@ -242,7 +244,7 @@ export const ENTRIES: Entry[] = [
     district: 'maskgarden',
     kind: 'thread',
     title: 'Black Founders in Crypto',
-    org: 'Consensus by CoinDesk 2023',
+    org: 'Consensus by CoinDesk',
     dates: '2023',
     blurb:
       'I spoke on the Black Founders in Crypto panel about ownership, emerging technology and access in Web3.',
@@ -395,7 +397,7 @@ export const ENTRIES: Entry[] = [
     bullets: [
       'The learned painter scores 8.85 on sealed targets. A blank sheet scores 24.02 and the search scores 5.26. Lower is better.',
       'Its first GPU run scored no better than a blank sheet.',
-      'It places the colours of the subject and does not yet draw.',
+      'The language model painter places the colours of the subject and does not yet draw.',
     ],
     links: [
       { label: 'Open the studio', url: 'https://dervinevolve.github.io/backrun/' },
@@ -431,10 +433,10 @@ export const ENTRIES: Entry[] = [
     title: 'The 2023 shelf',
     dates: '2023',
     blurb:
-      'In 2023 I kept a notebook of every generative tool I could get my hands on. Each jar is one I tried.',
+      'In 2023 I kept a notebook of every generative tool I could get my hands on.',
     bullets: [
       'AI Comic Factory, MusicLM, Runway Motion Brush, ElevenLabs, Luma Genie, D-ID, Hume.',
-      'Two of those jars grew into projects of their own: comics and voice.',
+      'Two of those grew into projects of their own: comics and voice.',
     ],
   },
   {
@@ -478,10 +480,10 @@ export const ENTRIES: Entry[] = [
     title: 'Research Lab',
     dates: 'Nov 2026',
     blurb:
-      'Agents edit one training script to lower a validation score on a small story dataset, under a fixed five-minute budget and a harness they cannot touch. Most seedlings do not make it.',
+      'Agents take turns editing one training script, five minutes a try, to make a small model better at writing children\'s stories. They cannot touch the test. Most tries do not make it.',
     bullets: [
-      'The champion scored 0.7067 at epoch 14.',
-      'Epochs 44 to 48 crashed or were reverted.',
+      'The best try scored 0.7067 at round 14. Lower is better.',
+      'Rounds 44 to 48 crashed or were rolled back.',
     ],
   },
   {
@@ -523,7 +525,7 @@ export const ENTRIES: Entry[] = [
     title: 'Ophanim',
     dates: 'Dec 2025',
     blurb:
-      'A speech-to-speech model I designed for Hon: 92.63 million parameters in seven modules, named for the wheels within wheels. The goal is a first packet of sound in under 250 milliseconds.',
+      'A speech-to-speech model I designed for Hon: 92.63 million parameters in seven modules, named for the wheels within wheels. The goal is a first packet of sound in under 300 milliseconds, and the planned stages add up to about 250.',
     bullets: ['The tool-reasoning module, 11 million parameters, validated at 86.4% accuracy on its own.'],
   },
   {
@@ -559,7 +561,7 @@ export const ENTRIES: Entry[] = [
     status: 'failed',
     title: 'Tribe',
     blurb:
-      'An iPhone app in Swift that needed the raw depth map from the face scanner. Face ID does not expose raw depth map or IR images directly. That was the whole idea, so that was the end of it.',
+      'An iPhone app in Swift that needed the raw depth map from the face scanner. Apple does not let apps read the raw depth data from the Face ID camera. That was the whole idea, so that was the end of it.',
     bullets: ['What I kept: check what the platform will actually give you before you design around it.'],
   },
   {
@@ -588,7 +590,7 @@ export const ENTRIES: Entry[] = [
     title: 'Hold that thought',
     blurb:
       'Two blank tablets for the smart contracts I meant to write, one for Solana and one for Ethereum. The page just said: hold that thought.',
-    bullets: ['The Solana one did get written. Walk to Sky Harbor and look for the whale.'],
+    bullets: ['The Solana one did get written. It is Krill, in Sky Harbor.'],
   },
   {
     id: 'seedlings',
@@ -596,7 +598,7 @@ export const ENTRIES: Entry[] = [
     kind: 'thread',
     title: 'What grows here',
     blurb:
-      'Nothing in this basin was wasted. The question about splatting memories became Memory Visualizer. The contracts became Krill. The 2023 voice experiments became Empathy Archives and then Ophanim.',
+      'Nothing here was wasted. The question about splatting memories became Memory Visualizer. The contracts became Krill. The 2023 voice experiments became Empathy Archives and then Ophanim.',
   },
 
   // ------------------------------------------------------------------------------------ Postcards
@@ -661,7 +663,7 @@ export const ENTRIES: Entry[] = [
     kind: 'place',
     title: 'Morocco',
     blurb:
-      'Casablanca and its landmark mosque, the Bahia Palace, and a hot air balloon over the Agafay Desert. The balloon followed me here. Step in and it will take you anywhere on the map.',
+      'Casablanca and its landmark mosque, the Bahia Palace, and a hot air balloon over the Agafay Desert.',
   },
   {
     id: 'tokyo',

@@ -10,7 +10,7 @@ export const WORDS = {
   drawing: 'Drawing the world',
   ready: 'Ready',
   soon: 'One moment, still drawing',
-  noWebgl: 'The walk needs WebGL and this browser does not have it. Everything is in the index too.',
+  noWebgl: 'This browser cannot draw the walk. Everything is in the index too.',
   keysTitle: ' or arrows to walk, drag to look, ',
   keysTitleEnd: ' to look closer.',
   thumbsTitle: 'Left thumb to walk, drag to look, tap a marker to look closer.',

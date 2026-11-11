@@ -9,7 +9,7 @@ The place is a future Queens that floats. Brick walk-ups with rooftop gardens, a
 ## 1. What a visitor gets
 
 1. A title card over the live world. Two choices: **Walk in**, or **Read the index**.
-2. The index is the thirty second route for a recruiter. Every entry in the world as a plain, accessible list. It is also what loads when WebGL is missing or reduced motion is on.
+2. The index is the thirty second route for a recruiter. Every entry in the world as a plain, accessible list. It is also what a visitor gets when the browser cannot draw the world. For anyone who prefers less motion, a setting stills the decoration in the walk.
 3. Walking in puts you at the Trailhead as a teenager with his rope twists tied back in a ponytail and an oversized orange jacket. An avenue runs uphill to the north. Every job I have held sits on that avenue in date order. Side streets lead to experiments and to life outside work.
 4. Two lines are inlaid in the avenue like two lines on a subway map: coral for people work, teal for technology. They run side by side and become one line at the top, at the Observatory.
 5. Each district has objects you can walk up to. Press E, or tap, and a caption panel opens with what I did there, in my words, with links.
@@ -25,13 +25,13 @@ A floating island of city about 470 metres across, green on top, bedrock and old
 | The Switchboard | TEKsystems, recruiter then account manager | 2017 to 2019 | people |
 | The Commons | Meta in Cambridge, interview prep, Black@Boston | 2019 to 2021 | people |
 | Cloud Terraces | Google Cloud, cleared hiring, L7 and L8, committees | 2021 to 2023 | people |
-| The Mask Garden | Diaspora DAO | 2022 to 2024 | both |
+| The Mask Garden | Diaspora DAO | 2023 to 2024 | both |
 | The Observatory | Microsoft AI | 2024 to now | both |
-| The Studio | Backrun, Hon, Memory Visualizer, the 2023 notebook | side road | tech |
-| The Greenhouse | Observable Lab, Research Lab, TradingOS | side road | tech |
-| Sky Harbor | Krill, Ophanim, Empathy Archives | side road | tech |
-| The Boneyard | What failed or never got finished, and what grew from it | side road | tech |
-| Postcards | Travel and community | side road | life |
+| The Studio | Backrun, Hon, Memory Visualizer, the 2023 notebook | 2023 to 2026, side road | tech |
+| The Greenhouse | Observable Lab, Research Lab, TradingOS | 2026, side road | tech |
+| Sky Harbor | Krill, Ophanim, Empathy Archives | 2024 to 2026, side road | tech |
+| The Boneyard | What failed or never got finished, and what grew from it | Along the way, side road | tech |
+| Postcards | Travel and community | 2017 to now, side road | life |
 
 ## 3. District briefs
 
@@ -43,7 +43,7 @@ Every object named here is something a visitor can stand next to. Entry ids in b
 
 **Commons.** A campus green. A sunken Greek theatre of marble steps with whiteboard monoliths and about 160 stools [interview-prep]. A tall beacon tower with a slow turning light [black-at-boston]. A long workbench under a string of lanterns between two trees [hackathon]. Four rising stepping stones lettered L3 to L6 beside a sourcing desk [meta-sourcer].
 
-**Cloud Terraces.** Stepped white marble terraces with colonnades and hanging gardens, and domes on thin stalks above a floor of drifting cloud. Seven pods, each lettered with one team name [google-recruiter]. A sealed round vault door with a wheel lock set in a retaining wall [sovereign-vault]. Two steps of an enormous ladder lettered L7 and L8 that rise out of the cloud [l7-l8]. A round stone table with a rubric tablet and a ring of seats [committees].
+**Cloud Terraces.** Stepped white marble terraces with colonnades and hanging gardens, and domes on thin stalks above a floor of drifting cloud. Seven pods, each lettered with one team name [google-recruiter]. A sealed round vault door with a wheel lock set in a retaining wall [sovereign-vault]. The top two steps of an enormous ladder, lettered L7 and L8, rising out of the cloud [l7-l8]. A round stone table with a rubric tablet and a ring of seats [committees].
 
 **Mask Garden.** A community garden on a city lot, walled on two sides by brick. Tall mask monoliths among the planting beds, all original abstract geometric designs, in tiers of size [mask-pass]. A founder's stone at the entrance [diaspora-origin]. Six workbenches in a ring [diaspora-team]. A stage facing rows of seats [consensus-demo] with a four chair panel table to one side [consensus-panel]. A billboard film frame with price tags hanging off objects in the picture [tokenized-video]. Three free standing door frames, each showing a differently tinted world through it [ar-lenses]. A fork where one path withers and the other leads to a small lab shed [pivot].
 

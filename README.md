@@ -6,6 +6,18 @@ Dimanche is French for Sunday.
 
 I do these experiments for fun.
 
+Live: LINK GOES HERE ONCE IT IS HOSTED
+
+## Walk it
+
+- Keyboard: WASD or the arrow keys to walk, Shift to run, E to look closer, M for the map, Esc to close.
+- Mouse: drag to look.
+- Phone: left thumb to walk, drag anywhere else to look, tap a marker to look closer.
+
+Short on time? Choose **Read the index** on the title card. It lists everything in the world on one page.
+
+Some of the projects in the world are in private repositories. I describe them there, but they have no links.
+
 ## Run it
 
 ```bash
@@ -26,3 +38,5 @@ The plan, the district briefs and the performance budget are in [docs/PLAN.md](d
 ## Tools
 
 I actively use Codex, Claude, DeepSeek through Hermes, and Kimi to experiment and develop Long Sunday. They help me try implementations, debug problems, inspect ideas, and review changes.
+
+It is written in TypeScript with three.js 0.180 and built with Vite. There are no model or texture files: everything is drawn in code. The lettering font is Architects Daughter.
