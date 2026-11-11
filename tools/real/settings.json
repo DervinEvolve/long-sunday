@@ -1,0 +1,178 @@
+{
+  "port": 5531,
+  "threads": 3,
+  "live": [
+    "figure/*",
+    "poi-markers",
+    "sky/clouds-*",
+    "sky/flock",
+    "scatter/train"
+  ],
+  "drop": [
+    "sky/sun-moon",
+    "debug-colliders"
+  ],
+  "bake": [
+    "sky/armillary",
+    "sky/pediment"
+  ],
+  "quality": "good",
+  "lightmapScale": 10.0,
+  "sun": {
+    "ratio": 5.5,
+    "color": [
+      1.0,
+      0.8,
+      0.58
+    ],
+    "angleDeg": 1.2,
+    "elevationMinDeg": 0,
+    "envDiscDeg": 4.0
+  },
+  "sky": {
+    "airDensity": 1.0,
+    "dustDensity": 0.8,
+    "ozoneDensity": 1.0,
+    "altitude": 300,
+    "below": 0.7,
+    "tint": [
+      1.05,
+      1.0,
+      0.9
+    ]
+  },
+  "defaults": {
+    "triangles": 80000,
+    "pages": [
+      1,
+      1
+    ],
+    "densityCap": 24.0,
+    "downWeight": 0.3,
+    "cardTexels": 2,
+    "leafShare": 0.8,
+    "chartSplit": 6.0,
+    "chartSplitOver": 24.0,
+    "tinyPart": 0.3,
+    "dropBottoms": true,
+    "materialsMax": 12,
+    "blockFloor": 0.14
+  },
+  "levels": {
+    "rough": {
+      "lightmap": 1024,
+      "samples": 16,
+      "bounces": 2
+    },
+    "good": {
+      "lightmap": 1024,
+      "samples": 48,
+      "bounces": 3
+    },
+    "hero": {
+      "lightmap": 2048,
+      "samples": 48,
+      "bounces": 4
+    }
+  },
+  "chunks": {
+    "ground": {
+      "pages": [
+        2,
+        2
+      ],
+      "pageBox": [
+        -280,
+        -280,
+        280,
+        280
+      ],
+      "triangles": 120000,
+      "dropBottoms": false,
+      "materialsMax": 8,
+      "lightmap": 2048,
+      "samples": 12,
+      "bounces": 3,
+      "pageSamples": {
+        "3": 32
+      }
+    },
+    "city": {
+      "pages": [
+        2,
+        2
+      ],
+      "triangles": 235000,
+      "dropBottoms": false,
+      "materialsMax": 12,
+      "pageBox": [
+        -240,
+        -240,
+        240,
+        240
+      ],
+      "lightmap": 2048,
+      "samples": 8,
+      "bounces": 3,
+      "pageSamples": {
+        "3": 24
+      }
+    },
+    "sky": {
+      "quality": "rough",
+      "triangles": 17000,
+      "dropBottoms": false
+    },
+    "trailhead": {
+      "quality": "hero"
+    }
+  },
+  "look": {
+    "toneMapping": "AgX",
+    "exposure": 1.25
+  },
+  "views": {
+    "trailhead-spawn": {
+      "view": "trailhead"
+    },
+    "trailhead-stones": {
+      "cam": [
+        11,
+        3.8,
+        202,
+        3,
+        4.6,
+        188
+      ],
+      "fov": 46
+    },
+    "trailhead-high": {
+      "cam": [
+        14,
+        13,
+        214,
+        12,
+        7,
+        184
+      ],
+      "fov": 46
+    }
+  },
+  "pack": {
+    "lightmapQuality": 90,
+    "colorQuality": 80,
+    "normalQuality": 82,
+    "ormQuality": 76,
+    "chunkLightmapQuality": {
+      "ground": 84,
+      "city": 84,
+      "sky": 84
+    }
+  },
+  "focus": {
+    "sites": 2.0,
+    "trailhead": 3.0,
+    "reach": 1.05
+  },
+  "bakeVersion": 2
+}

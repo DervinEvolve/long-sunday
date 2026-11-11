@@ -10,7 +10,14 @@
     "build:locked": "node scripts/lock.mjs --check && npm run build:single && node scripts/lock.mjs",
     "preview": "vite preview --port 4173 --strictPort",
     "preview:locked": "vite preview --outDir dist-locked --port 4174 --strictPort",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "real:export": "node tools/real/export.mjs",
+    "real:textures": "node tools/real/py.mjs textures.py",
+    "real:bake": "node tools/real/py.mjs bake.py",
+    "real:pack": "node tools/real/pack.mjs",
+    "real:all": "npm run real:export && npm run real:textures && npm run real:bake && npm run real:pack",
+    "real:render": "node tools/real/py.mjs render.py",
+    "real:proof": "node tools/real/proof.mjs"
   },
   "dependencies": {
     "three": "^0.180.0"
@@ -18,6 +25,7 @@
   "devDependencies": {
     "@fontsource/architects-daughter": "^5.3.0",
     "@types/three": "^0.180.0",
+    "meshoptimizer": "^0.22.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.7",
     "vite-plugin-singlefile": "^2.3.4"

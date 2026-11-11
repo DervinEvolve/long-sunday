@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Real look: packed files</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #20222b; overflow: hidden; }
+      canvas { display: block; width: 100vw; height: 100vh; }
+      #note { position: fixed; left: 8px; top: 8px; margin: 0; padding: 6px 9px; font: 12px/1.4 ui-monospace, Menlo, monospace; color: #f6ecd9; background: rgba(28, 26, 51, 0.8); border-radius: 4px; white-space: pre; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <pre id="note" hidden></pre>
+    <script type="module" src="./viewer.js"></script>
+  </body>
+</html>

@@ -65,7 +65,7 @@ function plainFallback(): void {
   box.style.cssText =
     'position:fixed;inset:0;display:grid;place-items:center;padding:24px;pointer-events:auto;' +
     `font:20px/1.5 "${FONT_FAMILY}",system-ui,sans-serif;color:#1c1a33;background:#f6ecd9;text-align:center`;
-  box.textContent = 'This browser could not start the 3D world (it needs WebGL 2). Try a current Chrome, Firefox or Safari.';
+  box.textContent = 'This browser cannot draw the walk. Everything is in the index too.';
   uiRoot.appendChild(box);
 }
 
@@ -185,6 +185,8 @@ function boot(): void {
   const hooks = world as WorldHooks;
   hooks.openEntry = () => {};
   window.__world = hooks;
+  // Dev server only: the exporter the real look's pipeline drives (tools/real). No build carries it.
+  if (import.meta.env.DEV && params.get('export') === '1') void import('./real/exportScene').then((m) => m.installExport(world));
 
   // Size: follow the canvas box, and let the quality governor pick the pixel ratio.
   let sizeTimer = 0;

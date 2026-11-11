@@ -1,0 +1,4358 @@
+{
+ "version": 1,
+ "generated": "2026-11-11T13:30:52.551Z",
+ "space": "metres. x east, y up, z south. The same space the ink world is built in.",
+ "sun": {
+  "direction": [
+   -0.6181359998700816,
+   0.3583177492839368,
+   0.6996543976941101
+  ],
+  "elevationDeg": 21,
+  "color": [
+   1.2097,
+   0.9678,
+   0.7016
+  ],
+  "irradiance": 5.5,
+  "skyIrradiance": 1
+ },
+ "look": {
+  "toneMapping": "AgX",
+  "exposure": 1.25,
+  "lightMapIntensity": 10
+ },
+ "environment": {
+  "file": "env/sky.hdr",
+  "bytes": 524337,
+  "format": "rgbe",
+  "projection": "equirectangular",
+  "background": null
+ },
+ "lettering": {
+  "file": "textures/lettering.webp",
+  "bytes": 33674,
+  "half": "textures/half/lettering.webp",
+  "halfBytes": 17334
+ },
+ "textures": {
+  "marble": {
+   "source": "Poly Haven",
+   "id": "marble_01",
+   "licence": "CC0 1.0",
+   "color": {
+    "file": "textures/marble_color.webp",
+    "bytes": 60264,
+    "half": "textures/half/marble_color.webp",
+    "halfBytes": 12894
+   },
+   "normal": {
+    "file": "textures/marble_normal.webp",
+    "bytes": 1522,
+    "half": "textures/half/marble_normal.webp",
+    "halfBytes": 348
+   },
+   "orm": {
+    "file": "textures/marble_orm.webp",
+    "bytes": 13212,
+    "half": "textures/half/marble_orm.webp",
+    "halfBytes": 4518
+   }
+  },
+  "ashlar": {
+   "source": "Poly Haven",
+   "id": "sandstone_blocks_05",
+   "licence": "CC0 1.0",
+   "color": {
+    "file": "textures/ashlar_color.webp",
+    "bytes": 260408,
+    "half": "textures/half/ashlar_color.webp",
+    "halfBytes": 69004
+   },
+   "normal": {
+    "file": "textures/ashlar_normal.webp",
+    "bytes": 93454,
+    "half": "textures/half/ashlar_normal.webp",
+    "halfBytes": 22896
+   },
+   "orm": {
+    "file": "textures/ashlar_orm.webp",
+    "bytes": 25660,
+    "half": "textures/half/ashlar_orm.webp",
+    "halfBytes": 7370
+   }
+  },
+  "brick": {
+   "source": "Poly Haven",
+   "id": "medieval_red_brick",
+   "licence": "CC0 1.0",
+   "color": {
+    "file": "textures/brick_color.webp",
+    "bytes": 147364,
+    "half": "textures/half/brick_color.webp",
+    "halfBytes": 41468
+   },
+   "normal": {
+    "file": "textures/brick_normal.webp",
+    "bytes": 77560,
+    "half": "textures/half/brick_normal.webp",
+    "halfBytes": 19340
+   },
+   "orm": {
+    "file": "textures/brick_orm.webp",
+    "bytes": 30374,
+    "half": "textures/half/brick_orm.webp",
+    "halfBytes": 9316
+   }
+  },
+  "paving": {
+   "source": "Poly Haven",
+   "id": "hexagonal_concrete_paving",
+   "licence": "CC0 1.0",
+   "color": {
+    "file": "textures/paving_color.webp",
+    "bytes": 291840,
+    "half": "textures/half/paving_color.webp",
+    "halfBytes": 57880
+   },
+   "normal": {
+    "file": "textures/paving_normal.webp",
+    "bytes": 19162,
+    "half": "textures/half/paving_normal.webp",
+    "halfBytes": 4624
+   },
+   "orm": {
+    "file": "textures/paving_orm.webp",
+    "bytes": 17120,
+    "half": "textures/half/paving_orm.webp",
+    "halfBytes": 5384
+   }
+  },
+  "concrete": {
+   "source": "Poly Haven",
+   "id": "concrete_pavement",
+   "licence": "CC0 1.0",
+   "color": {
+    "file": "textures/concrete_color.webp",
+    "bytes": 266682,
+    "half": "textures/half/concrete_color.webp",
+    "halfBytes": 54106
+   },
+   "normal": {
+    "file": "textures/concrete_normal.webp",
+    "bytes": 41660,
+    "half": "textures/half/concrete_normal.webp",
+    "halfBytes": 2552
+   },
+   "orm": {
+    "file": "textures/concrete_orm.webp",
+    "bytes": 28210,
+    "half": "textures/half/concrete_orm.webp",
+    "halfBytes": 2378
+   }
+  },
+  "asphalt": {
+   "source": "Poly Haven",
+   "id": "asphalt_02",
+   "licence": "CC0 1.0",
+   "color": {
+    "file": "textures/asphalt_color.webp",
+    "bytes": 79046,
+    "half": "textures/half/asphalt_color.webp",
+    "halfBytes": 14728
+   },
+   "normal": {
+    "file": "textures/asphalt_normal.webp",
+    "bytes": 3166,
+    "half": "textures/half/asphalt_normal.webp",
+    "halfBytes": 208
+   },
+   "orm": {
+    "file": "textures/asphalt_orm.webp",
+    "bytes": 5854,
+    "half": "textures/half/asphalt_orm.webp",
+    "halfBytes": 580
+   }
+  },
+  "soil": {
+   "source": "Poly Haven",
+   "id": "forrest_sand_01",
+   "licence": "CC0 1.0",
+   "color": {
+    "file": "textures/soil_color.webp",
+    "bytes": 86088,
+    "half": "textures/half/soil_color.webp",
+    "halfBytes": 19512
+   },
+   "normal": {
+    "file": "textures/soil_normal.webp",
+    "bytes": 15616,
+    "half": "textures/half/soil_normal.webp",
+    "halfBytes": 2688
+   },
+   "orm": {
+    "file": "textures/soil_orm.webp",
+    "bytes": 6922,
+    "half": "textures/half/soil_orm.webp",
+    "halfBytes": 1668
+   }
+  },
+  "grass": {
+   "source": "ambientCG",
+   "id": "Grass004",
+   "licence": "CC0 1.0",
+   "color": {
+    "file": "textures/grass_color.webp",
+    "bytes": 308008,
+    "half": "textures/half/grass_color.webp",
+    "halfBytes": 88426
+   },
+   "normal": {
+    "file": "textures/grass_normal.webp",
+    "bytes": 90118,
+    "half": "textures/half/grass_normal.webp",
+    "halfBytes": 17426
+   },
+   "orm": {
+    "file": "textures/grass_orm.webp",
+    "bytes": 46750,
+    "half": "textures/half/grass_orm.webp",
+    "halfBytes": 4236
+   }
+  },
+  "bark": {
+   "source": "Poly Haven",
+   "id": "bark_brown_02",
+   "licence": "CC0 1.0",
+   "color": {
+    "file": "textures/bark_color.webp",
+    "bytes": 73548,
+    "half": "textures/half/bark_color.webp",
+    "halfBytes": 18566
+   },
+   "normal": {
+    "file": "textures/bark_normal.webp",
+    "bytes": 22146,
+    "half": "textures/half/bark_normal.webp",
+    "halfBytes": 4700
+   },
+   "orm": {
+    "file": "textures/bark_orm.webp",
+    "bytes": 11102,
+    "half": "textures/half/bark_orm.webp",
+    "halfBytes": 2738
+   }
+  },
+  "wood": {
+   "source": "Poly Haven",
+   "id": "wood_planks",
+   "licence": "CC0 1.0",
+   "color": {
+    "file": "textures/wood_color.webp",
+    "bytes": 14778,
+    "half": "textures/half/wood_color.webp",
+    "halfBytes": 4164
+   },
+   "normal": {
+    "file": "textures/wood_normal.webp",
+    "bytes": 3196,
+    "half": "textures/half/wood_normal.webp",
+    "halfBytes": 892
+   },
+   "orm": {
+    "file": "textures/wood_orm.webp",
+    "bytes": 3850,
+    "half": "textures/half/wood_orm.webp",
+    "halfBytes": 1140
+   }
+  },
+  "rock": {
+   "source": "Poly Haven",
+   "id": "cliff_side",
+   "licence": "CC0 1.0",
+   "color": {
+    "file": "textures/rock_color.webp",
+    "bytes": 151554,
+    "half": "textures/half/rock_color.webp",
+    "halfBytes": 38870
+   },
+   "normal": {
+    "file": "textures/rock_normal.webp",
+    "bytes": 68338,
+    "half": "textures/half/rock_normal.webp",
+    "halfBytes": 19232
+   },
+   "orm": {
+    "file": "textures/rock_orm.webp",
+    "bytes": 14240,
+    "half": "textures/half/rock_orm.webp",
+    "halfBytes": 3928
+   }
+  },
+  "leaves": {
+   "source": "ambientCG",
+   "id": "LeafSet024",
+   "licence": "CC0 1.0",
+   "color": {
+    "file": "textures/leaves_color.webp",
+    "bytes": 155048,
+    "half": "textures/half/leaves_color.webp",
+    "halfBytes": 60098
+   }
+  }
+ },
+ "materials": {
+  "concrete": {
+   "kind": "opaque",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.35,
+   "texture": "concrete",
+   "metresPerRepeat": 3,
+   "normalScale": 1
+  },
+  "grass": {
+   "kind": "opaque",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.25,
+   "texture": "grass",
+   "metresPerRepeat": 3.5,
+   "normalScale": 1
+  },
+  "leafcards": {
+   "kind": "cards",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.2,
+   "texture": "leaves",
+   "metresPerRepeat": null,
+   "normalScale": 1,
+   "alphaTest": 0.45
+  },
+  "lettering": {
+   "kind": "lettering",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.3,
+   "roughness": 0.8,
+   "metalness": 0,
+   "alphaMap": "textures/lettering.webp"
+  },
+  "marble": {
+   "kind": "opaque",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.5,
+   "texture": "marble",
+   "metresPerRepeat": 2.4,
+   "normalScale": 1
+  },
+  "paving": {
+   "kind": "opaque",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.4,
+   "texture": "paving",
+   "metresPerRepeat": 2.5,
+   "normalScale": 1
+  },
+  "plain": {
+   "kind": "plain",
+   "swatch": "textures/swatch.png",
+   "cells": [
+    "leafcore",
+    "paint",
+    "cloth",
+    "steel",
+    "brass",
+    "patina",
+    "window",
+    "water",
+    "lamp"
+   ],
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.8
+  },
+  "rock": {
+   "kind": "opaque",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.25,
+   "texture": "rock",
+   "metresPerRepeat": 6,
+   "normalScale": 1
+  },
+  "ashlar": {
+   "kind": "opaque",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.25,
+   "texture": "ashlar",
+   "metresPerRepeat": 3,
+   "normalScale": 1
+  },
+  "brick": {
+   "kind": "opaque",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.25,
+   "texture": "brick",
+   "metresPerRepeat": 1.6,
+   "normalScale": 1
+  },
+  "bark": {
+   "kind": "opaque",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.25,
+   "texture": "bark",
+   "metresPerRepeat": 1.2,
+   "normalScale": 1
+  },
+  "cladding": {
+   "kind": "opaque",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.3,
+   "texture": "marble",
+   "metresPerRepeat": 3.6,
+   "normalScale": 1
+  },
+  "glass": {
+   "kind": "glass",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 1,
+   "roughness": 0.05,
+   "metalness": 0.85,
+   "opacity": 0.38
+  },
+  "asphalt": {
+   "kind": "opaque",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.4,
+   "texture": "asphalt",
+   "metresPerRepeat": 3,
+   "normalScale": 1
+  },
+  "wood": {
+   "kind": "opaque",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.4,
+   "texture": "wood",
+   "metresPerRepeat": 1.5,
+   "normalScale": 1
+  }
+ },
+ "chunks": [
+  {
+   "id": "ground",
+   "kind": "base",
+   "file": "chunks/ground.glb.gz",
+   "bytes": 1340968,
+   "encoding": "gzip",
+   "rawBytes": 1794956,
+   "triangles": 77190,
+   "drawCalls": 31,
+   "bounds": {
+    "box": [
+     -239.494,
+     -198.122,
+     -247.76,
+     249.88,
+     33.594,
+     240.301
+    ],
+    "sphere": [
+     5.19,
+     -82.26,
+     -3.73,
+     364.48
+    ]
+   },
+   "lightmaps": [
+    {
+     "file": "lightmaps/ground.0.webp",
+     "bytes": 388070,
+     "size": 2048,
+     "half": "lightmaps/half/ground.0.webp",
+     "halfBytes": 173162
+    },
+    {
+     "file": "lightmaps/ground.1.webp",
+     "bytes": 310060,
+     "size": 2048,
+     "half": "lightmaps/half/ground.1.webp",
+     "halfBytes": 140460
+    },
+    {
+     "file": "lightmaps/ground.2.webp",
+     "bytes": 332456,
+     "size": 2048,
+     "half": "lightmaps/half/ground.2.webp",
+     "halfBytes": 147578
+    },
+    {
+     "file": "lightmaps/ground.3.webp",
+     "bytes": 297384,
+     "size": 2048,
+     "half": "lightmaps/half/ground.3.webp",
+     "halfBytes": 139802
+    }
+   ],
+   "quality": {
+    "level": "good",
+    "lightmap": 2048,
+    "samples": 12,
+    "pageSamples": [
+     12,
+     12,
+     12,
+     32
+    ],
+    "bounces": 3,
+    "bakeSeconds": 532.8
+   },
+   "materials": [
+    "concrete",
+    "grass",
+    "leafcards",
+    "lettering",
+    "marble",
+    "paving",
+    "plain",
+    "rock"
+   ],
+   "primitives": [
+    {
+     "name": "ground.0.concrete",
+     "material": "concrete",
+     "lightmap": 0,
+     "triangles": 195,
+     "box": [
+      -81.278,
+      16.03,
+      -170.925,
+      7.092,
+      30.03,
+      3.981
+     ]
+    },
+    {
+     "name": "ground.0.grass",
+     "material": "grass",
+     "lightmap": 0,
+     "triangles": 11994,
+     "box": [
+      -236.657,
+      -5.13,
+      -245.323,
+      5.007,
+      31.1,
+      5.007
+     ]
+    },
+    {
+     "name": "ground.0.leafcards",
+     "material": "leafcards",
+     "lightmap": 0,
+     "triangles": 320,
+     "box": [
+      -187.455,
+      1,
+      -201.61,
+      -34.869,
+      29.774,
+      -106.041
+     ]
+    },
+    {
+     "name": "ground.0.lettering",
+     "material": "lettering",
+     "lightmap": 0,
+     "triangles": 38,
+     "box": [
+      -181.357,
+      0.224,
+      -157.487,
+      -83.469,
+      18.777,
+      -11.156
+     ]
+    },
+    {
+     "name": "ground.0.marble",
+     "material": "marble",
+     "lightmap": 0,
+     "triangles": 3761,
+     "box": [
+      -214.727,
+      -5.87,
+      -185.531,
+      4.352,
+      30.03,
+      3.864
+     ]
+    },
+    {
+     "name": "ground.0.paving",
+     "material": "paving",
+     "lightmap": 0,
+     "triangles": 252,
+     "box": [
+      -174.175,
+      -4.97,
+      -100.175,
+      -117.825,
+      -4.97,
+      -43.825
+     ]
+    },
+    {
+     "name": "ground.0.plain",
+     "material": "plain",
+     "lightmap": 0,
+     "triangles": 331,
+     "box": [
+      -186.601,
+      -4.93,
+      -200.866,
+      -18.547,
+      29.404,
+      -0.889
+     ]
+    },
+    {
+     "name": "ground.0.rock",
+     "material": "rock",
+     "lightmap": 0,
+     "triangles": 2903,
+     "box": [
+      -239.494,
+      -198.122,
+      -247.76,
+      7.625,
+      26.214,
+      7.508
+     ]
+    },
+    {
+     "name": "ground.1.concrete",
+     "material": "concrete",
+     "lightmap": 1,
+     "triangles": 643,
+     "box": [
+      -6.675,
+      12.03,
+      -170.925,
+      175.771,
+      30.03,
+      -16.291
+     ]
+    },
+    {
+     "name": "ground.1.grass",
+     "material": "grass",
+     "lightmap": 1,
+     "triangles": 10438,
+     "box": [
+      -5.007,
+      9.993,
+      -244.468,
+      246.18,
+      30.009,
+      2.42
+     ]
+    },
+    {
+     "name": "ground.1.leafcards",
+     "material": "leafcards",
+     "lightmap": 1,
+     "triangles": 80,
+     "box": [
+      48.817,
+      22.852,
+      -211.65,
+      58.275,
+      24.892,
+      -203.597
+     ]
+    },
+    {
+     "name": "ground.1.lettering",
+     "material": "lettering",
+     "lightmap": 1,
+     "triangles": 68,
+     "box": [
+      14.532,
+      14.864,
+      -97.294,
+      93.804,
+      31.344,
+      -18.913
+     ]
+    },
+    {
+     "name": "ground.1.marble",
+     "material": "marble",
+     "lightmap": 1,
+     "triangles": 4122,
+     "box": [
+      -4.352,
+      11.13,
+      -216.379,
+      176.221,
+      31.514,
+      -2.111
+     ]
+    },
+    {
+     "name": "ground.1.plain",
+     "material": "plain",
+     "lightmap": 1,
+     "triangles": 903,
+     "box": [
+      -0.714,
+      12.07,
+      -211.202,
+      131.314,
+      33.594,
+      3.462
+     ]
+    },
+    {
+     "name": "ground.1.rock",
+     "material": "rock",
+     "lightmap": 1,
+     "triangles": 2291,
+     "box": [
+      -7.618,
+      -198.122,
+      -247.006,
+      249.03,
+      26.53,
+      7.74
+     ]
+    },
+    {
+     "name": "ground.2.concrete",
+     "material": "concrete",
+     "lightmap": 2,
+     "triangles": 674,
+     "box": [
+      -174.579,
+      4.03,
+      -3.946,
+      -22.226,
+      16.03,
+      142.955
+     ]
+    },
+    {
+     "name": "ground.2.grass",
+     "material": "grass",
+     "lightmap": 2,
+     "triangles": 9961,
+     "box": [
+      -237.519,
+      1.551,
+      -1.669,
+      1.669,
+      15.893,
+      238.07
+     ]
+    },
+    {
+     "name": "ground.2.leafcards",
+     "material": "leafcards",
+     "lightmap": 2,
+     "triangles": 160,
+     "box": [
+      -86.315,
+      1.351,
+      53.716,
+      -17.413,
+      10.949,
+      179.411
+     ]
+    },
+    {
+     "name": "ground.2.lettering",
+     "material": "lettering",
+     "lightmap": 2,
+     "triangles": 80,
+     "box": [
+      -161.971,
+      4.922,
+      30.142,
+      -16.979,
+      18.127,
+      190.849
+     ]
+    },
+    {
+     "name": "ground.2.marble",
+     "material": "marble",
+     "lightmap": 2,
+     "triangles": 4544,
+     "box": [
+      -175.029,
+      1.13,
+      -4.578,
+      7.189,
+      18.296,
+      223.426
+     ]
+    },
+    {
+     "name": "ground.2.paving",
+     "material": "paving",
+     "lightmap": 2,
+     "triangles": 48,
+     "box": [
+      -13.375,
+      2.03,
+      155.21,
+      6.012,
+      2.03,
+      198.904
+     ]
+    },
+    {
+     "name": "ground.2.plain",
+     "material": "plain",
+     "lightmap": 2,
+     "triangles": 1075,
+     "box": [
+      -133.437,
+      2.07,
+      -0.436,
+      0.915,
+      20.376,
+      207.766
+     ]
+    },
+    {
+     "name": "ground.2.rock",
+     "material": "rock",
+     "lightmap": 2,
+     "triangles": 2053,
+     "box": [
+      -239.026,
+      -198.122,
+      -8,
+      7.38,
+      5.947,
+      240.301
+     ]
+    },
+    {
+     "name": "ground.3.concrete",
+     "material": "concrete",
+     "lightmap": 3,
+     "triangles": 756,
+     "box": [
+      13.829,
+      3.03,
+      17.407,
+      164.593,
+      9.03,
+      174.994
+     ]
+    },
+    {
+     "name": "ground.3.grass",
+     "material": "grass",
+     "lightmap": 3,
+     "triangles": 10134,
+     "box": [
+      -1.669,
+      0.764,
+      -1.669,
+      246.225,
+      14.602,
+      237.98
+     ]
+    },
+    {
+     "name": "ground.3.leafcards",
+     "material": "leafcards",
+     "lightmap": 3,
+     "triangles": 160,
+     "box": [
+      8.646,
+      2.398,
+      98.732,
+      179.795,
+      5.201,
+      127.08
+     ]
+    },
+    {
+     "name": "ground.3.lettering",
+     "material": "lettering",
+     "lightmap": 3,
+     "triangles": 90,
+     "box": [
+      15.755,
+      1.473,
+      60.757,
+      190.697,
+      12.218,
+      173.271
+     ]
+    },
+    {
+     "name": "ground.3.marble",
+     "material": "marble",
+     "lightmap": 3,
+     "triangles": 5104,
+     "box": [
+      -1.462,
+      1.053,
+      16.957,
+      222.686,
+      11.668,
+      201.824
+     ]
+    },
+    {
+     "name": "ground.3.paving",
+     "material": "paving",
+     "lightmap": 3,
+     "triangles": 204,
+     "box": [
+      -1.932,
+      2.03,
+      154.625,
+      33.375,
+      2.03,
+      201.375
+     ]
+    },
+    {
+     "name": "ground.3.plain",
+     "material": "plain",
+     "lightmap": 3,
+     "triangles": 809,
+     "box": [
+      -5.168,
+      2.07,
+      -2.464,
+      178.897,
+      13.748,
+      177.392
+     ]
+    },
+    {
+     "name": "ground.3.rock",
+     "material": "rock",
+     "lightmap": 3,
+     "triangles": 2999,
+     "box": [
+      -7.457,
+      -198.122,
+      -8,
+      249.88,
+      13.491,
+      240.083
+     ]
+    }
+   ],
+   "replaces": [
+    "terrain/ground-0-0",
+    "terrain/ground-1-0",
+    "terrain/ground-2-0",
+    "terrain/ground-0-1",
+    "terrain/ground-1-1",
+    "terrain/ground-2-1",
+    "terrain/ground-0-2",
+    "terrain/ground-1-2",
+    "terrain/ground-2-2",
+    "terrain/cliff",
+    "terrain/underside",
+    "terrain/streets",
+    "terrain/markers"
+   ],
+   "live": [],
+   "stilled": [],
+   "drop": []
+  },
+  {
+   "id": "sky",
+   "kind": "base",
+   "file": "chunks/sky.glb.gz",
+   "bytes": 285000,
+   "encoding": "gzip",
+   "rawBytes": 481460,
+   "triangles": 19272,
+   "drawCalls": 5,
+   "bounds": {
+    "box": [
+     -761.657,
+     -1020,
+     -699.439,
+     821.484,
+     270.675,
+     451.977
+    ],
+    "sphere": [
+     29.91,
+     -374.66,
+     -123.73,
+     1172.38
+    ]
+   },
+   "lightmaps": [
+    {
+     "file": "lightmaps/sky.0.webp",
+     "bytes": 215412,
+     "size": 1024,
+     "half": "lightmaps/half/sky.0.webp",
+     "halfBytes": 86208
+    }
+   ],
+   "quality": {
+    "level": "rough",
+    "lightmap": 1024,
+    "samples": 16,
+    "pageSamples": [
+     16
+    ],
+    "bounces": 2,
+    "bakeSeconds": 14.9
+   },
+   "materials": [
+    "ashlar",
+    "brick",
+    "leafcards",
+    "marble",
+    "plain"
+   ],
+   "primitives": [
+    {
+     "name": "sky.0.ashlar",
+     "material": "ashlar",
+     "lightmap": 0,
+     "triangles": 4132,
+     "box": [
+      -634.283,
+      -1020,
+      -670.6,
+      696.479,
+      270.675,
+      402.773
+     ]
+    },
+    {
+     "name": "sky.0.brick",
+     "material": "brick",
+     "lightmap": 0,
+     "triangles": 320,
+     "box": [
+      -735.079,
+      22,
+      -514.477,
+      807.225,
+      115.04,
+      451.977
+     ]
+    },
+    {
+     "name": "sky.0.leafcards",
+     "material": "leafcards",
+     "lightmap": 0,
+     "triangles": 1690,
+     "box": [
+      -754.031,
+      -21.838,
+      -638.576,
+      813.236,
+      251.14,
+      448.145
+     ]
+    },
+    {
+     "name": "sky.0.marble",
+     "material": "marble",
+     "lightmap": 0,
+     "triangles": 3432,
+     "box": [
+      -690.966,
+      26.08,
+      -699.03,
+      777.381,
+      251.219,
+      424.599
+     ]
+    },
+    {
+     "name": "sky.0.plain",
+     "material": "plain",
+     "lightmap": 0,
+     "triangles": 9698,
+     "box": [
+      -761.657,
+      -149.449,
+      -699.439,
+      821.484,
+      265.62,
+      451.691
+     ]
+    }
+   ],
+   "replaces": [
+    "sky/skyline-north",
+    "sky/skyline-south",
+    "sky/armillary",
+    "sky/column",
+    "sky/pediment"
+   ],
+   "live": [
+    "sky/clouds-0",
+    "sky/clouds-1",
+    "sky/flock"
+   ],
+   "stilled": [
+    "sky/armillary",
+    "sky/pediment"
+   ],
+   "drop": [
+    "sky/sun-moon"
+   ]
+  },
+  {
+   "id": "city",
+   "kind": "base",
+   "file": "chunks/city.glb.gz",
+   "bytes": 3823651,
+   "encoding": "gzip",
+   "rawBytes": 5431468,
+   "triangles": 223245,
+   "drawCalls": 32,
+   "bounds": {
+    "box": [
+     -235.863,
+     -3.709,
+     -405.618,
+     237.042,
+     55.632,
+     237.776
+    ],
+    "sphere": [
+     0.59,
+     25.96,
+     -83.92,
+     400.35
+    ]
+   },
+   "lightmaps": [
+    {
+     "file": "lightmaps/city.0.webp",
+     "bytes": 460208,
+     "size": 2048,
+     "half": "lightmaps/half/city.0.webp",
+     "halfBytes": 187854
+    },
+    {
+     "file": "lightmaps/city.1.webp",
+     "bytes": 523564,
+     "size": 2048,
+     "half": "lightmaps/half/city.1.webp",
+     "halfBytes": 220784
+    },
+    {
+     "file": "lightmaps/city.2.webp",
+     "bytes": 585572,
+     "size": 2048,
+     "half": "lightmaps/half/city.2.webp",
+     "halfBytes": 246514
+    },
+    {
+     "file": "lightmaps/city.3.webp",
+     "bytes": 531710,
+     "size": 2048,
+     "half": "lightmaps/half/city.3.webp",
+     "halfBytes": 221564
+    }
+   ],
+   "quality": {
+    "level": "good",
+    "lightmap": 2048,
+    "samples": 8,
+    "pageSamples": [
+     8,
+     8,
+     8,
+     24
+    ],
+    "bounces": 3,
+    "bakeSeconds": 310.9
+   },
+   "materials": [
+    "ashlar",
+    "bark",
+    "brick",
+    "cladding",
+    "concrete",
+    "leafcards",
+    "marble",
+    "plain"
+   ],
+   "primitives": [
+    {
+     "name": "city.0.ashlar",
+     "material": "ashlar",
+     "lightmap": 0,
+     "triangles": 10573,
+     "box": [
+      -225.757,
+      -0.574,
+      -405.243,
+      21.157,
+      46.7,
+      17.534
+     ]
+    },
+    {
+     "name": "city.0.bark",
+     "material": "bark",
+     "lightmap": 0,
+     "triangles": 1120,
+     "box": [
+      -227.466,
+      -2.453,
+      -235.369,
+      -1.405,
+      35.219,
+      0.11
+     ]
+    },
+    {
+     "name": "city.0.brick",
+     "material": "brick",
+     "lightmap": 0,
+     "triangles": 808,
+     "box": [
+      -216.928,
+      0.11,
+      -214.185,
+      0.604,
+      54.632,
+      -0.434
+     ]
+    },
+    {
+     "name": "city.0.cladding",
+     "material": "cladding",
+     "lightmap": 0,
+     "triangles": 108,
+     "box": [
+      -199.088,
+      1.728,
+      -218.804,
+      -16.51,
+      50.266,
+      -48.277
+     ]
+    },
+    {
+     "name": "city.0.concrete",
+     "material": "concrete",
+     "lightmap": 0,
+     "triangles": 442,
+     "box": [
+      -226.095,
+      14.08,
+      -405.618,
+      21.495,
+      51.116,
+      17.92
+     ]
+    },
+    {
+     "name": "city.0.leafcards",
+     "material": "leafcards",
+     "lightmap": 0,
+     "triangles": 19970,
+     "box": [
+      -231.625,
+      -3.709,
+      -239.785,
+      1.279,
+      51.226,
+      1.111
+     ]
+    },
+    {
+     "name": "city.0.marble",
+     "material": "marble",
+     "lightmap": 0,
+     "triangles": 17472,
+     "box": [
+      -226.057,
+      -2.686,
+      -405.562,
+      1.034,
+      50.816,
+      0.86
+     ]
+    },
+    {
+     "name": "city.0.plain",
+     "material": "plain",
+     "lightmap": 0,
+     "triangles": 17200,
+     "box": [
+      -229.427,
+      -2.412,
+      -404.533,
+      19.916,
+      55.632,
+      16.835
+     ]
+    },
+    {
+     "name": "city.1.ashlar",
+     "material": "ashlar",
+     "lightmap": 1,
+     "triangles": 3035,
+     "box": [
+      -2.51,
+      11.828,
+      -213.807,
+      210.5,
+      49.184,
+      1.785
+     ]
+    },
+    {
+     "name": "city.1.bark",
+     "material": "bark",
+     "lightmap": 1,
+     "triangles": 880,
+     "box": [
+      1.097,
+      9.389,
+      -224.966,
+      231.347,
+      33.363,
+      0.027
+     ]
+    },
+    {
+     "name": "city.1.brick",
+     "material": "brick",
+     "lightmap": 1,
+     "triangles": 660,
+     "box": [
+      -0.291,
+      13.29,
+      -216.504,
+      208.965,
+      51.998,
+      3.781
+     ]
+    },
+    {
+     "name": "city.1.cladding",
+     "material": "cladding",
+     "lightmap": 1,
+     "triangles": 34,
+     "box": [
+      23.43,
+      13.218,
+      -184.487,
+      206.181,
+      38.606,
+      4.112
+     ]
+    },
+    {
+     "name": "city.1.concrete",
+     "material": "concrete",
+     "lightmap": 1,
+     "triangles": 330,
+     "box": [
+      0.85,
+      23.877,
+      -216.317,
+      210.321,
+      47.998,
+      4.577
+     ]
+    },
+    {
+     "name": "city.1.leafcards",
+     "material": "leafcards",
+     "lightmap": 1,
+     "triangles": 15788,
+     "box": [
+      -1.052,
+      8.465,
+      -229.519,
+      236.439,
+      46.14,
+      1.475
+     ]
+    },
+    {
+     "name": "city.1.marble",
+     "material": "marble",
+     "lightmap": 1,
+     "triangles": 12284,
+     "box": [
+      -2.269,
+      10.84,
+      -216.935,
+      232.307,
+      47.698,
+      7.839
+     ]
+    },
+    {
+     "name": "city.1.plain",
+     "material": "plain",
+     "lightmap": 1,
+     "triangles": 12380,
+     "box": [
+      -0.589,
+      10.16,
+      -227.684,
+      234.683,
+      52.998,
+      3.913
+     ]
+    },
+    {
+     "name": "city.2.ashlar",
+     "material": "ashlar",
+     "lightmap": 2,
+     "triangles": 3562,
+     "box": [
+      -215.992,
+      2.271,
+      -1.846,
+      -1.776,
+      29.995,
+      212.998
+     ]
+    },
+    {
+     "name": "city.2.bark",
+     "material": "bark",
+     "lightmap": 2,
+     "triangles": 1174,
+     "box": [
+      -231.388,
+      -0.023,
+      2.714,
+      0.159,
+      28.423,
+      233.035
+     ]
+    },
+    {
+     "name": "city.2.brick",
+     "material": "brick",
+     "lightmap": 2,
+     "triangles": 1096,
+     "box": [
+      -214.636,
+      2.634,
+      2.852,
+      0.385,
+      34.064,
+      218.37
+     ]
+    },
+    {
+     "name": "city.2.cladding",
+     "material": "cladding",
+     "lightmap": 2,
+     "triangles": 94,
+     "box": [
+      -205.251,
+      3.954,
+      79.979,
+      1.383,
+      25.34,
+      221.315
+     ]
+    },
+    {
+     "name": "city.2.concrete",
+     "material": "concrete",
+     "lightmap": 2,
+     "triangles": 456,
+     "box": [
+      -215.074,
+      16.333,
+      2.414,
+      -1.268,
+      29.764,
+      221.752
+     ]
+    },
+    {
+     "name": "city.2.leafcards",
+     "material": "leafcards",
+     "lightmap": 2,
+     "triangles": 21784,
+     "box": [
+      -235.863,
+      -1.396,
+      -1.25,
+      1.291,
+      32.252,
+      237.776
+     ]
+    },
+    {
+     "name": "city.2.marble",
+     "material": "marble",
+     "lightmap": 2,
+     "triangles": 15518,
+     "box": [
+      -216.588,
+      0.791,
+      -1.769,
+      1.814,
+      28.618,
+      221.457
+     ]
+    },
+    {
+     "name": "city.2.plain",
+     "material": "plain",
+     "lightmap": 2,
+     "triangles": 17314,
+     "box": [
+      -233.781,
+      1.117,
+      -0.423,
+      3.195,
+      35.064,
+      236.306
+     ]
+    },
+    {
+     "name": "city.3.ashlar",
+     "material": "ashlar",
+     "lightmap": 3,
+     "triangles": 3274,
+     "box": [
+      -0.062,
+      2.732,
+      -2.157,
+      234.888,
+      42.576,
+      188.577
+     ]
+    },
+    {
+     "name": "city.3.bark",
+     "material": "bark",
+     "lightmap": 3,
+     "triangles": 936,
+     "box": [
+      0.096,
+      0.46,
+      0.834,
+      232.689,
+      31.427,
+      230.638
+     ]
+    },
+    {
+     "name": "city.3.brick",
+     "material": "brick",
+     "lightmap": 3,
+     "triangles": 600,
+     "box": [
+      0.097,
+      2.205,
+      -5.913,
+      234.831,
+      37.6,
+      193.684
+     ]
+    },
+    {
+     "name": "city.3.cladding",
+     "material": "cladding",
+     "lightmap": 3,
+     "triangles": 52,
+     "box": [
+      -0.866,
+      3.954,
+      0.416,
+      200.204,
+      29.875,
+      190.759
+     ]
+    },
+    {
+     "name": "city.3.concrete",
+     "material": "concrete",
+     "lightmap": 3,
+     "triangles": 320,
+     "box": [
+      14.531,
+      14.402,
+      -6.377,
+      234.643,
+      36,
+      192.55
+     ]
+    },
+    {
+     "name": "city.3.leafcards",
+     "material": "leafcards",
+     "lightmap": 3,
+     "triangles": 15792,
+     "box": [
+      -1.28,
+      -1.62,
+      -1.41,
+      237.042,
+      34.048,
+      233.545
+     ]
+    },
+    {
+     "name": "city.3.marble",
+     "material": "marble",
+     "lightmap": 3,
+     "triangles": 15234,
+     "box": [
+      -3.081,
+      -0.062,
+      -6.061,
+      235.262,
+      41.09,
+      194.102
+     ]
+    },
+    {
+     "name": "city.3.plain",
+     "material": "plain",
+     "lightmap": 3,
+     "triangles": 12955,
+     "box": [
+      -2.65,
+      0.136,
+      -0.707,
+      235.695,
+      41.59,
+      231.948
+     ]
+    }
+   ],
+   "replaces": [
+    "scatter/trees-0",
+    "scatter/trees-1",
+    "scatter/trees-2",
+    "scatter/layered-0",
+    "scatter/layered-1",
+    "scatter/layered-2",
+    "scatter/columns-0",
+    "scatter/columns-1",
+    "scatter/columns-2",
+    "scatter/drums-0",
+    "scatter/hedges-0",
+    "scatter/hedges-1",
+    "scatter/hedges-2",
+    "scatter/buildings-0",
+    "scatter/buildings-1",
+    "scatter/buildings-2",
+    "scatter/works"
+   ],
+   "live": [
+    "scatter/train"
+   ],
+   "stilled": [],
+   "drop": []
+  },
+  {
+   "id": "trailhead",
+   "kind": "district",
+   "file": "chunks/trailhead.glb.gz",
+   "bytes": 556073,
+   "encoding": "gzip",
+   "rawBytes": 823868,
+   "triangles": 35281,
+   "drawCalls": 12,
+   "bounds": {
+    "box": [
+     -17.179,
+     0.917,
+     153.188,
+     37.012,
+     38.029,
+     208.873
+    ],
+    "sphere": [
+     9.92,
+     19.47,
+     181.03,
+     43.05
+    ]
+   },
+   "lightmaps": [
+    {
+     "file": "lightmaps/trailhead.0.webp",
+     "bytes": 441304,
+     "size": 2048,
+     "half": "lightmaps/half/trailhead.0.webp",
+     "halfBytes": 182430
+    }
+   ],
+   "quality": {
+    "level": "hero",
+    "lightmap": 2048,
+    "samples": 48,
+    "pageSamples": [
+     48
+    ],
+    "bounces": 4,
+    "bakeSeconds": 400.3
+   },
+   "materials": [
+    "ashlar",
+    "bark",
+    "brick",
+    "cladding",
+    "concrete",
+    "glass",
+    "grass",
+    "leafcards",
+    "lettering",
+    "marble",
+    "paving",
+    "plain"
+   ],
+   "primitives": [
+    {
+     "name": "trailhead.0.ashlar",
+     "material": "ashlar",
+     "lightmap": 0,
+     "triangles": 1472,
+     "box": [
+      6.25,
+      2,
+      165.391,
+      29.609,
+      14.09,
+      187.29
+     ]
+    },
+    {
+     "name": "trailhead.0.bark",
+     "material": "bark",
+     "lightmap": 0,
+     "triangles": 161,
+     "box": [
+      -8.107,
+      1.861,
+      156.828,
+      32.893,
+      17.56,
+      198.385
+     ]
+    },
+    {
+     "name": "trailhead.0.brick",
+     "material": "brick",
+     "lightmap": 0,
+     "triangles": 888,
+     "box": [
+      -16.945,
+      2,
+      165.749,
+      36.263,
+      18.18,
+      204.02
+     ]
+    },
+    {
+     "name": "trailhead.0.cladding",
+     "material": "cladding",
+     "lightmap": 0,
+     "triangles": 10,
+     "box": [
+      -3.545,
+      2,
+      197.861,
+      5.828,
+      12.34,
+      206.816
+     ]
+    },
+    {
+     "name": "trailhead.0.concrete",
+     "material": "concrete",
+     "lightmap": 0,
+     "triangles": 184,
+     "box": [
+      -17.179,
+      11,
+      181.35,
+      36.5,
+      15.84,
+      207.136
+     ]
+    },
+    {
+     "name": "trailhead.0.glass",
+     "material": "glass",
+     "lightmap": 0,
+     "triangles": 18,
+     "box": [
+      -6.615,
+      2.43,
+      192.288,
+      21.799,
+      13.875,
+      204.504
+     ]
+    },
+    {
+     "name": "trailhead.0.grass",
+     "material": "grass",
+     "lightmap": 0,
+     "triangles": 364,
+     "box": [
+      -13.492,
+      1.845,
+      154.532,
+      33.55,
+      2.28,
+      207.15
+     ]
+    },
+    {
+     "name": "trailhead.0.leafcards",
+     "material": "leafcards",
+     "lightmap": 0,
+     "triangles": 6516,
+     "box": [
+      -13.829,
+      0.917,
+      153.188,
+      37.012,
+      17.856,
+      208.873
+     ]
+    },
+    {
+     "name": "trailhead.0.lettering",
+     "material": "lettering",
+     "lightmap": 0,
+     "triangles": 686,
+     "box": [
+      -5.852,
+      2.577,
+      167.801,
+      29.264,
+      13.911,
+      202.774
+     ]
+    },
+    {
+     "name": "trailhead.0.marble",
+     "material": "marble",
+     "lightmap": 0,
+     "triangles": 10080,
+     "box": [
+      -13.988,
+      2,
+      164.006,
+      30.994,
+      18.76,
+      206.901
+     ]
+    },
+    {
+     "name": "trailhead.0.paving",
+     "material": "paving",
+     "lightmap": 0,
+     "triangles": 287,
+     "box": [
+      -13.672,
+      1.902,
+      154.352,
+      33.477,
+      2.2,
+      207.6
+     ]
+    },
+    {
+     "name": "trailhead.0.plain",
+     "material": "plain",
+     "lightmap": 0,
+     "triangles": 14615,
+     "box": [
+      -16.898,
+      1.861,
+      153.961,
+      35.789,
+      38.029,
+      207.096
+     ]
+    }
+   ],
+   "replaces": [
+    "trailhead/trailhead"
+   ],
+   "live": [
+    "trailhead/trailhead-bell",
+    "trailhead/trailhead-prints"
+   ],
+   "stilled": [],
+   "drop": []
+  },
+  {
+   "id": "switchboard",
+   "kind": "district",
+   "file": "chunks/switchboard.glb.gz",
+   "bytes": 258486,
+   "encoding": "gzip",
+   "rawBytes": 454432,
+   "triangles": 25237,
+   "drawCalls": 12,
+   "bounds": {
+    "box": [
+     -86.815,
+     3.5,
+     93.4,
+     -35.646,
+     24.87,
+     145.125
+    ],
+    "sphere": [
+     -61.23,
+     14.19,
+     119.26,
+     37.92
+    ]
+   },
+   "lightmaps": [
+    {
+     "file": "lightmaps/switchboard.0.webp",
+     "bytes": 182136,
+     "size": 1024,
+     "half": "lightmaps/half/switchboard.0.webp",
+     "halfBytes": 72432
+    }
+   ],
+   "quality": {
+    "level": "good",
+    "lightmap": 1024,
+    "samples": 48,
+    "pageSamples": [
+     48
+    ],
+    "bounces": 3,
+    "bakeSeconds": 46.5
+   },
+   "materials": [
+    "ashlar",
+    "asphalt",
+    "bark",
+    "brick",
+    "concrete",
+    "glass",
+    "grass",
+    "leafcards",
+    "lettering",
+    "marble",
+    "paving",
+    "plain"
+   ],
+   "primitives": [
+    {
+     "name": "switchboard.0.ashlar",
+     "material": "ashlar",
+     "lightmap": 0,
+     "triangles": 320,
+     "box": [
+      -73.2,
+      5.5,
+      101.6,
+      -42.1,
+      18.1,
+      130.85
+     ]
+    },
+    {
+     "name": "switchboard.0.asphalt",
+     "material": "asphalt",
+     "lightmap": 0,
+     "triangles": 48,
+     "box": [
+      -69.18,
+      5.039,
+      112.42,
+      -59.42,
+      5.039,
+      127.78
+     ]
+    },
+    {
+     "name": "switchboard.0.bark",
+     "material": "bark",
+     "lightmap": 0,
+     "triangles": 75,
+     "box": [
+      -78.077,
+      5,
+      97.6,
+      -39.539,
+      15.916,
+      141.674
+     ]
+    },
+    {
+     "name": "switchboard.0.brick",
+     "material": "brick",
+     "lightmap": 0,
+     "triangles": 667,
+     "box": [
+      -84.371,
+      4.572,
+      93.7,
+      -44.516,
+      23.82,
+      139.743
+     ]
+    },
+    {
+     "name": "switchboard.0.concrete",
+     "material": "concrete",
+     "lightmap": 0,
+     "triangles": 12,
+     "box": [
+      -73.4,
+      18.2,
+      93.4,
+      -50.6,
+      18.7,
+      102.4
+     ]
+    },
+    {
+     "name": "switchboard.0.glass",
+     "material": "glass",
+     "lightmap": 0,
+     "triangles": 6,
+     "box": [
+      -50.06,
+      8.475,
+      96.4,
+      -50.06,
+      15.825,
+      99.4
+     ]
+    },
+    {
+     "name": "switchboard.0.grass",
+     "material": "grass",
+     "lightmap": 0,
+     "triangles": 216,
+     "box": [
+      -86.391,
+      4.915,
+      102.45,
+      -38.85,
+      5.26,
+      142.307
+     ]
+    },
+    {
+     "name": "switchboard.0.leafcards",
+     "material": "leafcards",
+     "lightmap": 0,
+     "triangles": 2826,
+     "box": [
+      -86.815,
+      3.524,
+      94.127,
+      -35.646,
+      21.344,
+      145.125
+     ]
+    },
+    {
+     "name": "switchboard.0.lettering",
+     "material": "lettering",
+     "lightmap": 0,
+     "triangles": 236,
+     "box": [
+      -68.109,
+      5.37,
+      102.231,
+      -43.138,
+      17.913,
+      127.952
+     ]
+    },
+    {
+     "name": "switchboard.0.marble",
+     "material": "marble",
+     "lightmap": 0,
+     "triangles": 3349,
+     "box": [
+      -83.62,
+      3.5,
+      93.6,
+      -41.55,
+      19.9,
+      139.959
+     ]
+    },
+    {
+     "name": "switchboard.0.paving",
+     "material": "paving",
+     "lightmap": 0,
+     "triangles": 160,
+     "box": [
+      -86.683,
+      4.932,
+      115.419,
+      -41.7,
+      5.42,
+      142.599
+     ]
+    },
+    {
+     "name": "switchboard.0.plain",
+     "material": "plain",
+     "lightmap": 0,
+     "triangles": 17322,
+     "box": [
+      -86.098,
+      4.566,
+      94.3,
+      -37.982,
+      24.87,
+      142.86
+     ]
+    }
+   ],
+   "replaces": [
+    "switchboard/switchboard-static"
+   ],
+   "live": [
+    "switchboard/switchboard-rolodex",
+    "switchboard/switchboard-handset",
+    "switchboard/switchboard-beads"
+   ],
+   "stilled": [],
+   "drop": []
+  },
+  {
+   "id": "postcards",
+   "kind": "district",
+   "file": "chunks/postcards.glb.gz",
+   "bytes": 291878,
+   "encoding": "gzip",
+   "rawBytes": 453232,
+   "triangles": 21611,
+   "drawCalls": 10,
+   "bounds": {
+    "box": [
+     94.201,
+     2.066,
+     124.481,
+     139.653,
+     12.889,
+     175.825
+    ],
+    "sphere": [
+     116.93,
+     7.48,
+     150.15,
+     34.71
+    ]
+   },
+   "lightmaps": [
+    {
+     "file": "lightmaps/postcards.0.webp",
+     "bytes": 155740,
+     "size": 1024,
+     "half": "lightmaps/half/postcards.0.webp",
+     "halfBytes": 65788
+    }
+   ],
+   "quality": {
+    "level": "good",
+    "lightmap": 1024,
+    "samples": 48,
+    "pageSamples": [
+     48
+    ],
+    "bounces": 3,
+    "bakeSeconds": 37.4
+   },
+   "materials": [
+    "ashlar",
+    "bark",
+    "brick",
+    "grass",
+    "leafcards",
+    "lettering",
+    "marble",
+    "paving",
+    "plain",
+    "wood"
+   ],
+   "primitives": [
+    {
+     "name": "postcards.0.ashlar",
+     "material": "ashlar",
+     "lightmap": 0,
+     "triangles": 444,
+     "box": [
+      103.347,
+      3,
+      153.755,
+      106.124,
+      8.05,
+      158.445
+     ]
+    },
+    {
+     "name": "postcards.0.bark",
+     "material": "bark",
+     "lightmap": 0,
+     "triangles": 48,
+     "box": [
+      97.737,
+      3,
+      129.349,
+      128.237,
+      7.736,
+      172.215
+     ]
+    },
+    {
+     "name": "postcards.0.brick",
+     "material": "brick",
+     "lightmap": 0,
+     "triangles": 570,
+     "box": [
+      110.777,
+      3,
+      131.82,
+      137.701,
+      4.27,
+      173.942
+     ]
+    },
+    {
+     "name": "postcards.0.grass",
+     "material": "grass",
+     "lightmap": 0,
+     "triangles": 240,
+     "box": [
+      97.116,
+      3,
+      128.813,
+      133.498,
+      3.08,
+      170.546
+     ]
+    },
+    {
+     "name": "postcards.0.leafcards",
+     "material": "leafcards",
+     "lightmap": 0,
+     "triangles": 2794,
+     "box": [
+      94.201,
+      2.066,
+      124.481,
+      139.653,
+      12.889,
+      175.825
+     ]
+    },
+    {
+     "name": "postcards.0.lettering",
+     "material": "lettering",
+     "lightmap": 0,
+     "triangles": 480,
+     "box": [
+      103.428,
+      3.653,
+      135.193,
+      134.224,
+      7.819,
+      162.891
+     ]
+    },
+    {
+     "name": "postcards.0.marble",
+     "material": "marble",
+     "lightmap": 0,
+     "triangles": 7045,
+     "box": [
+      103.152,
+      3,
+      128.489,
+      139.514,
+      8.94,
+      174.002
+     ]
+    },
+    {
+     "name": "postcards.0.paving",
+     "material": "paving",
+     "lightmap": 0,
+     "triangles": 300,
+     "box": [
+      102.322,
+      3,
+      132.243,
+      137.278,
+      3.05,
+      165.678
+     ]
+    },
+    {
+     "name": "postcards.0.plain",
+     "material": "plain",
+     "lightmap": 0,
+     "triangles": 9542,
+     "box": [
+      96.359,
+      2.974,
+      126.563,
+      139.632,
+      10.699,
+      173.599
+     ]
+    },
+    {
+     "name": "postcards.0.wood",
+     "material": "wood",
+     "lightmap": 0,
+     "triangles": 148,
+     "box": [
+      117.294,
+      3.113,
+      149.225,
+      121.1,
+      3.585,
+      152.016
+     ]
+    }
+   ],
+   "replaces": [
+    "postcards/postcards-static"
+   ],
+   "live": [
+    "postcards/postcards-balloon",
+    "postcards/postcards-flame",
+    "postcards/postcards-flock"
+   ],
+   "stilled": [],
+   "drop": []
+  },
+  {
+   "id": "commons",
+   "kind": "district",
+   "file": "chunks/commons.glb.gz",
+   "bytes": 357523,
+   "encoding": "gzip",
+   "rawBytes": 570132,
+   "triangles": 30160,
+   "drawCalls": 12,
+   "bounds": {
+    "box": [
+     16.305,
+     7.567,
+     36.353,
+     69.891,
+     39.55,
+     93.133
+    ],
+    "sphere": [
+     43.1,
+     23.56,
+     64.74,
+     42.19
+    ]
+   },
+   "lightmaps": [
+    {
+     "file": "lightmaps/commons.0.webp",
+     "bytes": 214054,
+     "size": 1024,
+     "half": "lightmaps/half/commons.0.webp",
+     "halfBytes": 84770
+    }
+   ],
+   "quality": {
+    "level": "good",
+    "lightmap": 1024,
+    "samples": 48,
+    "pageSamples": [
+     48
+    ],
+    "bounces": 3,
+    "bakeSeconds": 52.1
+   },
+   "materials": [
+    "ashlar",
+    "bark",
+    "brick",
+    "concrete",
+    "glass",
+    "grass",
+    "leafcards",
+    "lettering",
+    "marble",
+    "paving",
+    "plain",
+    "wood"
+   ],
+   "primitives": [
+    {
+     "name": "commons.0.ashlar",
+     "material": "ashlar",
+     "lightmap": 0,
+     "triangles": 2108,
+     "box": [
+      28.537,
+      9,
+      52.164,
+      61.836,
+      33.05,
+      88.795
+     ]
+    },
+    {
+     "name": "commons.0.bark",
+     "material": "bark",
+     "lightmap": 0,
+     "triangles": 126,
+     "box": [
+      20.239,
+      9,
+      39.726,
+      66.753,
+      13.234,
+      90.293
+     ]
+    },
+    {
+     "name": "commons.0.brick",
+     "material": "brick",
+     "lightmap": 0,
+     "triangles": 240,
+     "box": [
+      30.9,
+      9.035,
+      45.85,
+      63.92,
+      13.6,
+      57.92
+     ]
+    },
+    {
+     "name": "commons.0.concrete",
+     "material": "concrete",
+     "lightmap": 0,
+     "triangles": 44,
+     "box": [
+      55.696,
+      13.6,
+      49.696,
+      64.304,
+      14.05,
+      58.304
+     ]
+    },
+    {
+     "name": "commons.0.glass",
+     "material": "glass",
+     "lightmap": 0,
+     "triangles": 48,
+     "box": [
+      45.45,
+      10.485,
+      46.1,
+      45.95,
+      10.985,
+      46.12
+     ]
+    },
+    {
+     "name": "commons.0.grass",
+     "material": "grass",
+     "lightmap": 0,
+     "triangles": 636,
+     "box": [
+      18.383,
+      9,
+      39.05,
+      66.8,
+      9.58,
+      91.295
+     ]
+    },
+    {
+     "name": "commons.0.leafcards",
+     "material": "leafcards",
+     "lightmap": 0,
+     "triangles": 4416,
+     "box": [
+      16.305,
+      7.567,
+      36.353,
+      69.891,
+      20.267,
+      93.133
+     ]
+    },
+    {
+     "name": "commons.0.lettering",
+     "material": "lettering",
+     "lightmap": 0,
+     "triangles": 364,
+     "box": [
+      29.753,
+      9.089,
+      43.07,
+      59.134,
+      15.667,
+      79.474
+     ]
+    },
+    {
+     "name": "commons.0.marble",
+     "material": "marble",
+     "lightmap": 0,
+     "triangles": 3522,
+     "box": [
+      17.939,
+      9,
+      41.667,
+      64.56,
+      34.65,
+      87.546
+     ]
+    },
+    {
+     "name": "commons.0.paving",
+     "material": "paving",
+     "lightmap": 0,
+     "triangles": 84,
+     "box": [
+      45.25,
+      9,
+      73.75,
+      54.75,
+      9.035,
+      83.25
+     ]
+    },
+    {
+     "name": "commons.0.plain",
+     "material": "plain",
+     "lightmap": 0,
+     "triangles": 18512,
+     "box": [
+      17.779,
+      8.981,
+      38.591,
+      68.177,
+      39.55,
+      91.503
+     ]
+    },
+    {
+     "name": "commons.0.wood",
+     "material": "wood",
+     "lightmap": 0,
+     "triangles": 60,
+     "box": [
+      31.55,
+      9.035,
+      47.29,
+      37.45,
+      9.475,
+      49.71
+     ]
+    }
+   ],
+   "replaces": [
+    "commons/commons-static",
+    "commons/commons-stools"
+   ],
+   "live": [
+    "commons/commons-stools-air",
+    "commons/commons-beacon-light"
+   ],
+   "stilled": [],
+   "drop": []
+  },
+  {
+   "id": "studio",
+   "kind": "district",
+   "file": "chunks/studio.glb.gz",
+   "bytes": 417011,
+   "encoding": "gzip",
+   "rawBytes": 743028,
+   "triangles": 34037,
+   "drawCalls": 11,
+   "bounds": {
+    "box": [
+     108.73,
+     5.8,
+     21.678,
+     157.3,
+     29.8,
+     70.255
+    ],
+    "sphere": [
+     133.02,
+     17.8,
+     45.97,
+     36.38
+    ]
+   },
+   "lightmaps": [
+    {
+     "file": "lightmaps/studio.0.webp",
+     "bytes": 233994,
+     "size": 1024,
+     "half": "lightmaps/half/studio.0.webp",
+     "halfBytes": 87504
+    }
+   ],
+   "quality": {
+    "level": "good",
+    "lightmap": 1024,
+    "samples": 48,
+    "pageSamples": [
+     48
+    ],
+    "bounces": 3,
+    "bakeSeconds": 44.7
+   },
+   "materials": [
+    "ashlar",
+    "bark",
+    "brick",
+    "concrete",
+    "glass",
+    "grass",
+    "leafcards",
+    "lettering",
+    "marble",
+    "paving",
+    "plain"
+   ],
+   "primitives": [
+    {
+     "name": "studio.0.ashlar",
+     "material": "ashlar",
+     "lightmap": 0,
+     "triangles": 428,
+     "box": [
+      126,
+      7,
+      26,
+      154.08,
+      22.3,
+      60.28
+     ]
+    },
+    {
+     "name": "studio.0.bark",
+     "material": "bark",
+     "lightmap": 0,
+     "triangles": 72,
+     "box": [
+      122.762,
+      7,
+      24.303,
+      152.252,
+      22.113,
+      65.326
+     ]
+    },
+    {
+     "name": "studio.0.brick",
+     "material": "brick",
+     "lightmap": 0,
+     "triangles": 411,
+     "box": [
+      122,
+      6.922,
+      22,
+      157,
+      29.067,
+      50
+     ]
+    },
+    {
+     "name": "studio.0.concrete",
+     "material": "concrete",
+     "lightmap": 0,
+     "triangles": 48,
+     "box": [
+      121.7,
+      11.8,
+      21.7,
+      157.3,
+      21.45,
+      50.3
+     ]
+    },
+    {
+     "name": "studio.0.glass",
+     "material": "glass",
+     "lightmap": 0,
+     "triangles": 420,
+     "box": [
+      127.855,
+      7.12,
+      26.13,
+      148.1,
+      16.575,
+      57.025
+     ]
+    },
+    {
+     "name": "studio.0.grass",
+     "material": "grass",
+     "lightmap": 0,
+     "triangles": 320,
+     "box": [
+      122.096,
+      6.975,
+      30.2,
+      152.904,
+      7.86,
+      65.95
+     ]
+    },
+    {
+     "name": "studio.0.leafcards",
+     "material": "leafcards",
+     "lightmap": 0,
+     "triangles": 4884,
+     "box": [
+      118.897,
+      6.643,
+      21.678,
+      156.132,
+      29.122,
+      70.255
+     ]
+    },
+    {
+     "name": "studio.0.lettering",
+     "material": "lettering",
+     "lightmap": 0,
+     "triangles": 422,
+     "box": [
+      127.94,
+      7.25,
+      26.626,
+      149.744,
+      17.444,
+      57.108
+     ]
+    },
+    {
+     "name": "studio.0.marble",
+     "material": "marble",
+     "lightmap": 0,
+     "triangles": 3220,
+     "box": [
+      108.938,
+      5.8,
+      21.9,
+      157,
+      17.75,
+      62.324
+     ]
+    },
+    {
+     "name": "studio.0.paving",
+     "material": "paving",
+     "lightmap": 0,
+     "triangles": 262,
+     "box": [
+      122.15,
+      7,
+      26,
+      148.1,
+      7.84,
+      45.1
+     ]
+    },
+    {
+     "name": "studio.0.plain",
+     "material": "plain",
+     "lightmap": 0,
+     "triangles": 23550,
+     "box": [
+      108.73,
+      6.916,
+      21.98,
+      156.4,
+      29.8,
+      67.817
+     ]
+    }
+   ],
+   "replaces": [
+    "studio/studio-static"
+   ],
+   "live": [
+    "studio/studio-cards",
+    "studio/studio-drift"
+   ],
+   "stilled": [],
+   "drop": []
+  },
+  {
+   "id": "terraces",
+   "kind": "district",
+   "file": "chunks/terraces.glb.gz",
+   "bytes": 607206,
+   "encoding": "gzip",
+   "rawBytes": 901848,
+   "triangles": 40410,
+   "drawCalls": 10,
+   "bounds": {
+    "box": [
+     -81.974,
+     15.718,
+     -22.843,
+     -22.75,
+     40.08,
+     37.012
+    ],
+    "sphere": [
+     -52.36,
+     27.9,
+     7.08,
+     43.83
+    ]
+   },
+   "lightmaps": [
+    {
+     "file": "lightmaps/terraces.0.webp",
+     "bytes": 252070,
+     "size": 1024,
+     "half": "lightmaps/half/terraces.0.webp",
+     "halfBytes": 93592
+    }
+   ],
+   "quality": {
+    "level": "good",
+    "lightmap": 1024,
+    "samples": 48,
+    "pageSamples": [
+     48
+    ],
+    "bounces": 3,
+    "bakeSeconds": 51.6
+   },
+   "materials": [
+    "ashlar",
+    "bark",
+    "brick",
+    "concrete",
+    "grass",
+    "leafcards",
+    "lettering",
+    "marble",
+    "paving",
+    "plain"
+   ],
+   "primitives": [
+    {
+     "name": "terraces.0.ashlar",
+     "material": "ashlar",
+     "lightmap": 0,
+     "triangles": 642,
+     "box": [
+      -56.1,
+      15.75,
+      -22.5,
+      -29.331,
+      32.75,
+      29.1
+     ]
+    },
+    {
+     "name": "terraces.0.bark",
+     "material": "bark",
+     "lightmap": 0,
+     "triangles": 286,
+     "box": [
+      -77.297,
+      16,
+      -17.32,
+      -26.747,
+      30,
+      33.302
+     ]
+    },
+    {
+     "name": "terraces.0.brick",
+     "material": "brick",
+     "lightmap": 0,
+     "triangles": 544,
+     "box": [
+      -78.065,
+      16,
+      -18.12,
+      -25.935,
+      16.42,
+      34.12
+     ]
+    },
+    {
+     "name": "terraces.0.concrete",
+     "material": "concrete",
+     "lightmap": 0,
+     "triangles": 132,
+     "box": [
+      -61.25,
+      20.9,
+      -22.75,
+      -38.75,
+      29.6,
+      -6.75
+     ]
+    },
+    {
+     "name": "terraces.0.grass",
+     "material": "grass",
+     "lightmap": 0,
+     "triangles": 552,
+     "box": [
+      -77.951,
+      16,
+      -18,
+      -24.5,
+      16.38,
+      34
+     ]
+    },
+    {
+     "name": "terraces.0.leafcards",
+     "material": "leafcards",
+     "lightmap": 0,
+     "triangles": 5690,
+     "box": [
+      -81.974,
+      15.718,
+      -21.466,
+      -22.75,
+      34.335,
+      37.012
+     ]
+    },
+    {
+     "name": "terraces.0.lettering",
+     "material": "lettering",
+     "lightmap": 0,
+     "triangles": 470,
+     "box": [
+      -74.653,
+      16.336,
+      -6.974,
+      -29.949,
+      29.487,
+      24.147
+     ]
+    },
+    {
+     "name": "terraces.0.marble",
+     "material": "marble",
+     "lightmap": 0,
+     "triangles": 17409,
+     "box": [
+      -74.647,
+      16,
+      -22.843,
+      -29.315,
+      37.767,
+      28.764
+     ]
+    },
+    {
+     "name": "terraces.0.paving",
+     "material": "paving",
+     "lightmap": 0,
+     "triangles": 636,
+     "box": [
+      -73.92,
+      15.97,
+      6.08,
+      -26.34,
+      17.06,
+      29.5
+     ]
+    },
+    {
+     "name": "terraces.0.plain",
+     "material": "plain",
+     "lightmap": 0,
+     "triangles": 14049,
+     "box": [
+      -79.87,
+      15.934,
+      -22.77,
+      -24.724,
+      40.08,
+      34.779
+     ]
+    }
+   ],
+   "replaces": [
+    "terraces/terraces-static"
+   ],
+   "live": [
+    "terraces/terraces-pods",
+    "terraces/terraces-cloud"
+   ],
+   "stilled": [],
+   "drop": []
+  },
+  {
+   "id": "greenhouse",
+   "kind": "district",
+   "file": "chunks/greenhouse.glb.gz",
+   "bytes": 638260,
+   "encoding": "gzip",
+   "rawBytes": 953404,
+   "triangles": 45106,
+   "drawCalls": 12,
+   "bounds": {
+    "box": [
+     -177.59,
+     2.773,
+     32.201,
+     -122.366,
+     27.753,
+     86.836
+    ],
+    "sphere": [
+     -149.98,
+     15.26,
+     59.52,
+     40.8
+    ]
+   },
+   "lightmaps": [
+    {
+     "file": "lightmaps/greenhouse.0.webp",
+     "bytes": 132878,
+     "size": 1024,
+     "half": "lightmaps/half/greenhouse.0.webp",
+     "halfBytes": 55130
+    }
+   ],
+   "quality": {
+    "level": "good",
+    "lightmap": 1024,
+    "samples": 48,
+    "pageSamples": [
+     48
+    ],
+    "bounces": 3,
+    "bakeSeconds": 52.9
+   },
+   "materials": [
+    "ashlar",
+    "bark",
+    "brick",
+    "concrete",
+    "glass",
+    "grass",
+    "leafcards",
+    "lettering",
+    "marble",
+    "paving",
+    "plain",
+    "wood"
+   ],
+   "primitives": [
+    {
+     "name": "greenhouse.0.ashlar",
+     "material": "ashlar",
+     "lightmap": 0,
+     "triangles": 298,
+     "box": [
+      -168.412,
+      4,
+      41.81,
+      -129.594,
+      11.686,
+      69.235
+     ]
+    },
+    {
+     "name": "greenhouse.0.bark",
+     "material": "bark",
+     "lightmap": 0,
+     "triangles": 82,
+     "box": [
+      -172.183,
+      4,
+      41.467,
+      -127.018,
+      9.021,
+      82.577
+     ]
+    },
+    {
+     "name": "greenhouse.0.brick",
+     "material": "brick",
+     "lightmap": 0,
+     "triangles": 846,
+     "box": [
+      -177.166,
+      4,
+      32.625,
+      -124.579,
+      20.2,
+      85.808
+     ]
+    },
+    {
+     "name": "greenhouse.0.concrete",
+     "material": "concrete",
+     "lightmap": 0,
+     "triangles": 24,
+     "box": [
+      -177.59,
+      14.6,
+      32.201,
+      -124.155,
+      15,
+      86.232
+     ]
+    },
+    {
+     "name": "greenhouse.0.glass",
+     "material": "glass",
+     "lightmap": 0,
+     "triangles": 484,
+     "box": [
+      -160.77,
+      4.1,
+      49.362,
+      -140.975,
+      11.815,
+      69.071
+     ]
+    },
+    {
+     "name": "greenhouse.0.grass",
+     "material": "grass",
+     "lightmap": 0,
+     "triangles": 180,
+     "box": [
+      -169.398,
+      4,
+      40.828,
+      -126.42,
+      4.035,
+      83.15
+     ]
+    },
+    {
+     "name": "greenhouse.0.leafcards",
+     "material": "leafcards",
+     "lightmap": 0,
+     "triangles": 12656,
+     "box": [
+      -175.022,
+      3.059,
+      34.944,
+      -122.366,
+      27.753,
+      86.836
+     ]
+    },
+    {
+     "name": "greenhouse.0.lettering",
+     "material": "lettering",
+     "lightmap": 0,
+     "triangles": 506,
+     "box": [
+      -164.388,
+      4.345,
+      43.991,
+      -130.694,
+      11.681,
+      75.365
+     ]
+    },
+    {
+     "name": "greenhouse.0.marble",
+     "material": "marble",
+     "lightmap": 0,
+     "triangles": 4598,
+     "box": [
+      -177.361,
+      2.773,
+      32.43,
+      -123.419,
+      12.38,
+      86.611
+     ]
+    },
+    {
+     "name": "greenhouse.0.paving",
+     "material": "paving",
+     "lightmap": 0,
+     "triangles": 72,
+     "box": [
+      -160.652,
+      4,
+      49.482,
+      -136.804,
+      4.04,
+      73.287
+     ]
+    },
+    {
+     "name": "greenhouse.0.plain",
+     "material": "plain",
+     "lightmap": 0,
+     "triangles": 22820,
+     "box": [
+      -176.53,
+      3.894,
+      33.261,
+      -124.158,
+      25.463,
+      85.862
+     ]
+    },
+    {
+     "name": "greenhouse.0.wood",
+     "material": "wood",
+     "lightmap": 0,
+     "triangles": 2540,
+     "box": [
+      -164.984,
+      4,
+      55.316,
+      -146.889,
+      5.159,
+      75.361
+     ]
+    }
+   ],
+   "replaces": [
+    "greenhouse/greenhouse-static"
+   ],
+   "live": [
+    "greenhouse/greenhouse-ring"
+   ],
+   "stilled": [],
+   "drop": []
+  },
+  {
+   "id": "maskgarden",
+   "kind": "district",
+   "file": "chunks/maskgarden.glb.gz",
+   "bytes": 555831,
+   "encoding": "gzip",
+   "rawBytes": 877540,
+   "triangles": 39993,
+   "drawCalls": 12,
+   "bounds": {
+    "box": [
+     39.047,
+     10.61,
+     -79.908,
+     97.603,
+     30.76,
+     -20.171
+    ],
+    "sphere": [
+     68.32,
+     20.69,
+     -50.04,
+     43.02
+    ]
+   },
+   "lightmaps": [
+    {
+     "file": "lightmaps/maskgarden.0.webp",
+     "bytes": 241980,
+     "size": 1024,
+     "half": "lightmaps/half/maskgarden.0.webp",
+     "halfBytes": 98306
+    }
+   ],
+   "quality": {
+    "level": "good",
+    "lightmap": 1024,
+    "samples": 48,
+    "pageSamples": [
+     48
+    ],
+    "bounces": 3,
+    "bakeSeconds": 45.8
+   },
+   "materials": [
+    "ashlar",
+    "bark",
+    "brick",
+    "concrete",
+    "glass",
+    "grass",
+    "leafcards",
+    "lettering",
+    "marble",
+    "paving",
+    "plain",
+    "wood"
+   ],
+   "primitives": [
+    {
+     "name": "maskgarden.0.ashlar",
+     "material": "ashlar",
+     "lightmap": 0,
+     "triangles": 234,
+     "box": [
+      58.064,
+      12.5,
+      -73.117,
+      89.057,
+      24.8,
+      -24.244
+     ]
+    },
+    {
+     "name": "maskgarden.0.bark",
+     "material": "bark",
+     "lightmap": 0,
+     "triangles": 174,
+     "box": [
+      43.155,
+      12,
+      -74.433,
+      91.148,
+      25.84,
+      -24.189
+     ]
+    },
+    {
+     "name": "maskgarden.0.brick",
+     "material": "brick",
+     "lightmap": 0,
+     "triangles": 886,
+     "box": [
+      39.976,
+      11.3,
+      -79.694,
+      97.395,
+      29.81,
+      -21.268
+     ]
+    },
+    {
+     "name": "maskgarden.0.concrete",
+     "material": "concrete",
+     "lightmap": 0,
+     "triangles": 48,
+     "box": [
+      53.966,
+      22.3,
+      -79.908,
+      97.603,
+      25.8,
+      -24.247
+     ]
+    },
+    {
+     "name": "maskgarden.0.glass",
+     "material": "glass",
+     "lightmap": 0,
+     "triangles": 12,
+     "box": [
+      46.789,
+      12.1,
+      -54.552,
+      96.256,
+      23.835,
+      -40.393
+     ]
+    },
+    {
+     "name": "maskgarden.0.grass",
+     "material": "grass",
+     "lightmap": 0,
+     "triangles": 642,
+     "box": [
+      41.702,
+      12,
+      -72.735,
+      91.054,
+      12.12,
+      -22.411
+     ]
+    },
+    {
+     "name": "maskgarden.0.leafcards",
+     "material": "leafcards",
+     "lightmap": 0,
+     "triangles": 6220,
+     "box": [
+      39.047,
+      10.61,
+      -75.821,
+      94.511,
+      27.859,
+      -20.171
+     ]
+    },
+    {
+     "name": "maskgarden.0.lettering",
+     "material": "lettering",
+     "lightmap": 0,
+     "triangles": 414,
+     "box": [
+      50.971,
+      12.222,
+      -72.466,
+      88.651,
+      23.931,
+      -25.372
+     ]
+    },
+    {
+     "name": "maskgarden.0.marble",
+     "material": "marble",
+     "lightmap": 0,
+     "triangles": 6331,
+     "box": [
+      39.911,
+      12,
+      -74.717,
+      93.817,
+      28.3,
+      -21.021
+     ]
+    },
+    {
+     "name": "maskgarden.0.paving",
+     "material": "paving",
+     "lightmap": 0,
+     "triangles": 120,
+     "box": [
+      60.08,
+      12.01,
+      -51.15,
+      84.257,
+      13.16,
+      -28.543
+     ]
+    },
+    {
+     "name": "maskgarden.0.plain",
+     "material": "plain",
+     "lightmap": 0,
+     "triangles": 24126,
+     "box": [
+      40.376,
+      11.937,
+      -79.335,
+      97.057,
+      30.76,
+      -21.166
+     ]
+    },
+    {
+     "name": "maskgarden.0.wood",
+     "material": "wood",
+     "lightmap": 0,
+     "triangles": 786,
+     "box": [
+      49.435,
+      11.99,
+      -64.997,
+      89.011,
+      13.15,
+      -26.435
+     ]
+    }
+   ],
+   "replaces": [
+    "maskgarden/maskgarden",
+    "maskgarden/maskgarden-seedlings",
+    "maskgarden/maskgarden-chairs"
+   ],
+   "live": [
+    "maskgarden/maskgarden-hero",
+    "maskgarden/maskgarden-posts",
+    "maskgarden/maskgarden-bulbs",
+    "maskgarden/maskgarden-tags"
+   ],
+   "stilled": [],
+   "drop": []
+  },
+  {
+   "id": "boneyard",
+   "kind": "district",
+   "file": "chunks/boneyard.glb.gz",
+   "bytes": 696692,
+   "encoding": "gzip",
+   "rawBytes": 970340,
+   "triangles": 49506,
+   "drawCalls": 8,
+   "bounds": {
+    "box": [
+     -182.118,
+     -7.426,
+     -108.12,
+     -109.88,
+     8.039,
+     -35.88
+    ],
+    "sphere": [
+     -146,
+     0.31,
+     -72,
+     51.66
+    ]
+   },
+   "lightmaps": [
+    {
+     "file": "lightmaps/boneyard.0.webp",
+     "bytes": 180438,
+     "size": 1024,
+     "half": "lightmaps/half/boneyard.0.webp",
+     "halfBytes": 73450
+    }
+   ],
+   "quality": {
+    "level": "good",
+    "lightmap": 1024,
+    "samples": 48,
+    "pageSamples": [
+     48
+    ],
+    "bounces": 3,
+    "bakeSeconds": 56.9
+   },
+   "materials": [
+    "ashlar",
+    "bark",
+    "brick",
+    "grass",
+    "leafcards",
+    "lettering",
+    "marble",
+    "plain"
+   ],
+   "primitives": [
+    {
+     "name": "boneyard.0.ashlar",
+     "material": "ashlar",
+     "lightmap": 0,
+     "triangles": 9860,
+     "box": [
+      -176.638,
+      -5.4,
+      -102.638,
+      -115.362,
+      7.959,
+      -41.362
+     ]
+    },
+    {
+     "name": "boneyard.0.bark",
+     "material": "bark",
+     "lightmap": 0,
+     "triangles": 146,
+     "box": [
+      -175.205,
+      -5.2,
+      -103.088,
+      -114.211,
+      0.897,
+      -40.898
+     ]
+    },
+    {
+     "name": "boneyard.0.brick",
+     "material": "brick",
+     "lightmap": 0,
+     "triangles": 436,
+     "box": [
+      -176.838,
+      -5.6,
+      -89.684,
+      -151.615,
+      6.3,
+      -60.087
+     ]
+    },
+    {
+     "name": "boneyard.0.grass",
+     "material": "grass",
+     "lightmap": 0,
+     "triangles": 341,
+     "box": [
+      -168.897,
+      -5.17,
+      -92.237,
+      -127.888,
+      -4.97,
+      -52.41
+     ]
+    },
+    {
+     "name": "boneyard.0.leafcards",
+     "material": "leafcards",
+     "lightmap": 0,
+     "triangles": 6620,
+     "box": [
+      -177.033,
+      -7.426,
+      -106.775,
+      -109.895,
+      7.025,
+      -37.634
+     ]
+    },
+    {
+     "name": "boneyard.0.lettering",
+     "material": "lettering",
+     "lightmap": 0,
+     "triangles": 252,
+     "box": [
+      -166.248,
+      -4.836,
+      -87.444,
+      -135.4,
+      -2.898,
+      -53.818
+     ]
+    },
+    {
+     "name": "boneyard.0.marble",
+     "material": "marble",
+     "lightmap": 0,
+     "triangles": 12012,
+     "box": [
+      -176.454,
+      -5.369,
+      -102.793,
+      -115.207,
+      8.039,
+      -41.207
+     ]
+    },
+    {
+     "name": "boneyard.0.plain",
+     "material": "plain",
+     "lightmap": 0,
+     "triangles": 19839,
+     "box": [
+      -182.118,
+      -6.579,
+      -108.12,
+      -109.88,
+      6.643,
+      -35.88
+     ]
+    }
+   ],
+   "replaces": [
+    "boneyard/boneyard-static",
+    "boneyard/boneyard-seedlings"
+   ],
+   "live": [
+    "boneyard/boneyard-drums",
+    "boneyard/boneyard-capital"
+   ],
+   "stilled": [],
+   "drop": []
+  },
+  {
+   "id": "observatory",
+   "kind": "district",
+   "file": "chunks/observatory.glb.gz",
+   "bytes": 429418,
+   "encoding": "gzip",
+   "rawBytes": 632716,
+   "triangles": 29650,
+   "drawCalls": 11,
+   "bounds": {
+    "box": [
+     -39.676,
+     28.756,
+     -175.257,
+     40.341,
+     41.9,
+     -106.403
+    ],
+    "sphere": [
+     0.33,
+     35.33,
+     -140.83,
+     53.19
+    ]
+   },
+   "lightmaps": [
+    {
+     "file": "lightmaps/observatory.0.webp",
+     "bytes": 192204,
+     "size": 1024,
+     "half": "lightmaps/half/observatory.0.webp",
+     "halfBytes": 79036
+    }
+   ],
+   "quality": {
+    "level": "good",
+    "lightmap": 1024,
+    "samples": 48,
+    "pageSamples": [
+     48
+    ],
+    "bounces": 3,
+    "bakeSeconds": 54.3
+   },
+   "materials": [
+    "ashlar",
+    "bark",
+    "brick",
+    "concrete",
+    "grass",
+    "leafcards",
+    "lettering",
+    "marble",
+    "paving",
+    "plain",
+    "wood"
+   ],
+   "primitives": [
+    {
+     "name": "observatory.0.ashlar",
+     "material": "ashlar",
+     "lightmap": 0,
+     "triangles": 1182,
+     "box": [
+      -10.613,
+      30.55,
+      -153.831,
+      18.979,
+      38.35,
+      -133.171
+     ]
+    },
+    {
+     "name": "observatory.0.bark",
+     "material": "bark",
+     "lightmap": 0,
+     "triangles": 61,
+     "box": [
+      -18.601,
+      30.1,
+      -147.54,
+      28.862,
+      34.223,
+      -109.829
+     ]
+    },
+    {
+     "name": "observatory.0.brick",
+     "material": "brick",
+     "lightmap": 0,
+     "triangles": 188,
+     "box": [
+      -32.33,
+      30,
+      -170.41,
+      22.63,
+      32.7,
+      -139.952
+     ]
+    },
+    {
+     "name": "observatory.0.concrete",
+     "material": "concrete",
+     "lightmap": 0,
+     "triangles": 88,
+     "box": [
+      -6.591,
+      34.22,
+      -165.163,
+      10.036,
+      38.65,
+      -133.991
+     ]
+    },
+    {
+     "name": "observatory.0.grass",
+     "material": "grass",
+     "lightmap": 0,
+     "triangles": 140,
+     "box": [
+      -24.472,
+      30.034,
+      -139.532,
+      31.395,
+      30.05,
+      -106.729
+     ]
+    },
+    {
+     "name": "observatory.0.leafcards",
+     "material": "leafcards",
+     "lightmap": 0,
+     "triangles": 5800,
+     "box": [
+      -39.676,
+      28.756,
+      -175.257,
+      40.341,
+      40.477,
+      -106.715
+     ]
+    },
+    {
+     "name": "observatory.0.lettering",
+     "material": "lettering",
+     "lightmap": 0,
+     "triangles": 328,
+     "box": [
+      -19.4,
+      30.376,
+      -159.865,
+      19.038,
+      38.179,
+      -123.083
+     ]
+    },
+    {
+     "name": "observatory.0.marble",
+     "material": "marble",
+     "lightmap": 0,
+     "triangles": 8308,
+     "box": [
+      -20.731,
+      30,
+      -164.908,
+      19.283,
+      41.65,
+      -122.984
+     ]
+    },
+    {
+     "name": "observatory.0.paving",
+     "material": "paving",
+     "lightmap": 0,
+     "triangles": 802,
+     "box": [
+      -32.417,
+      30,
+      -170.491,
+      31.698,
+      31.11,
+      -106.403
+     ]
+    },
+    {
+     "name": "observatory.0.plain",
+     "material": "plain",
+     "lightmap": 0,
+     "triangles": 12737,
+     "box": [
+      -37.361,
+      29.891,
+      -173.185,
+      38.163,
+      41.9,
+      -108.663
+     ]
+    },
+    {
+     "name": "observatory.0.wood",
+     "material": "wood",
+     "lightmap": 0,
+     "triangles": 16,
+     "box": [
+      -10.027,
+      30.86,
+      -126.825,
+      -9.54,
+      32.75,
+      -126.339
+     ]
+    }
+   ],
+   "replaces": [
+    "observatory/observatory-static"
+   ],
+   "live": [
+    "observatory/observatory-dome",
+    "observatory/observatory-constellations",
+    "observatory/observatory-orbs",
+    "observatory/observatory-scout",
+    "observatory/observatory-lanterns"
+   ],
+   "stilled": [],
+   "drop": []
+  },
+  {
+   "id": "skyharbor",
+   "kind": "district",
+   "file": "chunks/skyharbor.glb.gz",
+   "bytes": 406257,
+   "encoding": "gzip",
+   "rawBytes": 626124,
+   "triangles": 28575,
+   "drawCalls": 11,
+   "bounds": {
+    "box": [
+     116.495,
+     9.509,
+     -178.412,
+     198.149,
+     28.795,
+     -81.204
+    ],
+    "sphere": [
+     157.32,
+     19.15,
+     -129.81,
+     64.2
+    ]
+   },
+   "lightmaps": [
+    {
+     "file": "lightmaps/skyharbor.0.webp",
+     "bytes": 179708,
+     "size": 1024,
+     "half": "lightmaps/half/skyharbor.0.webp",
+     "halfBytes": 74726
+    }
+   ],
+   "quality": {
+    "level": "good",
+    "lightmap": 1024,
+    "samples": 48,
+    "pageSamples": [
+     48
+    ],
+    "bounces": 3,
+    "bakeSeconds": 44.7
+   },
+   "materials": [
+    "ashlar",
+    "bark",
+    "brick",
+    "concrete",
+    "grass",
+    "leafcards",
+    "lettering",
+    "marble",
+    "paving",
+    "plain",
+    "wood"
+   ],
+   "primitives": [
+    {
+     "name": "skyharbor.0.ashlar",
+     "material": "ashlar",
+     "lightmap": 0,
+     "triangles": 3624,
+     "box": [
+      142.15,
+      13.2,
+      -174.677,
+      197.915,
+      26.407,
+      -98.873
+     ]
+    },
+    {
+     "name": "skyharbor.0.bark",
+     "material": "bark",
+     "lightmap": 0,
+     "triangles": 72,
+     "box": [
+      120.621,
+      20,
+      -133.344,
+      171.275,
+      24.234,
+      -85.517
+     ]
+    },
+    {
+     "name": "skyharbor.0.brick",
+     "material": "brick",
+     "lightmap": 0,
+     "triangles": 364,
+     "box": [
+      134.55,
+      20,
+      -167.543,
+      195.344,
+      22.7,
+      -97.974
+     ]
+    },
+    {
+     "name": "skyharbor.0.concrete",
+     "material": "concrete",
+     "lightmap": 0,
+     "triangles": 56,
+     "box": [
+      134.243,
+      23.22,
+      -119.107,
+      160.561,
+      24.86,
+      -98.622
+     ]
+    },
+    {
+     "name": "skyharbor.0.grass",
+     "material": "grass",
+     "lightmap": 0,
+     "triangles": 91,
+     "box": [
+      116.495,
+      20,
+      -141.41,
+      175.773,
+      20.04,
+      -82.706
+     ]
+    },
+    {
+     "name": "skyharbor.0.leafcards",
+     "material": "leafcards",
+     "lightmap": 0,
+     "triangles": 3240,
+     "box": [
+      117.041,
+      18.969,
+      -167.933,
+      196.457,
+      28.795,
+      -81.204
+     ]
+    },
+    {
+     "name": "skyharbor.0.lettering",
+     "material": "lettering",
+     "lightmap": 0,
+     "triangles": 378,
+     "box": [
+      134.579,
+      13.2,
+      -166.151,
+      190.589,
+      24.552,
+      -98.273
+     ]
+    },
+    {
+     "name": "skyharbor.0.marble",
+     "material": "marble",
+     "lightmap": 0,
+     "triangles": 6092,
+     "box": [
+      134.395,
+      20,
+      -174.84,
+      198.051,
+      24.61,
+      -98.163
+     ]
+    },
+    {
+     "name": "skyharbor.0.paving",
+     "material": "paving",
+     "lightmap": 0,
+     "triangles": 499,
+     "box": [
+      134.345,
+      19.4,
+      -174.944,
+      198.149,
+      21.75,
+      -97.224
+     ]
+    },
+    {
+     "name": "skyharbor.0.plain",
+     "material": "plain",
+     "lightmap": 0,
+     "triangles": 13871,
+     "box": [
+      118.781,
+      9.509,
+      -178.412,
+      198.138,
+      27.971,
+      -83.12
+     ]
+    },
+    {
+     "name": "skyharbor.0.wood",
+     "material": "wood",
+     "lightmap": 0,
+     "triangles": 288,
+     "box": [
+      160.237,
+      21.606,
+      -108.534,
+      166.192,
+      27.836,
+      -101.913
+     ]
+    }
+   ],
+   "replaces": [
+    "skyharbor/skyharbor-static"
+   ],
+   "live": [
+    "skyharbor/skyharbor-balance",
+    "skyharbor/skyharbor-whale",
+    "skyharbor/skyharbor-flukes",
+    "skyharbor/skyharbor-krill",
+    "skyharbor/skyharbor-wheel-outer",
+    "skyharbor/skyharbor-wheel-middle",
+    "skyharbor/skyharbor-wheel-inner",
+    "skyharbor/skyharbor-hands"
+   ],
+   "stilled": [],
+   "drop": []
+  }
+ ],
+ "live": [
+  "figure/figure-shadow",
+  "figure/figure-hips",
+  "figure/figure-chest",
+  "figure/figure-bag",
+  "figure/figure-head",
+  "figure/figure-tail",
+  "figure/figure-arm",
+  "figure/figure-arm#1",
+  "figure/figure-leg",
+  "figure/figure-foot",
+  "figure/figure-leg#1",
+  "figure/figure-foot#1",
+  "poi-markers"
+ ],
+ "drop": [
+  "sky/sun-moon"
+ ],
+ "cameras": {
+  "trailhead": {
+   "position": [
+    12,
+    4.355585341289986,
+    205.5443084985176
+   ],
+   "quaternion": [
+    0.03792158157520921,
+    0,
+    0,
+    0.999280718142222
+   ],
+   "fov": 55,
+   "aspect": 1.7777777777777777,
+   "near": 0.3,
+   "far": 3000
+  },
+  "switchboard": {
+   "position": [
+    -47.768002291146026,
+    7.355585341289986,
+    139.4527308583784
+   ],
+   "quaternion": [
+    0.036306819558946324,
+    0.2884963886234165,
+    -0.010948114115196072,
+    0.9567297358199344
+   ],
+   "fov": 55,
+   "aspect": 1.7777777777777777,
+   "near": 0.3,
+   "far": 3000
+  },
+  "commons": {
+   "position": [
+    20.473244181000254,
+    11.355585341289986,
+    84.1301098940103
+   ],
+   "quaternion": [
+    0.03438322722139484,
+    -0.4214881008478585,
+    0.015995000312822267,
+    0.9060406914120912
+   ],
+   "fov": 55,
+   "aspect": 1.7777777777777777,
+   "near": 0.3,
+   "far": 3000
+  },
+  "terraces": {
+   "position": [
+    -31.85451136622381,
+    18.355585341289984,
+    27.336535073965663
+   ],
+   "quaternion": [
+    0.03523963664139673,
+    0.36911904878042767,
+    -0.014007653570373998,
+    0.9286081420482307
+   ],
+   "fov": 55,
+   "aspect": 1.7777777777777777,
+   "near": 0.3,
+   "far": 3000
+  },
+  "maskgarden": {
+   "position": [
+    40.43186944902748,
+    14.355585341289986,
+    -28.517675681177625
+   ],
+   "quaternion": [
+    0.033873179939249,
+    -0.4492511939453441,
+    0.017048578532197645,
+    0.8926003127881581
+   ],
+   "fov": 55,
+   "aspect": 1.7777777777777777,
+   "near": 0.3,
+   "far": 3000
+  },
+  "observatory": {
+   "position": [
+    11.270985999578937,
+    32.35558534128999,
+    -108.32398280351029
+   ],
+   "quaternion": [
+    0.03729877478894684,
+    0.18036215964623864,
+    -0.006844541504634835,
+    0.9828689867009638
+   ],
+   "fov": 55,
+   "aspect": 1.7777777777777777,
+   "near": 0.3,
+   "far": 3000
+  },
+  "studio": {
+   "position": [
+    113.45960380517054,
+    9.355585341289986,
+    55.12495910392881
+   ],
+   "quaternion": [
+    0.031873164472748974,
+    -0.5414187571535722,
+    0.020546234099180775,
+    0.8398974241257774
+   ],
+   "fov": 55,
+   "aspect": 1.7777777777777777,
+   "near": 0.3,
+   "far": 3000
+  },
+  "greenhouse": {
+   "position": [
+    -128.6500742272413,
+    6.355585341289986,
+    80.75036354452938
+   ],
+   "quaternion": [
+    0.03491971618789031,
+    0.38965971587645065,
+    -0.014787148830063438,
+    0.9201778412208796
+   ],
+   "fov": 55,
+   "aspect": 1.7777777777777777,
+   "near": 0.3,
+   "far": 3000
+  },
+  "skyharbor": {
+   "position": [
+    126.97667013668634,
+    22.355585341289984,
+    -89.6571854465976
+   ],
+   "quaternion": [
+    0.0355877625373905,
+    -0.34514845090116675,
+    0.013097996287508719,
+    0.9377816912754053
+   ],
+   "fov": 55,
+   "aspect": 1.7777777777777777,
+   "near": 0.3,
+   "far": 3000
+  },
+  "boneyard": {
+   "position": [
+    -127.52987205141639,
+    -2.644414658710014,
+    -50.76426421282558
+   ],
+   "quaternion": [
+    0.0355182770380764,
+    0.3500832924286707,
+    -0.013285267984188406,
+    0.9359506621682239
+   ],
+   "fov": 55,
+   "aspect": 1.7777777777777777,
+   "near": 0.3,
+   "far": 3000
+  },
+  "postcards": {
+   "position": [
+    94.61057495110605,
+    5.355585341289986,
+    160.75658941993314
+   ],
+   "quaternion": [
+    0.031928800456028736,
+    -0.5391376561914062,
+    0.02045966887816972,
+    0.8413635013044433
+   ],
+   "fov": 55,
+   "aspect": 1.7777777777777777,
+   "near": 0.3,
+   "far": 3000
+  }
+ }
+}
