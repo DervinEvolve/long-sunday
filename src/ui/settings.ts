@@ -6,6 +6,7 @@ import type { Overlays } from './overlay';
 import { el, escKey, key, uid } from './dom';
 import { WORDS } from './words';
 import { MORE } from './wordsMore';
+import { LINES } from './wordsUi';
 
 export interface SettingsOptions {
   world: WorldApi;
@@ -59,11 +60,11 @@ function save(saved: Saved): void {
 
 export function createSettings(opts: SettingsOptions): SettingsPanel {
   const saved = load();
-  // A ?q= in the address pins the tier for this visit and wins over what was kept.
+  // The kept tier is already in force: boot() in main.ts reads it before the world is built, so the
+  // detail matches it. Here it only marks the right button. A ?q= in the address wins over it.
   const asked = new URLSearchParams(location.search).get('q');
   const pinned = isTier(asked) && asked !== 'auto' ? asked : null;
   const quality: Tier = pinned ?? saved.quality;
-  if (!pinned && quality !== 'auto') opts.world.setQuality(quality);
 
   const device = window.matchMedia('(prefers-reduced-motion: reduce)');
   let calmBox: HTMLInputElement | null = null;
@@ -71,6 +72,8 @@ export function createSettings(opts: SettingsOptions): SettingsPanel {
     const calm = saved.calm ?? device.matches;
     opts.root.classList.toggle('ui--calm', calm);
     opts.root.classList.toggle('ui--lively', !calm);
+    // The world moves far more than the buttons do, so it is told too.
+    if (opts.world.reducedMotion() !== calm) opts.world.setReducedMotion(calm);
     if (calmBox) calmBox.checked = calm;
   }
   applyCalm();
@@ -100,7 +103,7 @@ export function createSettings(opts: SettingsOptions): SettingsPanel {
       item.append(input, el('span', 'ui-seg__face', MORE[tier]));
       row.appendChild(item);
     }
-    const note = el('p', 'ui-settings__note', MORE.qualityNote);
+    const note = el('p', 'ui-settings__note', LINES.qualityNote);
     note.id = noteId;
     set.append(row, note);
     return set;

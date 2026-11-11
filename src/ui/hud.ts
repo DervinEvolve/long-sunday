@@ -38,6 +38,9 @@ export interface Hud {
 
 const PLATE_MS = 4200;
 const LETTER_MS = 38;
+// How long something has to stay in reach before it is read out, so walking past a row of plaques
+// does not set off a stream of names.
+const SAY_POI_MS = 400;
 
 export function createHud(opts: HudOptions): Hud {
   const root = el('div', 'ui-hud');
@@ -78,6 +81,8 @@ export function createHud(opts: HudOptions): Hud {
   let onMap: (() => void) | null = null;
   let plateTimer = 0;
   let hasMoved = false;
+  let sayTimer = 0;
+  let said: PoiHit | null = null;
 
   function addCornerButton(spec: CornerButton): HTMLButtonElement {
     const b = el('button', spec.text ? 'ui-btn ui-btn--small' : 'ui-icon-btn');
@@ -116,11 +121,26 @@ export function createHud(opts: HudOptions): Hud {
       low.classList.remove('has-prompt');
       return;
     }
-    promptDo.textContent = hit.prompt;
-    promptWhat.textContent = hit.entry ? hit.entry.title : '';
-    promptWhat.hidden = !hit.entry;
+    // With an entry the verb is the small line over its title. A map point has only the verb, so it
+    // takes the large line.
+    promptDo.textContent = hit.entry ? hit.prompt : '';
+    promptDo.hidden = !hit.entry;
+    promptWhat.textContent = hit.entry ? hit.entry.title : hit.prompt;
     prompt.classList.add('is-on');
     low.classList.add('has-prompt');
+  }
+
+  // Read out what has come into reach, once it has stayed a moment. Never the going away, and never
+  // the same thing twice running.
+  function sayPoi(): void {
+    clearTimeout(sayTimer);
+    const hit = poi;
+    if (!on || !hit || hit === said || !prompt.classList.contains('is-on')) return;
+    sayTimer = window.setTimeout(() => {
+      if (poi !== hit || !prompt.classList.contains('is-on')) return;
+      said = hit;
+      say.textContent = hit.entry ? `${hit.prompt}: ${hit.entry.title}` : hit.prompt;
+    }, SAY_POI_MS);
   }
 
   prompt.addEventListener('click', () => {
@@ -147,6 +167,7 @@ export function createHud(opts: HudOptions): Hud {
     setPoi(hit) {
       poi = hit;
       drawPrompt();
+      sayPoi();
     },
     moved() {
       if (hasMoved) return;

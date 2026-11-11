@@ -7,6 +7,7 @@ import type { Overlays } from './overlay';
 import { el, escKey, spoken, uid } from './dom';
 import { entryBullets, entryLinks, entryMeta, entryStamp, link } from './entryParts';
 import { WORDS } from './words';
+import { LINES } from './wordsUi';
 
 export interface IndexPage {
   open(): void;
@@ -53,15 +54,52 @@ function entryItem(entry: Entry): HTMLElement {
 /** `goThere` is left out on the page with no world behind it, and so are the buttons. */
 export function createIndex(overlays: Overlays, goThere: ((id: DistrictId) => void) | null): IndexPage {
   let page: HTMLElement | null = null;
+  const anchor = (id: DistrictId): string => `ix-${id}`;
+
+  /** A row of links to every place, newest work first, so the one I am in now is a click away. */
+  function jumps(): HTMLElement {
+    const headId = uid('jump');
+    const nav = el('nav', 'ui-jump');
+    nav.setAttribute('aria-labelledby', headId);
+    const head = el('h3', 'ui-jump__head', LINES.jump);
+    head.id = headId;
+    const list = el('ul', 'ui-jump__list');
+    const spine = new Set<DistrictId>(SPINE_ORDER);
+    const order = [...SPINE_ORDER].reverse().concat(SITES.filter((s) => !spine.has(s.id)).map((s) => s.id));
+    order.forEach((id, i) => {
+      const site = SITE_BY_ID[id];
+      const item = el('li');
+      const a = el('a', 'ui-link ui-jump__link', site.name);
+      a.href = `#${anchor(id)}`;
+      if (i === 0) a.append(el('span', 'ui-jump__years', ` ${site.years}`));
+      // The section is scrolled to by hand: following the hash would add to the Back history, and
+      // the address bar is kept for #d= and #e=.
+      a.addEventListener('click', (e) => {
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        const target = page?.querySelector<HTMLElement>(`#${anchor(id)}`);
+        const heading = target?.querySelector<HTMLElement>('.ui-district__name');
+        if (!target || !heading) return;
+        target.scrollIntoView({ block: 'start' });
+        heading.focus({ preventScroll: true });
+      });
+      item.appendChild(a);
+      list.appendChild(item);
+    });
+    nav.append(head, list);
+    return nav;
+  }
 
   function district(site: DistrictSite): HTMLElement {
     const section = el('section', 'ui-district');
+    section.id = anchor(site.id);
     const headId = uid('district');
     section.setAttribute('aria-labelledby', headId);
     const head = el('div', 'ui-district__head');
     const names = el('div', 'ui-district__names');
     const name = el('h4', 'ui-district__name', site.name);
     name.id = headId;
+    name.tabIndex = -1;
     names.append(name, el('p', 'ui-district__years', site.years));
     head.appendChild(names);
     if (goThere) {
@@ -105,6 +143,7 @@ export function createIndex(overlays: Overlays, goThere: ((id: DistrictId) => vo
       el('p', 'ui-index__lede', SITE.intro),
       el('p', 'ui-index__note', SITE.nameNote),
       contact(),
+      jumps(),
     );
     sheet.appendChild(intro);
 

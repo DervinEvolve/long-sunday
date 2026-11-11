@@ -188,7 +188,11 @@
   left: calc(var(--ls-edge) + var(--ls-safe-left));
   right: calc(var(--ls-edge) + var(--ls-safe-right));
   display: flex;
-  align-items: flex-start;
+  /* When the name and the buttons will not share a line (large text on a short window) the name goes
+     under the buttons instead of standing a word to a line. */
+  flex-wrap: wrap-reverse;
+  /* The cross axis runs bottom to top under wrap-reverse, so flex-end keeps both at the top. */
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--ls-s3);
 }
@@ -246,6 +250,8 @@
 @media (max-width: 30rem) {
   .ui-hud__top {
     flex-direction: column-reverse;
+    flex-wrap: nowrap;
+    align-items: flex-start;
   }
 
   .ui-plate__name {
@@ -264,8 +270,9 @@
   transition-duration: var(--ls-dur-out);
 }
 
-/* The touch map button is drawn by the input layer. It stays away until there is a map to open. */
-.ui:not(.ui--map) .ls-map {
+/* The input layer draws a round map button by the thumb. The labelled Map button in the top row does
+   the same job, so this one stays away and the look button has the thumb to itself. */
+.ui .ls-map {
   display: none;
 }
 
@@ -653,6 +660,49 @@
   gap: 0 var(--ls-s5);
   padding: 0;
   list-style: none;
+}
+
+/* The row of places at the top of the index. */
+.ui-jump {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ls-s1);
+  margin-top: var(--ls-s2);
+  padding-top: var(--ls-s3);
+  border-top: 1.5px solid var(--ls-line-faint);
+}
+
+.ui-jump__head {
+  font-size: var(--ls-text-sm);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ls-text-soft);
+}
+
+.ui-jump__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--ls-s4);
+  padding: 0;
+  list-style: none;
+}
+
+.ui-jump__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ls-tap);
+}
+
+.ui-jump__years {
+  white-space: pre;
+  font-weight: 400;
+  color: var(--ls-text-soft);
+}
+
+/* A jump puts focus on the place's name so the keys carry on from there. The name is not a control,
+   so it shows no ring. */
+.ui-district__name:focus {
+  outline: none;
 }
 
 /* A quiet label over each run of districts. */

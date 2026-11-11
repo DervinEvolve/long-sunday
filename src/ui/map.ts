@@ -13,6 +13,7 @@ import type { Overlays } from './overlay';
 import { el, escKey, uid } from './dom';
 import { WORDS } from './words';
 import { MORE } from './wordsMore';
+import { LINES } from './wordsUi';
 
 export interface MapOptions {
   world: WorldApi;
@@ -263,6 +264,8 @@ export function createMap(opts: MapOptions): MapPanel {
       keyItem(seen, MORE.seen),
       keyItem(thread(hex(THREAD_COLORS.people)), MORE.people),
       keyItem(thread(hex(THREAD_COLORS.tech)), MORE.tech),
+      keyItem(thread(hex(THREAD_COLORS.both)), LINES.both),
+      keyItem(thread(hex(THREAD_COLORS.life)), LINES.life),
     );
 
     const group = (heading: string, ids: DistrictId[]): void => {

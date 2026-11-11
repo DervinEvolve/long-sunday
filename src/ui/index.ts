@@ -5,14 +5,14 @@
 // links.ts) and are wired in below. The seams they hang from:
 //   getUi().overlays          open and close a panel, one at a time, the world paused behind it
 //   getUi().hud               addCornerButton() for the map and settings
-//   getUi().setMapHandler(fn) fn then runs on the M key, the touch map button and at map points
+//   getUi().setMapHandler(fn) fn then runs on the M key, the Map button and at map points
 //   getUi().openEntry(id)     the caption for one entry
 //   getUi().openIndex()       the index
 //   getUi().goThere(id)       start the walk if it has not started, then stand in that district
 //   tokens.css                every colour, size and rule as a CSS custom property
 import './tokens.css';
 import './ui.css';
-import type { DistrictId, Entry, WorldApi } from '../types';
+import type { Collider, DistrictId, Entry, WorldApi } from '../types';
 import { ENTRY_BY_ID } from '../content/content';
 import { SITE_BY_ID } from '../world/layout';
 import { createCaption } from './caption';
@@ -38,8 +38,36 @@ export interface UiShell {
   openIndex(): void;
   /** Start the walk if need be and stand in this district. Does nothing with no world. */
   goThere(id: DistrictId): void;
-  /** Say what opens the map. Until then the touch map button is hidden and map points show no prompt. */
+  /** Say what opens the map. Until then map points show no prompt. */
   setMapHandler(fn: (() => void) | null): void;
+}
+
+/** One point of interest as the world lists them (World.spots in src/engine/world.ts). */
+interface StandSpot {
+  entry: string | null;
+  x: number;
+  z: number;
+  reach: number;
+}
+
+/** The lookups the world offers beyond WorldApi, for finding where to stand. */
+interface WorldLookup {
+  spots(): StandSpot[];
+  /** World space. A box `rot` turns the same way as rotation.y. */
+  districtColliders(id: DistrictId): readonly Collider[];
+}
+
+const STAND_BACK = 3;
+const FOOT = 0.45; // his footprint and a little room
+
+function blocks(c: Collider, x: number, z: number): boolean {
+  const dx = x - c.x;
+  const dz = z - c.z;
+  if (c.kind === 'circle') return Math.hypot(dx, dz) < c.r + FOOT;
+  const r = c.rot ?? 0;
+  const lx = dx * Math.cos(r) - dz * Math.sin(r);
+  const lz = dx * Math.sin(r) + dz * Math.cos(r);
+  return Math.abs(lx) < c.hw + FOOT && Math.abs(lz) < c.hd + FOOT;
 }
 
 let shell: UiShell | null = null;
@@ -60,6 +88,7 @@ export function mountUi(world: WorldApi, root: HTMLElement): void {
   let walking = false;
   let wantWalk = false;
   let wantPlace: DistrictId | null = null;
+  let standLater: Entry | null = null;
 
   const hud = createHud({
     onIndex: () => index.open(),
@@ -123,6 +152,9 @@ export function mountUi(world: WorldApi, root: HTMLElement): void {
 
   function whenReady(): void {
     title.setReady();
+    const stand = standLater ? standFor(standLater) : null;
+    standLater = null;
+    if (stand) world.teleport(stand, stand.yaw);
     if (wantWalk) walkIn();
   }
 
@@ -151,15 +183,10 @@ export function mountUi(world: WorldApi, root: HTMLElement): void {
   readTouch();
   window.addEventListener('pointerdown', () => window.setTimeout(readTouch, 0), { passive: true });
 
-  // The three ways into the map: the M key, the touch map button and a map point in the world.
-  // The touch map button is drawn by the input layer (.ls-map), which only raises a flag the world
-  // does not pass on, so I listen for its click here.
+  // The ways into the map: the M key, the Map button in the top row and a map point in the world.
   const openMap = (): void => {
     if (walking && !overlays.current()) hud.mapHandler()?.();
   };
-  touch.addEventListener('click', (e) => {
-    if (e.target instanceof Element && e.target.closest('.ls-map')) openMap();
-  });
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'KeyM' || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.target instanceof Element && e.target.closest('input,textarea,select,[contenteditable]')) return;
@@ -169,7 +196,6 @@ export function mountUi(world: WorldApi, root: HTMLElement): void {
   });
   function setMapHandler(fn: (() => void) | null): void {
     hud.setMapHandler(fn);
-    root.classList.toggle('ui--map', fn !== null);
   }
 
   const map = createMap({ world, overlays, go: goThere });
@@ -185,8 +211,36 @@ export function mountUi(world: WorldApi, root: HTMLElement): void {
     const place = entry ? entry.district : district;
     if (!place) return;
     if (walking) overlays.close();
-    world.teleport(place);
+    const stand = entry ? standFor(entry) : null;
+    if (stand) world.teleport(stand, stand.yaw);
+    else world.teleport(place);
+    // Before the world is built there is nothing to stand in front of yet: the gate for now, and
+    // the spot itself once it is ready.
+    standLater = entry && !stand && !world.ready ? entry : null;
     if (entry) showEntry(entry);
+  }
+
+  // A link to one caption stands the visitor in front of its thing, a few steps off on the side the
+  // road comes in from, facing it, so it is in reach once the caption is closed.
+  function standFor(entry: Entry): { x: number; z: number; yaw: number } | null {
+    const more = world as WorldApi & Partial<WorldLookup>;
+    const spot = more.spots?.().find((s) => s.entry === entry.id);
+    const site = SITE_BY_ID[entry.district];
+    if (!spot || !site) return null;
+    const solid = more.districtColliders?.(entry.district) ?? [];
+    const toward = Math.atan2(site.center.x + site.arrive.x - spot.x, site.center.z + site.arrive.z - spot.z);
+    const back = Math.min(STAND_BACK, spot.reach * 0.6);
+    // Straight back toward the road first, then swinging either side until the ground is clear.
+    for (let i = 0; i < 12; i++) {
+      const turn = Math.ceil(i / 2) * (i % 2 ? 1 : -1) * (Math.PI / 6);
+      const dx = Math.sin(toward + turn) * back;
+      const dz = Math.cos(toward + turn) * back;
+      const x = spot.x + dx;
+      const z = spot.z + dz;
+      // Facing the thing: the way from the stand point back to it.
+      if (!solid.some((c) => blocks(c, x, z))) return { x, z, yaw: Math.atan2(dx, dz) };
+    }
+    return null;
   }
   follow();
   links.onChange(follow);
