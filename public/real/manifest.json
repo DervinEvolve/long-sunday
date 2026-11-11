@@ -1,6 +1,6 @@
 {
  "version": 1,
- "generated": "2026-11-11T13:30:52.551Z",
+ "generated": "2026-11-11T22:45:36.489Z",
  "space": "metres. x east, y up, z south. The same space the ink world is built in.",
  "sun": {
   "direction": [
@@ -2607,34 +2607,34 @@
    "id": "studio",
    "kind": "district",
    "file": "chunks/studio.glb.gz",
-   "bytes": 417011,
+   "bytes": 472046,
    "encoding": "gzip",
-   "rawBytes": 743028,
-   "triangles": 34037,
+   "rawBytes": 823616,
+   "triangles": 38895,
    "drawCalls": 11,
    "bounds": {
     "box": [
-     108.73,
+     108.759,
      5.8,
      21.678,
-     157.3,
+     160.576,
      29.8,
-     70.255
+     70.299
     ],
     "sphere": [
-     133.02,
+     134.67,
      17.8,
-     45.97,
-     36.38
+     45.99,
+     37.5
     ]
    },
    "lightmaps": [
     {
      "file": "lightmaps/studio.0.webp",
-     "bytes": 233994,
+     "bytes": 239116,
      "size": 1024,
      "half": "lightmaps/half/studio.0.webp",
-     "halfBytes": 87504
+     "halfBytes": 90254
     }
    ],
    "quality": {
@@ -2645,7 +2645,7 @@
      48
     ],
     "bounces": 3,
-    "bakeSeconds": 44.7
+    "bakeSeconds": 48.1
    },
    "materials": [
     "ashlar",
@@ -2665,12 +2665,12 @@
      "name": "studio.0.ashlar",
      "material": "ashlar",
      "lightmap": 0,
-     "triangles": 428,
+     "triangles": 472,
      "box": [
       126,
       7,
       26,
-      154.08,
+      160.25,
       22.3,
       60.28
      ]
@@ -2707,14 +2707,14 @@
      "name": "studio.0.concrete",
      "material": "concrete",
      "lightmap": 0,
-     "triangles": 48,
+     "triangles": 60,
      "box": [
       121.7,
-      11.8,
+      10.7,
       21.7,
-      157.3,
+      160.4,
       21.45,
-      50.3
+      57.1
      ]
     },
     {
@@ -2749,26 +2749,26 @@
      "name": "studio.0.leafcards",
      "material": "leafcards",
      "lightmap": 0,
-     "triangles": 4884,
+     "triangles": 5040,
      "box": [
       118.897,
       6.643,
       21.678,
-      156.132,
-      29.122,
-      70.255
+      160.531,
+      28.749,
+      70.299
      ]
     },
     {
      "name": "studio.0.lettering",
      "material": "lettering",
      "lightmap": 0,
-     "triangles": 422,
+     "triangles": 500,
      "box": [
       127.94,
-      7.25,
+      7.066,
       26.626,
-      149.744,
+      158.581,
       17.444,
       57.108
      ]
@@ -2777,12 +2777,12 @@
      "name": "studio.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 3220,
+     "triangles": 4756,
      "box": [
       108.938,
       5.8,
       21.9,
-      157,
+      160.4,
       17.75,
       62.324
      ]
@@ -2791,26 +2791,26 @@
      "name": "studio.0.paving",
      "material": "paving",
      "lightmap": 0,
-     "triangles": 262,
+     "triangles": 282,
      "box": [
       122.15,
       7,
       26,
-      148.1,
+      160.55,
       7.84,
-      45.1
+      57.5
      ]
     },
     {
      "name": "studio.0.plain",
      "material": "plain",
      "lightmap": 0,
-     "triangles": 23550,
+     "triangles": 26562,
      "box": [
-      108.73,
+      108.759,
       6.916,
       21.98,
-      156.4,
+      160.576,
       29.8,
       67.817
      ]
@@ -2821,7 +2821,8 @@
    ],
    "live": [
     "studio/studio-cards",
-    "studio/studio-drift"
+    "studio/studio-drift",
+    "studio/studio-hush-star"
    ],
    "stilled": [],
    "drop": []
