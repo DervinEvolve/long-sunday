@@ -5,7 +5,8 @@
 // Nothing here is placed by hand except the aqueduct. The rest comes from seeded passes that ask
 // the terrain the same questions of every spot: is it on the island, how far is the nearest street,
 // how far is the nearest pad, is something already standing there. Nothing on a street or its
-// sidewalk, nothing on a pad. A lower tier draws a subset of what a higher tier draws.
+// sidewalk, nothing on a pad, no tree or column on a line of sight from a street to a district.
+// A lower tier draws a subset of what a higher tier draws.
 //
 // Trees, columns, drums and hedges are instanced, split into three wedges of the island so the ones
 // behind the walker are not drawn. Buildings are baked into one mesh per wedge. The aqueduct and
@@ -15,13 +16,15 @@ import type { Collider, InkKit, QualityTier } from '../types';
 import { ROADS } from '../world/layout';
 import { palette } from '../world/palette';
 import {
-  Claims, Frame, ROAD_CLEAR, aqueduct, bench, clearGround, groundRange, hydrant, item, lampPost, padGap, planter, roadGap, slab, walkUp,
+  Claims, Frame, ROAD_CLEAR, aqueduct, bench, clearGround, groundRange, hydrant, item, lampPost, padGap, planter, roadGap, sightGap, slab, walkUp, archGap,
   type Builder, type Extras, type Item, type Lot,
 } from './city';
 import { SIDEWALK, heightAt, inBounds, rimRadius, roadLength, roadPoint, type RoadPoint } from './terrain';
 import { gfbm, hash2, rng } from './util';
 
 const SECTORS = 3;
+/** How near a line of sight things may stand: a tree by its trunk, a column by its middle, a house by its wall. */
+const TREE_SIGHT = 3, COLUMN_SIGHT = 1.5, WALL_SIGHT = 1;
 const TIER_SHARE: Record<QualityTier, number> = { high: 1, medium: 0.7, low: 0.42 };
 
 const smooth = (a: number, b: number, x: number) => {
@@ -299,7 +302,7 @@ function leaf(next: () => number): string {
 
 /** Stand one column. Returns false and does nothing if the ground is spoken for. */
 function column(plan: Plan, x: number, z: number, top: number, yaw: number): boolean {
-  if (!clearGround(x, z, 0.7) || plan.claims.taken(x, z, 0.8)) return false;
+  if (!clearGround(x, z, 0.7) || sightGap(x, z) < COLUMN_SIGHT || plan.claims.taken(x, z, 0.8)) return false;
   const y = heightAt(x, z) - 0.15;
   const h = top - y;
   plan.out.columns.push(item(x, y, z, yaw, h, palette.marble));
@@ -346,21 +349,27 @@ function ivy(plan: Plan, next: () => number, x: number, z: number, h: number): v
   plan.out.bushes.push({ x: x + Math.sin(a) * r, y: heightAt(x, z) - 0.3, z: z + Math.cos(a) * r, yaw: a, tiltX: 0, tiltZ: 0, sx: h * 0.085, sy: h * (0.35 + next() * 0.4), sz: h * 0.05, color: HEDGES[Math.floor(next() * HEDGES.length)] });
 }
 
-/** A colonnade beside a road: a row of columns under one beam, the far end of it fallen. */
-function colonnade(plan: Plan, road: number, a: number, e: number, side: number, seed: number): void {
+/**
+ * A colonnade beside a road: a row of columns under one beam, the far end of it fallen.
+ * Where a line of sight crosses it the columns are down to stumps, so it frames what is behind.
+ * Returns how many columns that is. With `dry` it only counts and builds nothing.
+ */
+function colonnade(plan: Plan, road: number, a: number, e: number, side: number, seed: number, dry = false): number {
   const next = rng(seed);
   const off = ROADS[road].width / 2 + 4.7;
   const tall = 7.2 + next() * 1.4;
   const gap = tall * 0.42;
   const want = Math.min(9, Math.floor((e - a - 6) / gap));
-  if (want < 3) return;
+  if (want < 3) return 0;
   const from = a + 3 + next() * Math.max(0, e - a - 6 - want * gap);
   const whole = Math.max(3, want - 1 - Math.floor(next() * 3));
-  let top = -Infinity;
+  let top = -Infinity, down = 0;
   for (let i = 0; i < whole; i++) {
     const [x, z] = beside(road, from + i * gap, side, off);
     top = Math.max(top, heightAt(x, z) + tall);
+    if (sightGap(x, z) < COLUMN_SIGHT) down++;
   }
+  if (dry) return down;
   let px = 0, pz = 0, had = false;
   for (let i = 0; i < want; i++) {
     const [x, z] = beside(road, from + i * gap, side, off);
@@ -369,6 +378,7 @@ function colonnade(plan: Plan, road: number, a: number, e: number, side: number,
       const ok = column(plan, x, z, top, yaw);
       if (ok && had) beam(plan, px, pz, x, z, top, tall * 0.115);
       if (ok && next() < 0.3) ivy(plan, next, x, z, tall);
+      if (!ok && sightGap(x, z) < COLUMN_SIGHT) stump(plan, next, x, z, tall * 0.115);
       had = ok; px = x; pz = z;
     } else if (i === whole) {
       stump(plan, next, x, z, tall * 0.115);
@@ -376,6 +386,7 @@ function colonnade(plan: Plan, road: number, a: number, e: number, side: number,
       fallen(plan, next, x + (next() - 0.5) * 2, z + (next() - 0.5) * 2, tall * 0.115);
     }
   }
+  return down;
 }
 
 /** Old stone standing in a park: part of a round temple, or a short row, or one tall column on its own. */
@@ -443,7 +454,7 @@ function ruin(plan: Plan, x: number, z: number, seed: number): void {
 
 /** One tree. `kind` 0 is round, 1 is layered. */
 function tree(plan: Plan, kind: number, x: number, z: number, size: number, yaw: number, color: string, room = 1.5): boolean {
-  if (!clearGround(x, z, 0.4) || plan.claims.taken(x, z, room)) return false;
+  if (!clearGround(x, z, 0.4) || sightGap(x, z) < TREE_SIGHT || plan.claims.taken(x, z, room)) return false;
   (kind === 0 ? plan.round : plan.layered).push(item(x, heightAt(x, z) - 0.05, z, yaw, size, color));
   plan.out.colliders.push({ kind: 'circle', x, z, r: 0.34 * size });
   plan.claims.circle(x, z, 1.3);
@@ -452,7 +463,7 @@ function tree(plan: Plan, kind: number, x: number, z: number, size: number, yaw:
 
 /** A cypress: the layered tree squeezed thin and pulled tall. */
 function cypress(plan: Plan, next: () => number, x: number, z: number): boolean {
-  if (!clearGround(x, z, 0.5) || plan.claims.taken(x, z, 1.2)) return false;
+  if (!clearGround(x, z, 0.5) || sightGap(x, z) < TREE_SIGHT || plan.claims.taken(x, z, 1.2)) return false;
   const s = 0.42 + next() * 0.12;
   plan.layered.push({ x, y: heightAt(x, z) - 1.6, z, yaw: next() * 6.28, tiltX: 0, tiltZ: 0, sx: s, sy: 1.25 + next() * 0.35, sz: s, color: next() < 0.5 ? '#3f8a57' : '#357a5a' });
   plan.out.colliders.push({ kind: 'circle', x, z, r: 0.6 });
@@ -460,13 +471,14 @@ function cypress(plan: Plan, next: () => number, x: number, z: number): boolean 
   return true;
 }
 
-/** Can a building stand on this footprint: off streets and pads, on fairly level ground, nothing there already. */
+/** Can a building stand on this footprint: off streets and pads, out of the view through the arch, on fairly level ground, nothing there already. */
 function lotFree(plan: Plan, f: Frame, hw: number, hd: number, road: number, pad: number, rim: number): boolean {
   // The stoop reaches two metres out in front, so the front row of samples is taken out there.
   for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
     const lz = j > 0 ? hd + 2.1 : j * hd;
     const x = f.wx(i * hw, lz), z = f.wz(i * hw, lz);
     if (!clearGround(x, z, 0, road, rim) || padGap(x, z) < pad) return false;
+    if (archGap(x, z) < WALL_SIGHT) return false;
     if (plan.claims.taken(x, z, 0.6)) return false;
   }
   const [lo, hi] = groundRange(f, hw, hd);
@@ -536,9 +548,14 @@ function roadside(plan: Plan): void {
       const seed = 0x51de + road * 977 + k * 131;
       // The avenue gets a colonnade down one side of every second stretch, and now and then a side street does.
       const stone = avenue ? k % 2 === 0 : hash2(road, k, 91) < 0.3;
-      if (stone) colonnade(plan, road, a, e, -flip, seed + 7);
+      // It goes across the street, and the houses swap with it, if that keeps it clear of a line of sight.
+      let stoneSide = -flip;
+      if (stone) {
+        if (colonnade(plan, road, a, e, -flip, seed + 7, true) > 0 && colonnade(plan, road, a, e, flip, seed + 7, true) === 0) stoneSide = flip;
+        colonnade(plan, road, a, e, stoneSide, seed + 7);
+      }
       for (const side of [flip, -flip]) {
-        if (stone && side === -flip) continue;
+        if (stone && side === stoneSide) continue;
         let s = a + (side === flip ? 2 : 13) + next() * 5;
         let g = 0;
         while (s < e - 8) {
@@ -593,7 +610,12 @@ function streetTrees(plan: Plan): void {
           const pick = next(), size = 0.82 + next() * 0.3, yaw = next() * 6.28, color = leaf(next), j = (next() - 0.5) * 1.6;
           if (pick > plan.share + 0.3) continue;
           const [x, z] = beside(road, s + j, side, off);
-          tree(plan, 0, x, z, size, yaw, color, 1.0);
+          if (tree(plan, 0, x, z, size, yaw, color, 1.0) || sightGap(x, z) >= TREE_SIGHT) continue;
+          // On a line of sight it stands further back from the street, if there is room well clear of the line.
+          for (const back of [4.5, 9]) {
+            const [bx, bz] = beside(road, s + j, side, off + back);
+            if (sightGap(bx, bz) >= TREE_SIGHT + 4 && tree(plan, 0, bx, bz, size, yaw, color, 1.0)) break;
+          }
         }
       }
     }
@@ -621,11 +643,23 @@ function parkTrees(plan: Plan): void {
   }
 }
 
-function bush(plan: Plan, x: number, z: number, size: number, yaw: number, color: string, squash = 1): boolean {
+/** A shrub this big or bigger stands above his waist, so he walks round it. Smaller ones he wades through. */
+const SHRUB_SOLID = 1.15;
+
+/**
+ * A hedge or a shrub. `row` is half the gap to the next one when it is part of a clipped row:
+ * then it is a length of wall, and the row has no way through.
+ */
+function bush(plan: Plan, x: number, z: number, size: number, yaw: number, color: string, squash = 1, row = 0): boolean {
   if (!clearGround(x, z, size * 0.5) || plan.claims.taken(x, z, size * 0.6)) return false;
   plan.out.bushes.push({ x, y: heightAt(x, z) - 0.12, z, yaw, tiltX: 0, tiltZ: 0, sx: size, sy: size * squash, sz: size, color });
+  if (row > 0) plan.out.colliders.push({ kind: 'box', x, z, hw: row, hd: size * 0.4, rot: yaw });
+  else if (size * squash >= SHRUB_SOLID) plan.out.colliders.push({ kind: 'circle', x, z, r: size * 0.5 });
   return true;
 }
+
+/** How far apart the lumps of a clipped hedge stand. */
+const HEDGE_GAP = 2.15;
 
 /** Clipped hedges along some of the avenue, and loose shrubs through the parks. */
 function greenery(plan: Plan): void {
@@ -639,10 +673,10 @@ function greenery(plan: Plan): void {
           const len = 5 + next() * 7;
           const color = HEDGES[Math.floor(next() * HEDGES.length)];
           const keep = next() < 0.5 * (0.5 + 0.5 * plan.share);
-          if (keep) for (let t = s; t < Math.min(s + len, e - 1); t += 2.15) {
+          if (keep) for (let t = s; t < Math.min(s + len, e - 1); t += HEDGE_GAP) {
             const [x, z] = beside(road, t, side, off);
             // Turned so the long way of the shape runs with the street.
-            bush(plan, x, z, 1.3, Math.atan2(-rp.tz, rp.tx), color, 0.7);
+            bush(plan, x, z, 1.3, Math.atan2(-rp.tz, rp.tx), color, 0.7, HEDGE_GAP / 2);
           }
           s += len + 6 + next() * 10;
         }
@@ -663,16 +697,25 @@ function greenery(plan: Plan): void {
   }
 }
 
+const ASIDE: [number, number][] = [[13, 0], [-13, 0], [0, 13], [0, -13], [13, 13], [-13, -13], [13, -13], [-13, 13], [21, 0], [-21, 0], [0, 21], [0, -21]];
+
 /** Old stone in the parks, most of it where it can be seen from a street. */
 function ruins(plan: Plan): void {
   const STEP = 40;
+  const room = (x: number, z: number) => clearGround(x, z, 7, ROAD_CLEAR + 1, 6) && padGap(x, z) >= 9;
   for (let ix = -6; ix <= 6; ix++) {
     for (let iz = -6; iz <= 6; iz++) {
-      const x = (ix + 0.15 + hash2(ix, iz, 61) * 0.7) * STEP, z = (iz + 0.15 + hash2(ix, iz, 62) * 0.7) * STEP;
-      if (!clearGround(x, z, 7, ROAD_CLEAR + 1, 6) || padGap(x, z) < 9) continue;
+      let x = (ix + 0.15 + hash2(ix, iz, 61) * 0.7) * STEP, z = (iz + 0.15 + hash2(ix, iz, 62) * 0.7) * STEP;
+      if (!room(x, z)) continue;
       const near = roadGap(x, z) < 34;
       if (hash2(ix, iz, 63) > (near ? 0.75 : 0.3)) continue;
       if (plan.claims.taken(x, z, 7)) continue;
+      if (sightGap(x, z) < COLUMN_SIGHT + 7) {
+        // On a line of sight it steps aside, and is left out only if there is nowhere to step to.
+        const to = ASIDE.find(([ox, oz]) => room(x + ox, z + oz) && sightGap(x + ox, z + oz) >= COLUMN_SIGHT + 7 && !plan.claims.taken(x + ox, z + oz, 7));
+        if (!to) continue;
+        x += to[0]; z += to[1];
+      }
       ruin(plan, x, z, 0x2b1 + ix * 131 + iz * 17);
     }
   }

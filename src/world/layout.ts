@@ -66,7 +66,7 @@ const seeds: SiteSeed[] = [
     id: 'maskgarden',
     name: 'The Mask Garden',
     tagline: 'Diaspora DAO. My own studio: tokens, mixed reality, a stage at Consensus.',
-    years: '2022 to 2024',
+    years: '2023 to 2024',
     center: { x: 64, z: -46 },
     radius: 38,
     height: 12,
@@ -126,7 +126,7 @@ const seeds: SiteSeed[] = [
     id: 'boneyard',
     name: 'The Boneyard',
     tagline: 'What did not work, what I never finished, and what each one fed.',
-    years: '2018 to 2026',
+    years: 'Along the way',
     center: { x: -146, z: -72 },
     radius: 36,
     height: -5,
@@ -225,15 +225,21 @@ export const SITES: DistrictSite[] = seeds.map((seed) => {
   return { ...seed, arrive: { x: g.x * d, z: g.z * d, yaw: yawToward(-g.x, -g.z) } };
 });
 
-export const SITE_BY_ID: Record<DistrictId, DistrictSite> = Object.fromEntries(SITES.map((s) => [s.id, s])) as Record<
-  DistrictId,
-  DistrictSite
->;
+/** Where the walk starts, from the Trailhead's centre: its south edge, looking north at the arch. */
+const START = { x: 2, z: 21, yaw: 0 };
+
+// The table fast travel reads. Every entry is the same object as in SITES except the Trailhead's.
+// There the avenue comes in from the west, side-on to the arch, so coming back by the map lands
+// where the walk starts and faces the arch. The district itself is built from its entry in SITES,
+// where `arrive` is still the spot the avenue reaches, because its paving is laid out from that.
+export const SITE_BY_ID: Record<DistrictId, DistrictSite> = Object.fromEntries(
+  SITES.map((s) => [s.id, s.id === 'trailhead' ? { ...s, arrive: START } : s]),
+) as Record<DistrictId, DistrictSite>;
 
 export const SPINE_ORDER = SPINE;
 
 /** Where a first-time visitor appears: south edge of the Trailhead, looking north up the road. */
-export const SPAWN = { x: SITE_BY_ID.trailhead.center.x + 2, z: SITE_BY_ID.trailhead.center.z + 21, yaw: 0 };
+export const SPAWN = { x: SITE_BY_ID.trailhead.center.x + START.x, z: SITE_BY_ID.trailhead.center.z + START.z, yaw: START.yaw };
 
 /** Year stones along the career road, placed by fraction of the spine's length. */
 export const YEAR_STONES: { year: number; at: DistrictId }[] = [

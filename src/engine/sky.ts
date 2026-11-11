@@ -1,7 +1,7 @@
 // The sky: which colours it has where you stand, and the big quiet things that hang in it.
 // Clouds with flat bottoms, a drawn sun and a pale moon, and beyond the rim the rest of the city:
 // other islands carrying glass towers with gardens on every ledge, a temple, a rotunda, a stepped
-// garden, an open steel globe on a ring of columns, a marble column the size of a skyscraper and
+// garden, a brass armillary on a ring of columns, a marble column the size of a skyscraper and
 // most of a pediment adrift. A flock takes minutes to cross it all.
 // Nine draw calls. Nothing here allocates after it is built.
 import * as THREE from 'three';
@@ -457,64 +457,89 @@ function gardens(b: Builder, next: () => number, g: Plot, w: number): void {
   }
 }
 
-// The globe: an open cage of steel hoops, a few round the middle and a few through the poles,
-// resting on a ring of marble columns in a round pool with jets. Not a map of anywhere. The cage
-// is its own mesh so it can turn.
-const GLOBE_R = 24;
-const GLOBE_TILT = 0.32;
-const GLOBE_RING = GLOBE_R * 0.62;
+// The armillary: an old instrument the size of a city block. Three brass hoops, each a full circle
+// leaning its own way, inside one broad copper band round the middle, and a brass ball held at the
+// centre on a spindle. It stands over a ring of marble columns on a stepped drum, with a clipped
+// bed and cypresses round the foot. The hoops are their own mesh so they can turn.
+const ARM_R = 24;
+const ARM_RING = ARM_R * 0.62;
+const ARM_COLUMN = ARM_R * 0.6;
+const ARM_STEP = ARM_R * 0.05;
+/** From the top of the drum to the middle of the hoops. */
+const ARM_LIFT = ARM_COLUMN + ARM_R * 1.12;
 
-/** The pool, the ring of columns and the jets. Hands back the height of the cage's middle. */
-function globePlaza(b: Builder, g: Plot): number {
-  const R = GLOBE_R;
-  b.add(geo.cylinder(1.5, 1.56, 0.07, 16), { color: palette.marble, pos: g.p(0, 0, 0), scale: R });
-  b.add(geo.cylinder(1.38, 1.38, 0.02, 16), { color: palette.glass, pos: g.p(0, R * 0.07, 0), scale: R, flat: 0.6 });
-  const y0 = R * 0.07;
-  const tall = R * 0.78;
+/** The stepped drum, its planting and the ring of columns. Hands back the height of the middle of the hoops. */
+function armillaryStand(b: Builder, g: Plot): number {
+  const R = ARM_R;
+  // Three steps. The lowest is wide, and all of its tread is a clipped bed.
+  b.add(geo.cylinder(1.36, 1.4, 0.05, 16), { color: palette.marbleShade, pos: g.p(0, 0, 0), scale: R });
+  b.add(geo.cylinder(1.3, 1.3, 0.03, 16), { color: palette.leafDeep, pos: g.p(0, ARM_STEP, 0), scale: R });
+  b.add(geo.cylinder(1.02, 1.04, 0.05, 16), { color: palette.marble, pos: g.p(0, ARM_STEP, 0), scale: R });
+  b.add(geo.cylinder(0.8, 0.82, 0.05, 16), { color: palette.marble, pos: g.p(0, ARM_STEP * 2, 0), scale: R });
+  const y0 = ARM_STEP * 3;
   for (let i = 0; i < 10; i++) {
     const a = (i / 10) * Math.PI * 2;
-    b.add(SHAFT, { color: palette.marble, gradient: MARBLE, pos: g.p(Math.cos(a) * GLOBE_RING, y0, Math.sin(a) * GLOBE_RING), scale: [R * 0.055, tall, R * 0.055] });
+    b.add(SHAFT, { color: palette.marble, gradient: MARBLE, pos: g.p(Math.cos(a) * ARM_RING, y0, Math.sin(a) * ARM_RING), scale: [R * 0.055, ARM_COLUMN, R * 0.055] });
   }
-  b.add(geo.torus(GLOBE_RING, R * 0.075, 16, 4), { color: palette.marble, pos: g.p(0, y0 + tall + R * 0.05, 0) });
-  // Jets: thin pale spikes round the outside, tall and short by turns.
-  for (let i = 0; i < 10; i++) {
-    const a = ((i + 0.5) / 10) * Math.PI * 2;
-    b.add(geo.cone(1, 1, 5), { color: '#f4fbfd', pos: g.p(Math.cos(a) * R * 1.16, y0, Math.sin(a) * R * 1.16), scale: [R * 0.04, R * (i & 1 ? 0.55 : 0.9), R * 0.04], flat: 0.8 });
+  b.add(geo.torus(ARM_RING, R * 0.075, 16, 4), { color: palette.marble, pos: g.p(0, y0 + ARM_COLUMN + R * 0.05, 0) });
+  // Cypresses in the bed, tall and short by turns.
+  for (let i = 0; i < 6; i++) {
+    const a = ((i + 0.5) / 6) * Math.PI * 2;
+    const tall = R * (i & 1 ? 0.34 : 0.46);
+    b.add(HANG, { color: i & 1 ? palette.leafDeep : palette.grassDeep, pos: g.p(Math.cos(a) * R * 1.17, ARM_STEP, Math.sin(a) * R * 1.17), scale: [R * 0.075, tall, R * 0.075] });
   }
-  // The cage rests where a ball of its radius would sit in the ring.
-  return y0 + tall + R * 0.12 + Math.sqrt(R * R - GLOBE_RING * GLOBE_RING);
+  return y0 + ARM_LIFT;
 }
 
-function buildGlobe(kit: InkKit): THREE.Mesh {
+const armAt = new THREE.Vector3();
+const armTurn = new THREE.Euler();
+
+function buildArmillary(kit: InkKit): THREE.Mesh {
   const b = kit.builder() as Builder;
   const id = b.newId();
-  const R = GLOBE_R, bar = 0.8;
-  const steel = { color: palette.steel, gradient: { bottom: '#7c7db0', top: '#cfd2ee' }, id, flat: 0.3 } as const;
-  for (const deg of [-62, -34, 0, 34, 62]) {
-    const lat = (deg * Math.PI) / 180;
-    b.add(geo.torus(R * Math.cos(lat), bar, 22, 3), { ...steel, pos: [0, R * Math.sin(lat), 0] });
+  const R = ARM_R;
+  const brass = { color: palette.brass, gradient: { bottom: '#a8842f', top: '#ecd27a' }, id, flat: 0.3 } as const;
+  // Each hoop is a little smaller than the last so they nest, and a band, taller than it is thick.
+  // [radius, lean about x, lean about z, sides]
+  const hoops: [number, number, number, number][] = [
+    [R * 0.96, Math.PI / 2, 0, 28],
+    [R * 0.89, 0, 1.0, 26],
+    [R * 0.82, -0.5, -0.38, 24],
+  ];
+  for (const [r, rx, rz, sides] of hoops) {
+    b.add(geo.torus(r, 0.7, sides, 4), { ...brass, rot: [rx, 0, rz], scale: [1, 2, 1] });
   }
-  for (let k = 0; k < 4; k++) {
-    b.add(geo.torus(R, bar, 26, 3), { ...steel, rot: [Math.PI / 2, 0, (k * Math.PI) / 4] });
+  // The band round the middle, broad and green with age.
+  b.add(geo.torus(R * 1.02, 0.7, 28, 4), { color: palette.verdigris, gradient: COPPER, scale: [1, 2.8, 1], flat: 0.3 });
+  // The spindle runs from the drum up through the ball and out of the top, where it ends in a point.
+  const foot = -(ARM_LIFT + 0.5);
+  b.add(geo.cylinder(0.6, 0.6, 1, 5, true), { ...brass, pos: [0, foot, 0], scale: [1, R * 1.03 - foot, 1] });
+  b.add(geo.cone(1, 1, 5), { ...brass, pos: [0, R * 1.03, 0], scale: [1.5, 3.8, 1.5] });
+  for (const end of [-1, 1]) b.add(LEAF, { ...brass, pos: [0, end * R * 0.96, 0], scale: 1.7 });
+  b.add(geo.ico(1, 1), { color: palette.brass, gradient: { bottom: '#b08a30', top: '#f0d886' }, pos: [0, 0, 0], scale: R * 0.2, flat: 0.25 });
+  // Ivy has got up two of the hoops: a clump where it sits, and a strand hanging off it.
+  // [hoop, how far round it, clump size, strand length]
+  const ivy: [number, number, number, number][] = [[1, 2.05, 2.6, 8], [1, 2.5, 1.9, 0], [2, 0.75, 2.3, 6], [0, 2.45, 2.2, 7], [2, 4.1, 1.7, 0]];
+  for (let i = 0; i < ivy.length; i++) {
+    const [h, round, size, strand] = ivy[i];
+    const [r, rx, rz] = hoops[h];
+    armAt.set(Math.cos(round) * r, 0, Math.sin(round) * r).applyEuler(armTurn.set(rx, 0, rz));
+    const green = b.newId();
+    b.add(LEAF, { color: GREENS[(i * 2 + 1) % GREENS.length], pos: [armAt.x, armAt.y, armAt.z], rot: [0, i * 1.3, 0], scale: [size * 1.25, size * 0.8, size * 1.1], id: green });
+    if (strand > 0) b.add(HANG, { color: palette.leafDeep, pos: [armAt.x, armAt.y, armAt.z], rot: [Math.PI, 0, 0], scale: [0.8, strand, 0.8], id: green });
   }
-  // The axle, with a brass knob at each end.
-  b.add(geo.cylinder(bar * 0.8, bar * 0.8, R * 2.5, 5), { ...steel, pos: [0, -R * 1.25, 0] });
-  for (const end of [-1, 1]) b.add(LEAF, { color: palette.brass, pos: [0, end * R * 1.27, 0], scale: 1.9 });
-  const mesh = b.build('globe');
-  mesh.rotation.order = 'ZYX';
-  mesh.rotation.z = GLOBE_TILT;
-  return mesh;
+  return b.build('armillary');
 }
 
 // What goes where. Height is the rim of the lump; the lawn is a little above it.
 // The first one is moved to wherever the elevated line runs out, at the height of its deck, so the
 // train has somewhere to be going. The place written here is only what it comes to on the long line.
-interface Spot { kind: 'terminus' | 'towers' | 'temple' | 'globe' | 'rotunda' | 'gardens' | 'far-east' | 'far-west'; x: number; y: number; z: number; r: number; deep: number; rank: number }
+interface Spot { kind: 'terminus' | 'towers' | 'temple' | 'armillary' | 'rotunda' | 'gardens' | 'far-east' | 'far-west'; x: number; y: number; z: number; r: number; deep: number; rank: number }
 const SPOTS: Spot[] = [
   { kind: 'terminus', x: -255, y: 31, z: -458, r: 58, deep: 0.9, rank: 0 },
   { kind: 'towers', x: -430, y: 40, z: -40, r: 64, deep: 0.85, rank: 0 },
   { kind: 'temple', x: 352, y: 70, z: -214, r: 46, deep: 1.0, rank: 0 },
-  { kind: 'globe', x: 300, y: 22, z: 215, r: 48, deep: 1.0, rank: 0 },
+  { kind: 'armillary', x: 300, y: 22, z: 215, r: 48, deep: 1.0, rank: 0 },
   { kind: 'rotunda', x: -320, y: 80, z: 318, r: 44, deep: 1.05, rank: 1 },
   { kind: 'gardens', x: 50, y: 44, z: 398, r: 54, deep: 0.9, rank: 1 },
   { kind: 'far-east', x: 720, y: 30, z: 330, r: 90, deep: 0.8, rank: 2 },
@@ -534,7 +559,7 @@ function cluster(b: Builder, next: () => number, g: Plot, r: number, count: numb
   }
 }
 
-function buildSkyline(kit: InkKit, rank: number, globeAt: THREE.Vector3): THREE.Mesh[] {
+function buildSkyline(kit: InkKit, rank: number, armillaryAt: THREE.Vector3): THREE.Mesh[] {
   const north = kit.builder() as Builder;
   const south = kit.builder() as Builder;
   const next = rng(90210);
@@ -565,9 +590,9 @@ function buildSkyline(kit: InkKit, rank: number, globeAt: THREE.Vector3): THREE.
       temple(b, home.at(0, 0, r * 0.1), r * 0.62, 8);
       roundTower(b, next, home.at(-r * 0.6, 0, -r * 0.45), r * 0.1, 52);
       grove(b, next, g, rich ? 8 : 6, r * 0.72, r * 0.92, r * 0.08);
-    } else if (s.kind === 'globe') {
-      const up = globePlaza(b, g);
-      globeAt.set(g.x, g.y + up, g.z);
+    } else if (s.kind === 'armillary') {
+      const up = armillaryStand(b, g);
+      armillaryAt.set(g.x, g.y + up, g.z);
       grove(b, next, g, rich ? 9 : 5, r * 0.84, r * 0.95, r * 0.085);
     } else if (s.kind === 'rotunda') {
       rotunda(b, home.at(0, 0, -r * 0.1), r * 0.36);
@@ -767,7 +792,7 @@ function buildPediment(kit: InkKit, rank: number): THREE.Mesh {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The flock: with the globe and the pediment, the only things up here that move by themselves.
+// The flock: with the armillary and the pediment, the only things up here that move by themselves.
 // ---------------------------------------------------------------------------------------------
 
 const FLOCK_CX = 96;
@@ -822,25 +847,25 @@ export function createSky(kit: InkKit, tier: QualityTier): Sky {
   group.add(ring);
 
   const lights = buildLights(kit);
-  const globeAt = new THREE.Vector3();
-  const skyline = buildSkyline(kit, rank, globeAt);
-  const globe = buildGlobe(kit);
-  globe.position.copy(globeAt);
+  const armillaryAt = new THREE.Vector3();
+  const skyline = buildSkyline(kit, rank, armillaryAt);
+  const armillary = buildArmillary(kit);
+  armillary.position.copy(armillaryAt);
   const column = buildColumn(kit, rank);
   const pediment = buildPediment(kit, rank);
   const flockCount = tier === 'low' ? 9 : tier === 'medium' ? 13 : 17;
   const flock = buildFlock(kit, flockCount);
-  group.add(lights, skyline[0], skyline[1], globe, column, pediment, flock);
-  triangles += trianglesOf(lights) + trianglesOf(skyline[0]) + trianglesOf(skyline[1]) + trianglesOf(globe) + trianglesOf(column) + trianglesOf(pediment) + trianglesOf(flock);
+  group.add(lights, skyline[0], skyline[1], armillary, column, pediment, flock);
+  triangles += trianglesOf(lights) + trianglesOf(skyline[0]) + trianglesOf(skyline[1]) + trianglesOf(armillary) + trianglesOf(column) + trianglesOf(pediment) + trianglesOf(flock);
 
   function update(_dt: number, t: number, cameraPosition: THREE.Vector3): void {
     ring.position.set(cameraPosition.x * 0.85, 0, cameraPosition.z * 0.85);
     ring.rotation.y = t * 0.0012;
     lights.position.set(cameraPosition.x, 0, cameraPosition.z);
 
-    // The globe turns once in a couple of minutes. The pediment rides up and down a few metres and
+    // The armillary turns once in a couple of minutes. The pediment rides up and down a few metres and
     // rocks a hair, slowly enough that you only catch it against a cloud.
-    globe.rotation.y = t * 0.05;
+    armillary.rotation.y = t * 0.05;
     pediment.position.y = PEDIMENT_AT[1] + Math.sin(t * 0.05) * 4;
     pediment.rotation.z = PEDIMENT_ROLL + Math.sin(t * 0.031) * 0.02;
 

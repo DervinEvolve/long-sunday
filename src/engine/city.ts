@@ -5,10 +5,10 @@
 // Everything here is drawn, not modelled: windows are flat cards, a fire escape is a few bars.
 import * as THREE from 'three';
 import type { Collider, ColorLike, InkBuilder, InkKit } from '../types';
-import { SITES } from '../world/layout';
+import { ROADS, SITES, SPAWN } from '../world/layout';
 import { palette } from '../world/palette';
 import * as geo from './geo';
-import { heightAt, inBounds, rimRadius, roadInfo, type RoadHit } from './terrain';
+import { heightAt, inBounds, rimRadius, roadInfo, roadLength, roadPoint, type RoadHit, type RoadPoint } from './terrain';
 
 export type Builder = Required<InkBuilder>;
 
@@ -101,6 +101,78 @@ export function clearGround(x: number, z: number, r: number, road = ROAD_CLEAR, 
   if (rimRadius(x, z) - Math.hypot(x, z) < rim + r) return false;
   if (roadGap(x, z) - r < road) return false;
   return padGap(x, z) - r >= 0;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Lines of sight. Coming up any street, a district should show the thing it is known by from a
+// good way off, so no tree or column stands on the straight line from the street to the middle
+// of the pad. One more line runs north from where the walk starts, through the arch.
+// ---------------------------------------------------------------------------------------------
+
+/** How far from a district's centre a line starts, measured straight, at a point on each of its streets. */
+const SIGHT_FROM = 80;
+/** How far north of the start the arch's line runs. The arch stands 14.5 m in, so this is 120 m past it. */
+const ARCH_REACH = 135;
+/** The opening is 5.5 m wide and the eye sits about 20 m south of it: half its width over that. */
+const ARCH_SPREAD = 0.134;
+
+/** Six numbers a line: where it starts, where it ends, and half its width at each end. */
+function sightLines(): number[] {
+  const out: number[] = [];
+  const at: RoadPoint = { x: 0, z: 0, h: 0, tx: 0, tz: 1 };
+  for (let road = 0; road < ROADS.length; road++) {
+    const len = roadLength(road);
+    for (const site of SITES) {
+      const cx = site.center.x, cz = site.center.z;
+      if (!ROADS[road].points.some((p) => p.x === cx && p.z === cz)) continue;
+      // Where this street passes the middle of the pad, then out along it both ways.
+      let mid = 0, best = Infinity;
+      for (let s = 0; s <= len; s += 1) {
+        roadPoint(road, s, at);
+        const d = Math.hypot(at.x - cx, at.z - cz);
+        if (d < best) { best = d; mid = s; }
+      }
+      for (const dir of [-1, 1]) {
+        for (let s = mid; s >= 0 && s <= len; s += dir) {
+          roadPoint(road, s, at);
+          if (Math.hypot(at.x - cx, at.z - cz) < SIGHT_FROM) continue;
+          out.push(at.x, at.z, cx, cz, 0, 0);
+          break;
+        }
+      }
+    }
+  }
+  // Through the arch the middle of the view stays open to everything, and wider the further off.
+  out.push(SPAWN.x, SPAWN.z, SPAWN.x, SPAWN.z - ARCH_REACH, 0, 5.5);
+  return out;
+}
+
+const SIGHT = sightLines();
+// Most of what shows in the arch's opening from the start, all but a strip down each side of it.
+// Only buildings keep out of this much: trees and old stone to either side are what the arch is
+// there to frame, and a wall just coming into the edge of the opening is the city saying hello.
+const ARCH_SHARE = 0.8;
+const ARCH_VIEW = [SPAWN.x, SPAWN.z, SPAWN.x, SPAWN.z - ARCH_REACH, ARCH_SPREAD * ARCH_SHARE * 6, ARCH_SPREAD * ARCH_SHARE * (ARCH_REACH + 6)];
+
+function lineGap(l: number[], i: number, x: number, z: number): number {
+  const ax = l[i], az = l[i + 1], dx = l[i + 2] - ax, dz = l[i + 3] - az;
+  const t = Math.min(1, Math.max(0, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
+  return Math.hypot(x - ax - dx * t, z - az - dz * t) - (l[i + 4] + (l[i + 5] - l[i + 4]) * t);
+}
+
+/** Metres from the nearest line of sight. */
+export function sightGap(x: number, z: number): number {
+  let best = Infinity;
+  for (let i = 0; i < SIGHT.length; i += 6) {
+    const d = lineGap(SIGHT, i, x, z);
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+/** Metres outside the view through the arch from where the walk starts. Negative inside it. */
+export function archGap(x: number, z: number): number {
+  return lineGap(ARCH_VIEW, 0, x, z);
 }
 
 /** A frame turned by `yaw` about y at (x, z): local +z is the front, local +x is to its right seen from behind. */
