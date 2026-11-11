@@ -441,7 +441,8 @@ function buildPostcards(ctx: DistrictContext): DistrictBuild {
       const logGeo = geo.cylinder(0.26, 0.26, 1.7, 9);
       const r = yawed([0, 0, Math.PI / 2], a);
       b.add(logGeo, { color: WOOD, pos: [x - Math.cos(a) * 0.85, 0.33, z + Math.sin(a) * 0.85], rot: r, hatch: 0.1 });
-      box(x, z, 0.85, 0.3, a);
+      // The log hangs from its seat point along the turn, so the box goes at the log centre.
+      box(x - Math.cos(a) * 1.7, z + Math.sin(a) * 1.7, 0.85, 0.28, a);
     }
     // A suitcase leaning on the east seat, and a stack of cards on the west one.
     const sa = (125 * Math.PI) / 180;

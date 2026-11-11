@@ -554,6 +554,9 @@ function buildBoneyard(ctx: DistrictContext): DistrictBuild {
     circle(c.pos[0], c.pos[2], 1.6);
     const s = inFrame(pf, [0, 0, 0]);
     circle(s.pos[0], s.pos[2], 0.6);
+    // The stone itself, 2.1 wide, 0.34 deep, turned with its two frames.
+    const st = inFrame(pt, [0, 0, 0]);
+    box(st.pos[0], st.pos[2], 1.05, 0.17, st.rot[1]);
     const p = inFrame(f, [-1.0, 0, 3.6]);
     poi('ankh', p.pos[0], p.pos[2], 'Look at the key', 3.0);
   }

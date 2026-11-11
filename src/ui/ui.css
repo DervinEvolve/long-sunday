@@ -301,6 +301,15 @@
   transform: translateY(calc(-100% - var(--ls-s2)));
 }
 
+/* A short window, or large text in a small one: the hint stacked on the prompt would reach up into
+   the name plate. The prompt is the one that matters then, so the hint waits until it is gone. */
+@media (max-height: 32rem) {
+  .ui-hud.is-on .ui-hud__low.has-prompt .ui-hint.is-on {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
 /* On a touch screen the stick and the look button own the bottom corners. Where there is room the
    prompt sits between them. On an upright phone there is none, so it goes above them. */
 .ui--touch .ui-hud__low {
