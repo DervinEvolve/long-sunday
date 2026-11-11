@@ -26,7 +26,7 @@ import { buildTerrain, heightAt, inBounds } from './terrain';
 import { createSky, skyColors, skyHex, type Sky, type SkyHex } from './sky';
 import { buildScatter } from './scatter';
 import { createCharacter, type Character } from './character';
-import { createController, type Controller } from './controller';
+import { createController, type Controller, type WorldCollider } from './controller';
 import * as geo from './geo';
 import { rngFrom } from './util';
 import { DISTRICTS, placeholder } from '../districts';
@@ -41,17 +41,28 @@ const FOG_NEAR = 45;
 const FOG_FAR = 620;
 /** A district further than this from the eye is not drawn. Its landmark has mostly gone into the haze by then. */
 const DRAW_FAR: Record<QualityTier, number> = { low: 250, medium: 330, high: 440 };
+/** The haze closes in with the draw distance, so a district that comes into range arrives pale on every tier. */
+const fogFar = (tier: QualityTier): number => Math.min(FOG_FAR, DRAW_FAR[tier] * 1.45);
 /** District update() runs while the visitor is within the pad radius plus this. */
 const UPDATE_MARGIN = 60;
-/** Colliders are gathered this far around him: the longest camera arm plus the biggest rock. */
+/** Colliders are gathered this far around him: the longest camera arm plus the widest building. */
 const GATHER = 24;
 const GATHER_STEP = 3;
 const CELL = 16;
 const MAX_SPOTS = 160;
 /** The whole picture has to stay under this. */
 export const BUDGET = { calls: 150, triangles: 400000 };
-/** What ground, sky, scatter, the figure, the markers and the ink pass cost with no district in view (measured, rounded up). */
-const RESERVE = { calls: 60, triangles: 200000 };
+/** Triangles the picture may hold once the tier has dropped below the one the world was built for.
+ *  Geometry is built once, for the tier the page loaded with, so this is the lever that still works
+ *  when the tier changes later: the far districts are dropped sooner. A build on its own tier keeps
+ *  the whole budget. The full detail level of a tier applies from the next load. */
+const TRI_BUDGET: Record<QualityTier, number> = { low: 260000, medium: 320000, high: 400000 };
+const TIER_RANK: Record<QualityTier, number> = { low: 0, medium: 1, high: 2 };
+/** With reduced motion the ambient clock runs at this fraction of real time: clouds, markers and
+ *  district machinery creep where they used to move. */
+const CALM_RATE = 0.05;
+/** How far past its measured geometry a district's on-screen test reaches, for parts that move. */
+const BOUNDS_SLACK = 8;
 const MARK_IDLE = new THREE.Color('#ef7a1e');
 const MARK_ACTIVE = new THREE.Color('#ffe98a');
 
@@ -108,7 +119,7 @@ interface Place {
   site: DistrictSite;
   build: DistrictBuild | null;
   group: THREE.Group | null;
-  colliders: Collider[]; // world space
+  colliders: WorldCollider[]; // world space
   spotFrom: number;
   spotTo: number;
   near: boolean;
@@ -131,10 +142,160 @@ interface Spot {
 
 type Listeners = { [K in keyof WorldEvents]: ((payload: WorldEvents[K]) => void)[] };
 
+// ---------------------------------------------------------------------------------------------
+// How tall is the thing inside each collider? Colliders are flat shapes on the ground; the camera
+// needs to tell a bench from a wall. So once, at build time, every triangle of the geometry that
+// came with the colliders is sampled and each collider remembers the highest point found over its
+// footprint. Nothing found means nothing drawn there, and the camera ignores it.
+// ---------------------------------------------------------------------------------------------
+const TOP_CELL = 2;
+const TOP_PAD = 0.3; // footprints are widened by this, so a wall flush with its collider still counts
+const TOP_STEP = 0.6; // spacing of samples across a big triangle
+const topMat = new THREE.Matrix4();
+const topInst = new THREE.Matrix4();
+const topV = new THREE.Vector3();
+let topScratch = new Float32Array(3 * 4096);
+
+function measureTops(root: THREE.Object3D, list: WorldCollider[]): void {
+  const n = list.length;
+  if (n === 0) return;
+  let x0 = Infinity;
+  let z0 = Infinity;
+  let x1 = -Infinity;
+  let z1 = -Infinity;
+  const reach = (c: Collider): number => (c.kind === 'circle' ? c.r : Math.hypot(c.hw, c.hd)) + TOP_PAD;
+  for (const c of list) {
+    const r = reach(c);
+    x0 = Math.min(x0, c.x - r);
+    x1 = Math.max(x1, c.x + r);
+    z0 = Math.min(z0, c.z - r);
+    z1 = Math.max(z1, c.z + r);
+  }
+  const nx = Math.floor((x1 - x0) / TOP_CELL) + 1;
+  const nz = Math.floor((z1 - z0) / TOP_CELL) + 1;
+  if (!(nx * nz < 2e6)) return; // something is wildly out of place: leave every collider tall
+  // Which colliders touch which cell, packed: start[cell] .. start[cell + 1] indexes into `who`.
+  const start = new Int32Array(nx * nz + 1);
+  const span = (c: Collider, visit: (cell: number) => void): void => {
+    const r = reach(c);
+    const ax = Math.floor((c.x - r - x0) / TOP_CELL);
+    const bx = Math.floor((c.x + r - x0) / TOP_CELL);
+    const az = Math.floor((c.z - r - z0) / TOP_CELL);
+    const bz = Math.floor((c.z + r - z0) / TOP_CELL);
+    for (let iz = az; iz <= bz; iz++) for (let ix = ax; ix <= bx; ix++) visit(iz * nx + ix);
+  };
+  for (const c of list) span(c, (cell) => start[cell + 1]++);
+  for (let i = 0; i < nx * nz; i++) start[i + 1] += start[i];
+  const who = new Int32Array(start[nx * nz]);
+  const fill = start.slice(0, nx * nz);
+  for (let i = 0; i < n; i++) span(list[i], (cell) => (who[fill[cell]++] = i));
+  const cs = new Float32Array(n);
+  const sn = new Float32Array(n);
+  const top = new Float32Array(n).fill(-Infinity);
+  for (let i = 0; i < n; i++) {
+    const c = list[i];
+    const rot = c.kind === 'box' ? (c.rot ?? 0) : 0;
+    cs[i] = Math.cos(rot);
+    sn[i] = Math.sin(rot);
+  }
+
+  const sample = (x: number, y: number, z: number): void => {
+    const ix = Math.floor((x - x0) / TOP_CELL);
+    const iz = Math.floor((z - z0) / TOP_CELL);
+    if (ix < 0 || iz < 0 || ix >= nx || iz >= nz) return;
+    const cell = iz * nx + ix;
+    for (let k = start[cell]; k < start[cell + 1]; k++) {
+      const i = who[k];
+      if (y <= top[i]) continue;
+      const c = list[i];
+      const dx = x - c.x;
+      const dz = z - c.z;
+      if (c.kind === 'circle') {
+        const r = c.r + TOP_PAD;
+        if (dx * dx + dz * dz <= r * r) top[i] = y;
+      } else if (Math.abs(dx * cs[i] - dz * sn[i]) <= c.hw + TOP_PAD && Math.abs(dx * sn[i] + dz * cs[i]) <= c.hd + TOP_PAD) top[i] = y;
+    }
+  };
+
+  root.updateWorldMatrix(true, true);
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const pos = mesh.geometry.getAttribute('position');
+    if (!pos) return;
+    const index = mesh.geometry.index;
+    const vc = pos.count;
+    if (topScratch.length < vc * 3) topScratch = new Float32Array(vc * 3);
+    const p = topScratch;
+    const inst = (mesh as THREE.InstancedMesh).isInstancedMesh ? (mesh as THREE.InstancedMesh) : null;
+    const copies = inst ? inst.count : 1;
+    const tris = (index ? index.count : vc) / 3;
+    for (let c = 0; c < copies; c++) {
+      if (inst) {
+        inst.getMatrixAt(c, topInst);
+        topMat.multiplyMatrices(mesh.matrixWorld, topInst);
+      } else topMat.copy(mesh.matrixWorld);
+      for (let i = 0; i < vc; i++) {
+        topV.fromBufferAttribute(pos, i).applyMatrix4(topMat);
+        p[i * 3] = topV.x;
+        p[i * 3 + 1] = topV.y;
+        p[i * 3 + 2] = topV.z;
+      }
+      for (let t = 0; t < tris; t++) {
+        const a = (index ? index.getX(t * 3) : t * 3) * 3;
+        const b = (index ? index.getX(t * 3 + 1) : t * 3 + 1) * 3;
+        const d = (index ? index.getX(t * 3 + 2) : t * 3 + 2) * 3;
+        const ax = p[a], ay = p[a + 1], az = p[a + 2];
+        const bx = p[b], by = p[b + 1], bz = p[b + 2];
+        const dx = p[d], dy = p[d + 1], dz = p[d + 2];
+        const long = Math.max(Math.hypot(bx - ax, bz - az), Math.hypot(dx - bx, dz - bz), Math.hypot(ax - dx, az - dz));
+        const m = Math.min(16, Math.max(1, Math.ceil(long / TOP_STEP)));
+        if (m === 1) {
+          sample(ax, ay, az);
+          sample(bx, by, bz);
+          sample(dx, dy, dz);
+          continue;
+        }
+        for (let u = 0; u <= m; u++)
+          for (let w = 0; w <= m - u; w++) {
+            const fu = u / m;
+            const fw = w / m;
+            const fa = 1 - fu - fw;
+            sample(ax * fa + bx * fu + dx * fw, ay * fa + by * fu + dy * fw, az * fa + bz * fu + dz * fw);
+          }
+      }
+    }
+  });
+  for (let i = 0; i < n; i++) list[i].top = top[i];
+}
+
+function costOfTree(root: THREE.Object3D, out: { calls: number; triangles: number }): void {
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    out.calls++;
+    const g = m.geometry;
+    const n = (g.index ? g.index.count : g.getAttribute('position').count) / 3;
+    out.triangles += (m as THREE.InstancedMesh).isInstancedMesh ? n * (m as THREE.InstancedMesh).count : n;
+  });
+}
+
+function prefersCalm(): boolean {
+  try {
+    return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch {
+    return false;
+  }
+}
+
 export function createWorld(opts: WorldOpts): World {
   const { ink, quality, input, canvas } = opts;
   const kit = ink.kit;
   const still = !!opts.still;
+  /** What ground, sky, scatter, the figure, the markers and the ink pass cost with no district in
+   *  view. These are the high tier's numbers, rounded up; construct() replaces them with what this
+   *  build really came to. */
+  const reserve = { calls: 60, triangles: 200000 };
 
   const scene = new THREE.Scene();
   const rig = new THREE.PerspectiveCamera(55, 1, 0.3, 3000);
@@ -143,7 +304,7 @@ export function createWorld(opts: WorldOpts): World {
   let aspect = 1;
 
   ink.setSun(SUN);
-  ink.setFog(FOG_NEAR, FOG_FAR);
+  ink.setFog(FOG_NEAR, fogFar(quality.tier));
   ink.setStill(still);
 
   // -------------------------------------------------------------------------------------------
@@ -174,18 +335,18 @@ export function createWorld(opts: WorldOpts): World {
   // -------------------------------------------------------------------------------------------
   // Colliders: scatter goes into a grid, each district keeps its own list.
   // -------------------------------------------------------------------------------------------
-  let scatterColliders: Collider[] = [];
+  let scatterColliders: WorldCollider[] = [];
   const cells = new Map<number, number[]>();
   let stamps = new Uint32Array(0);
   let stamp = 0;
-  const near: Collider[] = [];
+  const near: WorldCollider[] = [];
   let gatherX = Infinity;
   let gatherZ = Infinity;
   let gatherDirty = true;
 
   const cellKey = (ix: number, iz: number): number => (ix + 512) * 1024 + (iz + 512);
 
-  function bucketScatter(list: Collider[]): void {
+  function bucketScatter(list: WorldCollider[]): void {
     scatterColliders = list;
     stamps = new Uint32Array(list.length);
     cells.clear();
@@ -318,32 +479,29 @@ export function createWorld(opts: WorldOpts): World {
     active = next;
     paintMarker(prev);
     paintMarker(next);
-    if (prev >= 0) writeMarker(prev, simT);
+    if (prev >= 0) writeMarker(prev, ambT);
     if (markers) markers.instanceMatrix.needsUpdate = true;
     emit('poi', next >= 0 ? spots[next].hit : null);
   }
 
+  const tally = { calls: 0, triangles: 0 };
+  const boundsBox = new THREE.Box3();
+  const boundsBall = new THREE.Sphere();
+
   function costOf(group: THREE.Group, build: DistrictBuild): DistrictCost {
-    let calls = 0;
-    let triangles = 0;
-    group.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh) return;
-      calls++;
-      const g = m.geometry;
-      const n = (g.index ? g.index.count : g.getAttribute('position').count) / 3;
-      triangles += (m as THREE.InstancedMesh).isInstancedMesh ? n * (m as THREE.InstancedMesh).count : n;
-    });
+    tally.calls = 0;
+    tally.triangles = 0;
+    costOfTree(group, tally);
     return {
-      calls,
-      triangles: Math.round(triangles),
+      calls: tally.calls,
+      triangles: Math.round(tally.triangles),
       placeholder: group.name.startsWith('placeholder-'),
       colliders: build.colliders.length,
       pois: build.pois.length,
     };
   }
 
-  function raise(place: Place, mod: DistrictModule): void {
+  function raise(place: Place, mod: DistrictModule, tier: QualityTier): void {
     const site = place.site;
     const cx = site.center.x;
     const cz = site.center.z;
@@ -353,7 +511,7 @@ export function createWorld(opts: WorldOpts): World {
       palette,
       rng: rngFrom('district:' + site.id),
       groundAt: (x, z) => heightAt(cx + x, cz + z) - site.height,
-      quality: quality.tier,
+      quality: tier,
       entries: entriesFor(site.id),
       sun: [SUN.x, SUN.y, SUN.z],
     };
@@ -364,9 +522,21 @@ export function createWorld(opts: WorldOpts): World {
     place.group = build.group;
     place.cost = costOf(build.group, build);
 
-    place.colliders = build.colliders.map((c): Collider =>
+    // The on-screen test has to cover what was really built. Most districts sit well inside the
+    // default sphere; one with a pier or something adrift past its pad gets a wider one, from its
+    // own cullRadius or from the measured geometry, whichever reaches further.
+    let reach = Math.max(site.radius + 35, build.cullRadius ?? 0);
+    boundsBox.setFromObject(build.group);
+    if (!boundsBox.isEmpty()) {
+      boundsBox.getBoundingSphere(boundsBall);
+      reach = Math.max(reach, boundsBall.center.distanceTo(place.bounds.center) + boundsBall.radius + BOUNDS_SLACK);
+    }
+    place.bounds.radius = reach;
+
+    place.colliders = build.colliders.map((c): WorldCollider =>
       c.kind === 'circle' ? { kind: 'circle', x: c.x + cx, z: c.z + cz, r: c.r } : { kind: 'box', x: c.x + cx, z: c.z + cz, hw: c.hw, hd: c.hd, rot: c.rot },
     );
+    measureTops(build.group, place.colliders);
     gatherDirty = true;
 
     place.spotFrom = spots.length;
@@ -398,7 +568,7 @@ export function createWorld(opts: WorldOpts): World {
     if (markers) {
       markers.count = spots.length;
       for (let i = place.spotFrom; i < place.spotTo; i++) {
-        writeMarker(i, simT);
+        writeMarker(i, ambT);
         markers.setColorAt(i, MARK_IDLE);
       }
       markers.instanceMatrix.needsUpdate = true;
@@ -415,6 +585,13 @@ export function createWorld(opts: WorldOpts): World {
   let scatterUpdate: ((dt: number, t: number) => void) | null = null;
   let ready = false;
   let simT = 0;
+  // Reduced motion. simT is the real clock: his walk and the camera run on it. ambT is the clock
+  // for everything that moves by itself (clouds, markers, the train, district machinery) and it
+  // slows to a creep when the switch is on.
+  let calm = false;
+  let ambT = 0;
+  /** The tier the geometry was built for. */
+  let builtTier: QualityTier = quality.tier;
 
   const slice = (): Promise<void> =>
     new Promise((resolve) => {
@@ -429,8 +606,9 @@ export function createWorld(opts: WorldOpts): World {
     });
 
   async function construct(): Promise<void> {
-    await (kit.ready ?? Promise.resolve());
+    // One tier for the whole build, read once: ground, sky, city, figure and every district.
     const tier = quality.tier;
+    builtTier = tier;
     const order = opts.solo
       ? places.filter((p) => p.site.id === opts.solo)
       : places
@@ -444,16 +622,24 @@ export function createWorld(opts: WorldOpts): World {
     let step = 0;
     const tick = (): void => emit('progress', ++step / steps);
 
-    scene.add(buildTerrain(kit, tier).group);
+    // Ask for every district file now, so they download side by side with the lettering font and
+    // while the ground is built. The loader never rejects: a file that fails comes back as the placeholder.
+    const loading = order.map((p) => DISTRICTS[p.site.id]());
+    await (kit.ready ?? Promise.resolve());
+
+    // One slice first, so the sky can be drawn and the title card can mount before the long job.
+    await slice();
+    const terrain = buildTerrain(kit, tier);
+    scene.add(terrain.group);
     tick();
     await slice();
 
-    figure = createCharacter(kit);
+    figure = createCharacter(kit, { tier });
     scene.add(figure.group);
     const mark = kit.instances(new THREE.OctahedronGeometry(0.3), MAX_SPOTS, { color: '#ffffff', flat: 0.8 });
     mark.name = 'poi-markers';
     mark.count = 0;
-    mark.frustumCulled = false; // they are all over the mesa, one sphere would be the mesa anyway
+    mark.frustumCulled = false; // they are all over the island, one sphere would be the island anyway
     scene.add(mark);
     markers = mark;
     tick();
@@ -466,20 +652,32 @@ export function createWorld(opts: WorldOpts): World {
 
     const scatter = buildScatter(kit, tier) as ReturnType<typeof buildScatter> & { update?: (dt: number, t: number) => void };
     scene.add(scatter.group);
+    measureTops(scatter.group, scatter.colliders);
     bucketScatter(scatter.colliders);
     if (wantColliders) showColliders(true);
     if (typeof scatter.update === 'function') scatterUpdate = scatter.update.bind(scatter);
+    // What the picture costs before any district is in it, for this tier's build: every mesh of the
+    // ground, sky, city and figure, the markers at their fullest, and the ink pass.
+    tally.calls = 2;
+    tally.triangles = MAX_SPOTS * 8 + 1;
+    costOfTree(terrain.group, tally);
+    costOfTree(sky.group, tally);
+    costOfTree(scatter.group, tally);
+    costOfTree(figure.group, tally);
+    reserve.calls = tally.calls;
+    reserve.triangles = Math.round(tally.triangles);
     tick();
 
-    for (const place of order) {
+    for (let i = 0; i < order.length; i++) {
+      const place = order[i];
       await slice();
       const id = place.site.id;
       try {
-        raise(place, await DISTRICTS[id]());
+        raise(place, await loading[i], tier);
       } catch (err) {
         console.error(`[world] ${id} failed to build. Using the placeholder.`, err);
         try {
-          raise(place, placeholder(id));
+          raise(place, placeholder(id), tier);
         } catch (err2) {
           console.error(`[world] the placeholder for ${id} failed too. The pad stays empty.`, err2);
         }
@@ -548,8 +746,10 @@ export function createWorld(opts: WorldOpts): World {
       byDistance[j + 1] = v;
     }
 
-    let calls = RESERVE.calls;
-    let triangles = RESERVE.triangles;
+    let calls = reserve.calls;
+    let triangles = reserve.triangles;
+    const now = quality.tier;
+    const maxTriangles = TIER_RANK[now] < TIER_RANK[builtTier] ? Math.min(BUDGET.triangles, TRI_BUDGET[now]) : BUDGET.triangles;
     let drawn = 0;
     let stand = -1;
     for (let n = 0; n < byDistance.length; n++) {
@@ -562,7 +762,7 @@ export function createWorld(opts: WorldOpts): World {
       let shown = place.shown ? dEye < far + 12 : dEye < far;
       if (shown && inView) {
         // The first one in view is always drawn, whatever it costs.
-        if (drawn > 0 && (calls + place.cost.calls > BUDGET.calls || triangles + place.cost.triangles > BUDGET.triangles)) shown = false;
+        if (drawn > 0 && (calls + place.cost.calls > BUDGET.calls || triangles + place.cost.triangles > maxTriangles)) shown = false;
         else {
           calls += place.cost.calls;
           triangles += place.cost.triangles;
@@ -571,7 +771,7 @@ export function createWorld(opts: WorldOpts): World {
       }
       if (shown !== place.shown) {
         place.shown = shown;
-        for (let k = place.spotFrom; k < place.spotTo; k++) writeMarker(k, simT);
+        for (let k = place.spotFrom; k < place.spotTo; k++) writeMarker(k, ambT);
         if (markers) markers.instanceMatrix.needsUpdate = true;
       }
       place.group.visible = shown && inView;
@@ -580,7 +780,7 @@ export function createWorld(opts: WorldOpts): World {
       place.near = d < s.radius + UPDATE_MARGIN;
       if (place.near && shown && place.build.update && !paused) {
         local.set(px - s.center.x, py - s.height, pz - s.center.z);
-        place.build.update(dt, simT, local);
+        place.build.update(dt, ambT, local);
       }
       // A little slack either side of the pad edge so the name does not flicker on the boundary.
       if (d < s.radius * (i === standing ? 1.06 : 0.98)) stand = i;
@@ -628,7 +828,9 @@ export function createWorld(opts: WorldOpts): World {
     // Under an overlay the picture hardly matters: draw every other frame.
     if (paused && (pausedTick++ & 1) === 1) return;
     const step = still ? 0 : dt;
+    const drift = calm ? step * CALM_RATE : step;
     simT += step;
+    ambT += drift;
 
     input.update();
     gather(controller.position.x, controller.position.z);
@@ -637,14 +839,16 @@ export function createWorld(opts: WorldOpts): World {
     const py = controller.position.y;
     const pz = controller.position.z;
     if (figure) {
-      figure.update(step, simT, controller.speed, controller.turnRate, controller.grounded);
+      // His stride runs on the real step. The clock only drives the idle breathing and looking about.
+      // With reduced motion he also leans less into a turn, which is most of what swings the hair.
+      figure.update(step, calm ? ambT : simT, controller.speed, calm ? controller.turnRate * 0.35 : controller.turnRate, controller.grounded);
       figure.group.position.copy(controller.position);
       figure.group.rotation.y = controller.yaw;
       figure.setSlope(controller.slopeX, controller.slopeZ);
     }
 
     const cam = useFree ? free : rig;
-    trackDistricts(step, px, py, pz, cam);
+    trackDistricts(drift, px, py, pz, cam);
     trackSpots(px, pz);
     if (started && !paused) {
       if (input.state.interact && active >= 0) emit('interact', spots[active].hit);
@@ -655,14 +859,14 @@ export function createWorld(opts: WorldOpts): World {
     }
     input.endFrame();
 
-    moveMarkers(simT);
+    moveMarkers(ambT);
     if (sky) {
-      sky.update(step, simT, cam.position);
+      sky.update(drift, ambT, cam.position);
       if (useFree) sky.colorsAt(cam.position.x, cam.position.z, skyRGB);
       else sky.colorsAt(px, pz, skyRGB);
       ink.setSky(skyHex(skyRGB, skyNow));
     }
-    if (scatterUpdate) scatterUpdate(step, simT);
+    if (scatterUpdate) scatterUpdate(drift, ambT);
     ink.render(scene, cam, simT);
   }
 
@@ -689,26 +893,57 @@ export function createWorld(opts: WorldOpts): World {
     return { calls: s.calls, triangles: s.triangles, fps: ms > 0 ? 1000 / ms : 0, frameMs: ms, pixelRatio: quality.pixelRatio, tier: quality.tier };
   }
 
-  quality.onChange((q) => {
-    ink.setQuality(q.tier);
+  // A tier change while the page is open. What follows at once: the ink settings, the haze and
+  // draw distance, the triangle budget when the tier goes below the built one (trackDistricts reads
+  // the tier every frame) and the pixel ratio. What does not: the geometry, which was built for the
+  // tier the page loaded with. That is why a saved choice has to be read before the world is built
+  // (see boot() in main.ts).
+  let fogTier: QualityTier | null = null;
+  const followTier = (): void => {
+    ink.setQuality(quality.tier);
+    if (fogTier !== quality.tier) {
+      fogTier = quality.tier;
+      if (!useFree) ink.setFog(FOG_NEAR, fogFar(quality.tier));
+    }
+  };
+  quality.onChange(() => {
+    followTier();
     emit('quality', stats());
   });
-  ink.setQuality(quality.tier);
+  followTier();
+
+  function setReducedMotion(on: boolean): void {
+    calm = on;
+    controller.setCalm(on);
+    ink.setCalm(on);
+  }
+  setReducedMotion(prefersCalm());
 
   function teleport(target: DistrictId | Vec2, yaw?: number): void {
+    let x: number;
+    let z: number;
+    let face = yaw;
     if (typeof target === 'string') {
       const s = SITE_BY_ID[target];
       if (!s) return;
-      controller.teleport(s.center.x + s.arrive.x, s.center.z + s.arrive.z, yaw ?? s.arrive.yaw);
-    } else controller.teleport(target.x, target.z, yaw);
+      x = s.center.x + s.arrive.x;
+      z = s.center.z + s.arrive.z;
+      face = yaw ?? s.arrive.yaw;
+    } else {
+      x = target.x;
+      z = target.z;
+    }
+    // The colliders round the new spot first, so the camera snaps to where it will stay.
     gatherDirty = true;
+    gather(x, z);
+    controller.teleport(x, z, face);
     if (figure) figure.reset();
   }
 
   function setFreeCamera(eye: readonly number[] | null, look?: readonly number[]): void {
     if (!eye || eye.length < 3) {
       useFree = false;
-      ink.setFog(FOG_NEAR, FOG_FAR);
+      ink.setFog(FOG_NEAR, fogFar(quality.tier));
       return;
     }
     useFree = true;
@@ -719,7 +954,7 @@ export function createWorld(opts: WorldOpts): World {
     free.lookAt(lx, ly, lz);
     free.aspect = aspect;
     free.updateProjectionMatrix();
-    // Nobody walks this far out. From high up, push the haze back so the whole mesa reads.
+    // Nobody walks this far out. From high up, push the haze back so the whole island reads.
     const reach = Math.hypot(eye[0] - lx, eye[1] - ly, eye[2] - lz);
     ink.setFog(Math.max(FOG_NEAR, reach * 0.65), Math.max(FOG_FAR, reach * 4));
   }
@@ -751,6 +986,8 @@ export function createWorld(opts: WorldOpts): World {
     setQuality(tier) {
       quality.setTier(tier);
     },
+    setReducedMotion,
+    reducedMotion: () => calm,
     visited() {
       return Array.from(visitedSet);
     },

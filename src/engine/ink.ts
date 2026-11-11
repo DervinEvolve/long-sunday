@@ -35,6 +35,8 @@ export interface Ink {
   setQuality(tier: QualityTier): void;
   /** Freeze sway, wobble and grain so two screenshots of the same view match. */
   setStill(still: boolean): void;
+  /** Reduced motion: plants stop swaying and the paper grain stops boiling. The line itself is unchanged. */
+  setCalm(calm: boolean): void;
   render(scene: THREE.Scene, camera: THREE.PerspectiveCamera, timeSeconds: number): void;
   /** Draw calls and triangles of the last frame, the full screen pass included. The same object every call. */
   stats(): { calls: number; triangles: number };
@@ -572,8 +574,13 @@ export function createInk(canvas: HTMLCanvasElement, tier: QualityTier): Ink | n
 
   let lost = false;
   let still = false;
+  let calm = false;
+  const sway = inkU.uSway.value as number;
   const count = { calls: 0, triangles: 0 };
   let pr = 1;
+  let sizeW = 0;
+  let sizeH = 0;
+  let sizePr = 0;
 
   function setQuality(t: QualityTier): void {
     const q = QUALITY[t];
@@ -584,9 +591,14 @@ export function createInk(canvas: HTMLCanvasElement, tier: QualityTier): Ink | n
   setQuality(tier);
 
   function setSize(width: number, height: number, pixelRatio: number): void {
+    // A tier change calls this with the same numbers. Resizing reallocates the drawing buffer, so skip it.
+    if (width === sizeW && height === sizeH && pixelRatio === sizePr) return;
+    sizeW = width;
+    sizeH = height;
+    sizePr = pixelRatio;
     pr = pixelRatio;
-    renderer.setPixelRatio(pixelRatio);
-    renderer.setSize(width, height, false);
+    // One call sets the canvas size once. setPixelRatio followed by setSize would set it twice.
+    renderer.setDrawingBufferSize(width, height, pixelRatio);
     const w = Math.max(1, Math.floor(width * pixelRatio));
     const h = Math.max(1, Math.floor(height * pixelRatio));
     target.setSize(w, h);
@@ -635,11 +647,15 @@ export function createInk(canvas: HTMLCanvasElement, tier: QualityTier): Ink | n
     setStill(s) {
       still = s;
     },
+    setCalm(on) {
+      calm = on;
+      inkU.uSway.value = on ? 0 : sway;
+    },
     render(scene, camera, timeSeconds) {
       if (lost) return;
       renderer.info.reset();
       inkU.uTime.value = still ? 0 : timeSeconds;
-      cu.uSeed.value = still ? 1 : 1 + (Math.floor(timeSeconds * 8) % 61);
+      cu.uSeed.value = still || calm ? 1 : 1 + (Math.floor(timeSeconds * 8) % 61);
 
       renderer.setRenderTarget(target);
       renderer.render(scene, camera);
@@ -666,6 +682,7 @@ export function createInk(canvas: HTMLCanvasElement, tier: QualityTier): Ink | n
       depthTexture.dispose();
       triGeo.dispose();
       comp.dispose();
+      kit.dispose();
       material.dispose();
       lettering.dispose();
       renderer.dispose();

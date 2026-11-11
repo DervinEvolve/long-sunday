@@ -35,7 +35,7 @@ export function rng(seed: number): () => number {
   };
 }
 
-/** A generator seeded from a name, for example `rngFrom('scatter:rocks')`. */
+/** A generator seeded from a name, for example `rngFrom('district:studio')`. */
 export function rngFrom(name: string): () => number {
   return rng(hashString(name));
 }
@@ -43,11 +43,6 @@ export function rngFrom(name: string): () => number {
 /** A number in [min, max) from a generator. */
 export function range(next: () => number, min: number, max: number): number {
   return min + (max - min) * next();
-}
-
-/** A whole number in [min, max], both ends included. */
-export function rangeInt(next: () => number, min: number, max: number): number {
-  return min + Math.floor(next() * (max - min + 1));
 }
 
 /** One item of a list. */
@@ -76,11 +71,6 @@ export function invLerp(a: number, b: number, value: number): number {
   return a === b ? 0 : (value - a) / (b - a);
 }
 
-/** Map a value from one range to another, clamped to the output range. */
-export function remap(value: number, inMin: number, inMax: number, outMin: number, outMax: number): number {
-  return outMin + (outMax - outMin) * clamp01(invLerp(inMin, inMax, value));
-}
-
 /** Hermite step. 0 below edge0, 1 above edge1. The edges may be given in either order. */
 export function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = clamp01(invLerp(edge0, edge1, x));
@@ -91,13 +81,6 @@ export function smoothstep(edge0: number, edge1: number, x: number): number {
 export function smootherstep(edge0: number, edge1: number, x: number): number {
   const t = clamp01(invLerp(edge0, edge1, x));
   return t * t * t * (t * (t * 6 - 15) + 10);
-}
-
-/** Step `current` toward `target` by at most `maxStep`, never past it. */
-export function moveToward(current: number, target: number, maxStep: number): number {
-  const d = target - current;
-  if (Math.abs(d) <= maxStep) return target;
-  return current + Math.sign(d) * maxStep;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -115,21 +98,12 @@ export function angleDelta(from: number, to: number): number {
   return wrapAngle(to - from);
 }
 
-export function lerpAngle(a: number, b: number, t: number): number {
-  return a + angleDelta(a, b) * t;
-}
-
 // ---------------------------------------------------------------------------------------------
-// Damping. All of these give the same motion at 30, 60 or 144 frames a second.
+// Damping. Both give the same motion at 30, 60 or 144 frames a second.
 // ---------------------------------------------------------------------------------------------
 
-/** The blend factor for one frame: `x = lerp(x, target, dampFactor(lambda, dt))`.
+/** Exponential ease toward a target. Never overshoots, whatever the frame step.
  *  `lambda` is the rate per second. 5 is lazy, 12 is snappy, 30 is nearly instant. */
-export function dampFactor(lambda: number, dt: number): number {
-  return 1 - Math.exp(-lambda * dt);
-}
-
-/** Exponential ease toward a target. Never overshoots, whatever the frame step. */
 export function damp(current: number, target: number, lambda: number, dt: number): number {
   return current + (target - current) * (1 - Math.exp(-lambda * dt));
 }
@@ -137,53 +111,6 @@ export function damp(current: number, target: number, lambda: number, dt: number
 /** `damp` for angles: turns the short way round and does not care how many laps either angle holds. */
 export function dampAngle(current: number, target: number, lambda: number, dt: number): number {
   return current + angleDelta(current, target) * (1 - Math.exp(-lambda * dt));
-}
-
-/** Holds the speed for `smoothDamp`. The caller keeps one of these per value it is smoothing. */
-export interface Velocity {
-  v: number;
-}
-
-/** Critically damped spring, for things that should ease in as well as out (the camera boom).
- *  `smoothTime` is roughly how long it takes to arrive. Speed lives in `vel` and is updated in place. */
-export function smoothDamp(
-  current: number,
-  target: number,
-  vel: Velocity,
-  smoothTime: number,
-  dt: number,
-  maxSpeed = Infinity,
-): number {
-  const time = smoothTime < 1e-4 ? 1e-4 : smoothTime;
-  const omega = 2 / time;
-  const x = omega * dt;
-  const decay = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
-  const maxChange = maxSpeed * time;
-  let change = current - target;
-  if (change > maxChange) change = maxChange;
-  else if (change < -maxChange) change = -maxChange;
-  const goal = current - change;
-  const temp = (vel.v + omega * change) * dt;
-  vel.v = (vel.v - omega * temp) * decay;
-  let out = goal + (change + temp) * decay;
-  // Stop dead on the target if this step would carry past it.
-  if ((target - current > 0) === (out > target)) {
-    out = target;
-    vel.v = 0;
-  }
-  return out;
-}
-
-/** `smoothDamp` for angles. */
-export function smoothDampAngle(
-  current: number,
-  target: number,
-  vel: Velocity,
-  smoothTime: number,
-  dt: number,
-  maxSpeed = Infinity,
-): number {
-  return smoothDamp(current, current + angleDelta(current, target), vel, smoothTime, dt, maxSpeed);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -203,14 +130,9 @@ function lattice(ix: number, iy: number, seed: number): number {
   return mix(Math.imul(mix(Math.imul(ix, 0x9e3779b1) ^ seed) + iy, 0x85ebca6b) ^ 0x27d4eb2f);
 }
 
-/** A stable number in [0, 1) for a whole-number cell. Handy for "does this cell get a rock". */
+/** A stable number in [0, 1) for a whole-number cell. Handy for "does this cell get a tree". */
 export function hash2(ix: number, iy: number, seed = 0): number {
   return (lattice(ix | 0, iy | 0, seed | 0) >>> 0) / 4294967296;
-}
-
-/** A stable number in [0, 1) for one whole number. */
-export function hash1(i: number, seed = 0): number {
-  return (mix(Math.imul(i | 0, 0x9e3779b1) ^ (seed | 0)) >>> 0) / 4294967296;
 }
 
 /** Value noise in [0, 1). Smooth (quintic blend between cells), one feature per unit. */
@@ -268,24 +190,6 @@ export function gnoise2(x: number, y: number, seed = 0): number {
   return (top + (bottom - top) * v) * 1.4142135623730951;
 }
 
-/** Fractal value noise in [0, 1). Each octave doubles the detail and halves the weight by default. */
-export function fbm(x: number, y: number, octaves = 4, seed = 0, lacunarity = 2, gain = 0.5): number {
-  let sum = 0;
-  let amp = 1;
-  let total = 0;
-  let px = x;
-  let py = y;
-  for (let i = 0; i < octaves; i++) {
-    sum += amp * noise2(px, py, seed + i * 1013);
-    total += amp;
-    amp *= gain;
-    // The small offset keeps the octaves from lining their lattices up at the origin.
-    px = px * lacunarity + 19.19;
-    py = py * lacunarity + 7.31;
-  }
-  return total > 0 ? sum / total : 0;
-}
-
 /** Fractal gradient noise in about [-1, 1], centred on zero. */
 export function gfbm(x: number, y: number, octaves = 4, seed = 0, lacunarity = 2, gain = 0.5): number {
   let sum = 0;
@@ -301,22 +205,4 @@ export function gfbm(x: number, y: number, octaves = 4, seed = 0, lacunarity = 2
     py = py * lacunarity + 7.31;
   }
   return total > 0 ? sum / total : 0;
-}
-
-/** Ridged fractal noise in [0, 1]: sharp crests and wide valleys. Good for mesa rims and cracks. */
-export function ridged(x: number, y: number, octaves = 4, seed = 0, lacunarity = 2, gain = 0.5): number {
-  let sum = 0;
-  let amp = 1;
-  let total = 0;
-  let px = x;
-  let py = y;
-  for (let i = 0; i < octaves; i++) {
-    const n = 1 - Math.abs(gnoise2(px, py, seed + i * 1013));
-    sum += amp * n * n;
-    total += amp;
-    amp *= gain;
-    px = px * lacunarity + 19.19;
-    py = py * lacunarity + 7.31;
-  }
-  return total > 0 ? Math.min(1, sum / total) : 0;
 }

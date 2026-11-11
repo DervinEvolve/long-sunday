@@ -120,7 +120,10 @@ function codeOf(e: KeyboardEvent): string {
   return k; // ArrowUp, Enter, Escape and friends share their names with the codes
 }
 
+/** Controls that own some keys while they have focus. */
 const FIELD = 'input,textarea,select,button,a[href],summary,[contenteditable]:not([contenteditable="false"]),[role="button"],[role="link"],[role="textbox"]';
+/** Places where every key is text. */
+const TYPING = 'input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]';
 
 export function createInput(canvas: HTMLCanvasElement): Input {
   const state: InputState = {
@@ -228,11 +231,18 @@ export function createInput(canvas: HTMLCanvasElement): Input {
     const code = codeOf(e);
     const target = e.target;
     if (target instanceof Element && target !== canvas && target.closest(FIELD)) {
-      // Typing, or a focused button or link: the key belongs to that control. The one kindness is
-      // Escape on a stray focused button, which hands the keyboard back to the world.
-      if (code === 'Escape' && target instanceof HTMLElement && !target.closest('input,textarea,select,[contenteditable],[role="dialog"],dialog')) {
-        target.blur();
+      // Typing: every key belongs to the field. A focused button or link owns only the keys that
+      // press it (Enter, Space) and the letters that would act behind its back (E, M). The walking
+      // keys do nothing on a button, so they go through: after an overlay closes, focus sits on the
+      // button that opened it and he can still walk off. Escape on a stray focused button hands the
+      // rest of the keyboard back to the world as well.
+      if (target.closest(TYPING)) return;
+      if (code === 'Escape') {
+        if (target instanceof HTMLElement && !target.closest('[role="dialog"],dialog')) target.blur();
+        return;
       }
+      if (!setKey(code, true)) return;
+      if (code.charCodeAt(0) === 65 /* A of Arrow */) e.preventDefault();
       return;
     }
     if (setKey(code, true)) {

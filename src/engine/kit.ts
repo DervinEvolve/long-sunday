@@ -22,6 +22,8 @@ const MODE_CUTOUT = 255;
 export interface Kit extends InkKit {
   ready: Promise<void>;
   builder(): KitBuilder;
+  /** Frees the material the kit made for instanced meshes. The shared one belongs to whoever passed it in. */
+  dispose(): void;
 }
 
 export interface KitBuilder extends InkBuilder {
@@ -470,10 +472,20 @@ function grow<T extends Float32Array | Uint8Array | Uint32Array>(a: T, length: n
 
 export function createKit(material: THREE.Material, lettering: Lettering): Kit {
   const builder = () => new Builder(material, lettering);
+  // Instanced meshes draw with a twin of the material: the same shader and the very same uniforms
+  // object, so one change reaches both. three keeps "is instanced" and "has instance colours" on
+  // the material, and with one object for everything it rebuilt its program lookup every time the
+  // draw order went from a plain mesh to an instanced one, dozens of times a frame.
+  const shared = material as THREE.ShaderMaterial;
+  const instanced = shared.clone();
+  instanced.name = shared.name + '-instanced';
+  if (shared.uniforms) instanced.uniforms = shared.uniforms;
+  const one = new THREE.Color(1, 1, 1);
   return {
     material,
     ready: lettering.ready,
     builder,
+    dispose: () => instanced.dispose(),
     instances(geometry, count, opts = {}) {
       let geo = geometry;
       if (!geometry.getAttribute('aData')) {
@@ -489,8 +501,11 @@ export function createKit(material: THREE.Material, lettering: Lettering): Kit {
         });
         geo = b.geometry();
       }
-      const mesh = new THREE.InstancedMesh(geo, material, count);
+      const mesh = new THREE.InstancedMesh(geo, instanced, count);
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      // Every instanced mesh carries instance colours, all white until someone paints them, so the
+      // twin material is only ever in one state.
+      if (count > 0) mesh.setColorAt(0, one);
       return mesh;
     },
   };

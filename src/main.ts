@@ -11,7 +11,7 @@
 //   ?cam=x,y,z,tx,ty,tz   a fixed camera looking from the first point at the second
 //   ?yaw=deg         face this way on arrival (0 is north, 90 is west)
 //   ?ui=0            skip the interface even when it exists
-import type { DistrictId, PoiHit, WorldApi } from './types';
+import type { DistrictId, PoiHit, QualityTier, WorldApi } from './types';
 import { createInk } from './engine/ink';
 import { createQuality } from './engine/quality';
 import { createInput } from './engine/input';
@@ -38,8 +38,11 @@ declare global {
 const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('world') as HTMLCanvasElement;
 const uiRoot = document.getElementById('ui') as HTMLElement;
-const uiFiles = import.meta.glob<UiModule>('./ui/index.ts');
-const loadUi = uiFiles['./ui/index.ts'] as (() => Promise<UiModule>) | undefined;
+// The interface ships in the first bundle, so the title card goes up the moment the world object
+// exists and does not wait behind a second download and the ground build. A glob, so a checkout
+// with no src/ui still builds.
+const uiFiles = import.meta.glob<UiModule>('./ui/index.ts', { eager: true });
+const ui = uiFiles['./ui/index.ts'] as UiModule | undefined;
 
 function districtParam(name: string): DistrictId | null {
   const v = params.get(name);
@@ -52,6 +55,11 @@ function numbers(v: string | null): number[] | null {
   return out.length >= 3 && out.every(Number.isFinite) ? out : null;
 }
 
+/** The line index.html shows while the script downloads. Gone as soon as there is something better to look at. */
+function clearBootLine(): void {
+  document.getElementById('boot')?.remove();
+}
+
 function plainFallback(): void {
   const box = document.createElement('div');
   box.style.cssText =
@@ -61,10 +69,10 @@ function plainFallback(): void {
   uiRoot.appendChild(box);
 }
 
-async function fallback(): Promise<void> {
+function fallback(): void {
+  clearBootLine();
   canvas.style.display = 'none';
   try {
-    const ui = loadUi ? await loadUi() : null;
     const show = ui?.mountFallback ?? ui?.showFallback;
     if (show) {
       show(uiRoot);
@@ -130,15 +138,31 @@ function debugReadout(world: World): () => void {
   };
 }
 
+// The tier the visitor chose in the settings on an earlier visit. The interface keeps it in
+// localStorage under 'long-sunday.settings' (src/ui/settings.ts). It has to be read here, before
+// anything is built: the ground, the city and every district take their level of detail from the
+// tier the world starts with, and a tier set later cannot reshape them.
+function keptTier(): QualityTier | 'auto' {
+  try {
+    const got: unknown = JSON.parse(localStorage.getItem('long-sunday.settings') ?? 'null');
+    const q = got && typeof got === 'object' ? (got as { quality?: unknown }).quality : null;
+    if (q === 'low' || q === 'medium' || q === 'high') return q;
+  } catch {
+    // Storage is off or holds something else. Guess, as on a first visit.
+  }
+  return 'auto';
+}
+
 function boot(): void {
   const ink = createInk(canvas, 'medium');
   if (!ink) {
-    void fallback();
+    fallback();
     return;
   }
   const still = params.get('still') === '1';
   const debug = params.get('debug') === '1';
-  const quality = createQuality('auto', ink.renderer.getContext());
+  // A ?q= in the address wins over the kept tier inside createQuality.
+  const quality = createQuality(keptTier(), ink.renderer.getContext());
   const input = createInput(canvas);
   const spawn = districtParam('d');
   const solo = districtParam('solo');
@@ -182,17 +206,16 @@ function boot(): void {
     world.start();
     toStart(); // puts the camera behind him at once, where the title framing had it in front
   };
-  if (loadUi && params.get('ui') !== '0') {
-    loadUi()
-      .then((ui) => {
-        if (!ui.mountUi) throw new Error('src/ui/index.ts has no mountUi export');
-        ui.mountUi(world, uiRoot);
-      })
-      .catch((err) => {
-        console.error('[boot] the interface did not mount, carrying on without it', err);
-        bare();
-      });
+  if (ui && params.get('ui') !== '0') {
+    try {
+      if (!ui.mountUi) throw new Error('src/ui/index.ts has no mountUi export');
+      ui.mountUi(world, uiRoot);
+    } catch (err) {
+      console.error('[boot] the interface did not mount, carrying on without it', err);
+      bare();
+    }
   } else bare();
+  clearBootLine();
 
   let last = performance.now();
   const loop = (now: number): void => {
@@ -201,10 +224,11 @@ function boot(): void {
       last = now;
       return;
     }
-    const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
+    // The governor gets the real step: a long one is how it knows the tab was away and not slow.
+    const raw = Math.max(0, (now - last) / 1000);
     last = now;
-    if (world.ready && !still) quality.frame(dt);
-    world.frame(dt);
+    if (world.ready && !still) quality.frame(raw);
+    world.frame(Math.min(0.1, raw));
     if (readout) readout();
   };
   document.addEventListener('visibilitychange', () => {

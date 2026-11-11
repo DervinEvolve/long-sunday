@@ -23,7 +23,8 @@ export interface EntryLink {
   url: string;
 }
 
-/** One caption in the world. Text is first person, facts only, sourced. */
+/** One caption in the world. Text is first person, facts only. Sources and open questions sit
+ *  beside it in src/content/notes.ts, which never ships. */
 export interface Entry {
   id: string;
   district: DistrictId;
@@ -37,10 +38,6 @@ export interface Entry {
   /** Up to five short facts. */
   bullets?: string[];
   links?: EntryLink[];
-  /** Where the facts come from. For audit. Never shown. */
-  source: string;
-  /** A note to the owner where something needs confirming before this goes public. Never shown. */
-  confirm?: string;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -142,6 +139,10 @@ export interface DistrictBuild {
   update?: (dt: number, t: number, player: THREE.Vector3) => void;
   /** Free GPU resources the district created outside the kit. */
   dispose?: () => void;
+  /** How far anything in the group reaches from the pad centre, in metres, moving parts at their
+   *  furthest included. Only needed when that is more than `site.radius + 35`: the world uses it for
+   *  its is-it-on-screen test, and never goes below that default. */
+  cullRadius?: number;
 }
 
 export interface DistrictModule {
@@ -331,7 +332,7 @@ export interface WorldEvents {
   /** 0..1 while the world is being built. */
   progress: number;
   ready: void;
-  /** The district the visitor stands in changed. Null out on the open sand. */
+  /** The district the visitor stands in changed. Null out on the streets between them. */
   district: DistrictSite | null;
   /** The thing in reach changed. Null when nothing is in reach. */
   poi: PoiHit | null;
@@ -354,7 +355,14 @@ export interface WorldApi {
   teleport(target: DistrictId | Vec2, yaw?: number): void;
   player(): { x: number; z: number; yaw: number; district: DistrictId | null };
   stats(): WorldStats;
+  /** The tier budget, draw distance, haze, pixel ratio and ink settings follow at once. Geometry is
+   *  built once per load, so the full detail level of a tier applies from the next load. */
   setQuality(tier: QualityTier | 'auto'): void;
+  /** Still what moves by itself: plant sway, the boiling grain, the title camera drift and the eased
+   *  camera moves that are only decoration. Markers, sky, the train and district machinery slow to a
+   *  creep. His walk and the follow camera stay. Starts from the device's reduce motion setting. */
+  setReducedMotion(on: boolean): void;
+  reducedMotion(): boolean;
   /** Districts the visitor has stood in this session. */
   visited(): DistrictId[];
   touchRoot(el: HTMLElement | null): void;

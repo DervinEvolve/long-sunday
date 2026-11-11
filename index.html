@@ -23,12 +23,17 @@
       #ui { position: fixed; inset: 0; pointer-events: none; }
       /* With scripts off there is only this note. It sits above the empty canvas so the address in it can be copied. */
       noscript { position: relative; z-index: 1; display: block; max-width: 34rem; padding: 1.5rem; font: 1.125rem/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+      noscript a { color: inherit; }
+      /* One line to look at while the script downloads. src/main.ts takes it away when the title card goes up. */
+      #boot { position: fixed; inset: auto 0 12vh 0; margin: 0; padding: 0 1rem; text-align: center; pointer-events: none; font: 1.125rem/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
     </style>
+    <noscript><style>#boot { display: none; }</style></noscript>
   </head>
   <body>
     <canvas id="world" aria-label="A three dimensional world you can walk through. The same content is available as a list in the index."></canvas>
     <div id="ui"></div>
-    <noscript>This page needs JavaScript. Write to dervindim@gmail.com and I will send you the short version.</noscript>
+    <p id="boot">Long Sunday, by Dervin Dimanche. Drawing the world&hellip;</p>
+    <noscript>This page needs JavaScript. Write to <a href="mailto:dervindim@gmail.com">dervindim@gmail.com</a> and I will send you the short version.</noscript>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

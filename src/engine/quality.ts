@@ -1,9 +1,16 @@
 // Quality tiers and adaptive resolution.
 //
-// The tier decides the expensive, slow-to-change things (how much scatter, how many clouds). The pixel
+// The tier decides the expensive things. How much scatter, how many clouds and how detailed each
+// district is are fixed when the world is built, from the tier the page loaded with. A tier change
+// after that rebuilds nothing: it changes the ink settings, the draw distance, the haze and how many
+// triangles the picture may hold, and the full detail level applies from the next load. The pixel
 // ratio is the fast lever: it moves in small steps while the visitor walks, and the tier only drops
-// once resolution has nothing left to give. The tier never climbs back on its own, because a tier
-// change rebuilds things and a world that keeps rebuilding is worse than one that stays a bit plain.
+// once resolution has nothing left to give. The tier never climbs back on its own: a picture that
+// keeps changing its mind is worse than one that stays a bit plain.
+//
+// A tier chosen in the settings is a ceiling for the tier only. Resolution keeps adapting under it,
+// so choosing Low can never make the picture heavier than Auto had it. A ?q= in the address pins
+// both, so screenshots and measurements come out the same every time.
 //
 // Frame times come from requestAnimationFrame, so they are quantised to the display: a 60 Hz screen
 // reports 16.7 ms however little work there was. That is why "there is headroom" is judged against the
@@ -15,13 +22,13 @@ export interface Quality {
   tier: QualityTier;
   /** What to hand to renderer.setPixelRatio. */
   pixelRatio: number;
-  /** True while the tier and resolution look after themselves. False when a tier has been pinned. */
+  /** True while the tier looks after itself. False when a tier has been pinned (resolution still adapts). */
   auto: boolean;
   /** Smoothed frame time in milliseconds, for the debug readout. */
   frameMs: number;
   /** Feed every frame. Returns true when tier or pixelRatio changed during this call. */
   frame(dtSeconds: number): boolean;
-  /** Pin a tier (resolution stops adapting too), or hand control back with 'auto'. */
+  /** Pin a tier (resolution carries on adapting under it), or hand the tier back with 'auto'. */
   setTier(tier: QualityTier | 'auto'): void;
   /** Called after any change to tier, pixelRatio or auto. Returns a function that removes the listener. */
   onChange(cb: (q: Quality) => void): () => void;
@@ -83,9 +90,9 @@ function rendererString(gl: AnyGL | null | undefined): string {
   }
 }
 
-/** A starting tier from things that cost nothing to read. It only has to be roughly right:
- *  the adaptive loop corrects it within a few seconds of walking. Pass the WebGL context when
- *  there is one and the GPU name gets a vote. */
+/** A starting tier from things that cost nothing to read. Geometry is built from this guess and
+ *  the tier never climbs, so when in doubt it leans low. Pass the WebGL context when there is one
+ *  and the GPU name gets a vote. */
 export function guessTier(gl?: AnyGL | null): QualityTier {
   if (typeof navigator === 'undefined' || typeof window === 'undefined') return 'medium';
   const nav = navigator as Navigator & { deviceMemory?: number };
@@ -101,6 +108,8 @@ export function guessTier(gl?: AnyGL | null): QualityTier {
     if (/mali-(4|t)|adreno \(tm\) [2-5]\d\d|adreno [2-5]\d\d|powervr sgx|powervr rogue g6|videocore|intel.*(hd graphics [2-5]\d{3}|gma|g4[15]|q4[35]|ironlake|sandybridge|ivybridge)/i.test(gpu)) {
       return 'low';
     }
+    // The budget phone chips of the last few years. They report eight cores, so nothing below catches them.
+    if (/mali-g(31|51|52|57)|powervr (rogue )?ge8|adreno \(tm\) 6[01]\d/i.test(gpu)) return 'low';
   }
   if (memory > 0 && memory <= 2) return 'low';
   if (cores > 0 && cores <= 2) return 'low';
@@ -123,10 +132,13 @@ export function guessTier(gl?: AnyGL | null): QualityTier {
 
 /** Where the pixel ratio starts for a tier: the tier's cap, pulled down if the window is huge.
  *  It never starts below one device-independent pixel on that account. The adaptive loop can go
- *  lower once it has real frame times to go on. */
+ *  lower once it has real frame times to go on.
+ *  A phone or tablet starts at one: the first seconds are the title card and the first steps, and
+ *  those should be the lightest the device sees. It climbs from there while frames stay on time. */
 function startRatio(tier: QualityTier): number {
   const cap = pixelRatioCap(tier);
   if (typeof window === 'undefined') return cap;
+  if (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches) return Math.min(cap, 1);
   const css = Math.max(1, (window.innerWidth || 1280) * (window.innerHeight || 720));
   const fit = Math.sqrt(TIER_START_PIXELS[tier] / css); // the ratio that draws exactly the budget
   const least = Math.min(1, cap);
@@ -142,6 +154,8 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
   const listeners: Array<(q: Quality) => void> = [];
   const fromUrl = tierFromUrl();
   const first: QualityTier | 'auto' = fromUrl ?? initial;
+  let tierPinned = false; // a tier was chosen: the governor may not drop it
+  let booted = false;
 
   // Frame statistics. All plain numbers, nothing allocated after this point.
   let clock = 0; // seconds of frames fed
@@ -172,6 +186,10 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
   let probeCount = 0;
   let probeAllowedAt = 0;
   let pixelsMatter = false; // a probe has shown that resolution sets the pace, so no need to ask again
+  let pixelsIdle = false; // a probe has shown the opposite: slow, and resolution makes no difference
+  let gaveUp = false; // the floor did not make it fast either, so the sharpness went back
+  let descentFrom = 0; // the pixel ratio a run of steps down began at
+  let descentMs = 0; // and the frame time there
 
   function resetStats(): void {
     slowFor = 0;
@@ -184,6 +202,10 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
     probing = 0;
     probeAllowedAt = 0;
     pixelsMatter = false;
+    pixelsIdle = false;
+    gaveUp = false;
+    descentFrom = 0;
+    descentMs = 0;
     base = 1 / 60;
     clearWindow();
     steady = false;
@@ -245,14 +267,17 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
     holdUntil = clock + SETTLE;
     const after = probeCount > 0 ? probeSum / probeCount : probeBefore;
     if (after > probeBefore * 0.93) {
+      // Resolution is not what sets the pace, so blur buys nothing: put the sharpness back either way.
+      q.pixelRatio = probeSaved;
       if (after <= 0.036) {
-        // Resolution is not what sets the pace and the pace is bearable. Call it the display's rhythm
-        // and put the sharpness back.
+        // And the pace is bearable. Call it the display's rhythm.
         base = after;
-        q.pixelRatio = probeSaved;
         smoothed = after;
+      } else {
+        // Slower than that. The tier is the only thing left to try, and it can go at once.
+        pixelsIdle = true;
+        floorFor = FLOOR_HOLD;
       }
-      // Slower than that and unmoved by resolution: stay at the floor and let the tier drop.
       return;
     }
     // It moved, so pixels are the cost. Come back up to a little under halfway (in pixel count)
@@ -288,16 +313,23 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
     fastFor = fast ? fastFor + dt : 0;
 
     if (slowFor >= SLOW_HOLD) {
-      if (q.pixelRatio > MIN_PIXEL_RATIO + 0.005) {
+      if (q.pixelRatio > MIN_PIXEL_RATIO + 0.005 && !pixelsIdle && !gaveUp) {
         floorFor = 0;
-        if (!pixelsMatter && steady && steadyMean > base * 1.7 && clock >= probeAllowedAt) {
+        const steppedUp = clock - lastUpAt < 12 && upFrom > 0 && upFrom < q.pixelRatio;
+        if (!steppedUp && !pixelsMatter && steady && steadyMean > base * 1.7 && clock >= probeAllowedAt) {
           startProbe();
           return;
         }
+        if (descentFrom === 0) {
+          descentFrom = q.pixelRatio;
+          descentMs = smoothed;
+        }
         failedAt = q.pixelRatio;
-        if (clock - lastUpAt < 12 && upFrom > 0 && upFrom < q.pixelRatio) {
+        if (steppedUp) {
           // The step up we just tried is what broke it. Go back to exactly where it was fine,
-          // and wait twice as long before trying that step again.
+          // and wait twice as long before trying that step again. It was on time one step down,
+          // so resolution is what sets the pace here and there is nothing to probe.
+          pixelsMatter = true;
           backoff = Math.min(RETRY_MAX, backoff * 2);
           q.pixelRatio = upFrom;
         } else {
@@ -309,10 +341,10 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
         fastFor = 0;
         holdUntil = clock + SETTLE;
       } else {
-        // Resolution has bottomed out. Only now is the tier allowed to give.
+        // Resolution has bottomed out, or has been shown not to matter. Only now is the tier allowed to give.
         floorFor += dt;
         if (floorFor >= FLOOR_HOLD) {
-          if (q.tier !== 'low') {
+          if (!tierPinned && q.tier !== 'low') {
             q.tier = q.tier === 'high' ? 'medium' : 'low';
             floorFor = 0;
             slowFor = 0;
@@ -326,6 +358,17 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
             base = steadyMean;
             floorFor = 0;
             slowFor = 0;
+          } else if (!gaveUp) {
+            // Nothing left to give and it is still slow. If the walk down to the floor bought next to
+            // nothing, the cost is not in the pixels: stop blurring a picture that is slow anyway.
+            gaveUp = true;
+            floorFor = 0;
+            slowFor = 0;
+            if (descentFrom > 0 && smoothed > descentMs * 0.85) {
+              q.pixelRatio = Math.min(1, cap, descentFrom);
+              failedAt = Infinity;
+              holdUntil = clock + SETTLE;
+            }
           }
         }
       }
@@ -349,6 +392,10 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
       lastUpAt = clock;
       fastFor = 0;
       slowFor = 0;
+      // Frames on time again: whatever was concluded while it was slow no longer holds.
+      gaveUp = false;
+      pixelsIdle = false;
+      descentFrom = 0;
       holdUntil = clock + SETTLE;
     } else if (clock - lastUpAt > 30 && failedAt === Infinity) {
       // A step up that has held for a while earns back the short retry delay.
@@ -368,7 +415,8 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
 
       // Browser zoom or a move to another monitor changes the ceiling under us.
       const cap = pixelRatioCap(q.tier);
-      if (!q.auto) {
+      const held = tierPinned && fromUrl !== null; // ?q= holds the resolution at the ceiling too
+      if (held) {
         if (q.pixelRatio !== cap) q.pixelRatio = cap;
       } else if (q.pixelRatio > cap) {
         q.pixelRatio = cap;
@@ -379,7 +427,7 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
         if (clock > WARMUP) {
           smoothed += (dtSeconds - smoothed) * (1 - Math.exp(-dtSeconds / 0.3));
           q.frameMs = smoothed * 1000;
-          if (q.auto) {
+          if (!held) {
             if (probing === 0) {
               winTime += dtSeconds;
               winCount++;
@@ -411,17 +459,23 @@ export function createQuality(initial: QualityTier | 'auto' = 'auto', gl?: AnyGL
       const tier0 = q.tier;
       const ratio0 = q.pixelRatio;
       const auto0 = q.auto;
+      // If the governor had already pulled the resolution down, the new tier starts from there and
+      // not from its own ceiling: a change of tier is never a reason to get heavier.
+      const settled = booted && ratio0 < pixelRatioCap(tier0) - 0.005;
       if (tier === 'auto') {
         q.auto = true;
+        tierPinned = false;
         q.tier = guessTier(gl);
-        q.pixelRatio = startRatio(q.tier);
       } else {
         const pinned = parseTier(tier);
         if (!pinned) return;
         q.auto = false;
+        tierPinned = true;
         q.tier = pinned;
-        q.pixelRatio = pixelRatioCap(pinned);
       }
+      if (tierPinned && fromUrl !== null) q.pixelRatio = pixelRatioCap(q.tier);
+      else q.pixelRatio = settled ? Math.min(ratio0, pixelRatioCap(q.tier)) : startRatio(q.tier);
+      booted = true;
       resetStats();
       if (q.tier !== tier0 || q.pixelRatio !== ratio0 || q.auto !== auto0) emit();
     },

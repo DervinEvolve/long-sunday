@@ -19,6 +19,12 @@ const FONT_PX = 64;
 const PAD = 7;
 /** Extra weight. Architects Daughter is a thin pen; signs want a marker. In atlas pixels. */
 const STROKE = 3.2;
+/** Capital I and the figure 1 are bare strokes in this font, with no room either side. At marker
+ *  weight the I melts into its neighbours (OPHANIM read as OPHANM) and a 1 reads as an I. So both
+ *  get this much advance, in ems, with the stroke in the middle, and the 1 gets a flag. */
+const STEM_ADVANCE: Record<string, number> = { I: 0.29, '1': 0.31 };
+/** How far the flag of the 1 reaches to the left of its stem, and how far it drops, in ems. */
+const FLAG = { out: 0.1, drop: 0.14 };
 
 export interface Glyph {
   /** Atlas rectangle in uv, v up. */
@@ -111,9 +117,20 @@ export function createLettering(): Lettering {
   function make(ch: string): Glyph {
     prep();
     const m = ctx.measureText(ch);
-    const adv = m.width / FONT_PX;
-    const left = Math.ceil(m.actualBoundingBoxLeft || 0);
+    let adv = m.width / FONT_PX;
+    let left = Math.ceil(m.actualBoundingBoxLeft || 0);
     const right = Math.ceil(m.actualBoundingBoxRight || m.width);
+    // Stems: widen the advance and slide the ink to the middle of it. Only with the real font in,
+    // whose I and 1 are known to be bare strokes.
+    const stem = fontReady ? STEM_ADVANCE[ch] : undefined;
+    const flag = stem !== undefined && ch === '1' ? Math.round(FLAG.out * FONT_PX) : 0;
+    let slide = 0;
+    if (stem !== undefined && adv < stem) {
+      slide = (stem - adv) / 2 + flag / FONT_PX / 2;
+      adv = stem;
+    }
+    const stemMid = (right - left) / 2; // from the pen position, before the flag makes room
+    left += flag;
     const asc = Math.ceil(m.actualBoundingBoxAscent || 0);
     const desc = Math.ceil(m.actualBoundingBoxDescent || 0);
     const inkW = left + right;
@@ -145,6 +162,16 @@ export function createLettering(): Lettering {
     const by = y + grow + asc;
     ctx.strokeText(ch, bx, by);
     ctx.fillText(ch, bx, by);
+    if (flag > 0) {
+      // The flag: one short stroke from the top of the stem, down and to the left.
+      const top = by - asc + STROKE;
+      ctx.lineWidth = Math.max(STROKE, right + (left - flag) + STROKE * 0.6);
+      ctx.beginPath();
+      ctx.moveTo(bx + stemMid, top);
+      ctx.lineTo(bx + stemMid - flag, top + FLAG.drop * FONT_PX);
+      ctx.stroke();
+      ctx.lineWidth = STROKE;
+    }
     texture.needsUpdate = true;
     return {
       u0: x / SIZE,
@@ -153,7 +180,7 @@ export function createLettering(): Lettering {
       v0: 1 - (y + chh) / SIZE,
       w: cw / FONT_PX,
       h: chh / FONT_PX,
-      ox: -(left + grow) / FONT_PX,
+      ox: slide - (left + grow) / FONT_PX,
       oy: -(desc + grow) / FONT_PX,
       adv,
       empty: false,

@@ -9,7 +9,10 @@ import type { Collider } from '../types';
 import type { Input } from './input';
 import { angleDelta, clamp, damp, dampAngle, lerp, smoothstep, wrapAngle } from './util';
 
-export type WorldCollider = Collider; // world space
+/** A collider in world space. `top` is the height (world y) of whatever is drawn inside its
+ *  footprint, when the world has measured it: the camera rides over low things and stops at tall
+ *  ones. Without it the thing counts as tall. */
+export type WorldCollider = Collider & { top?: number };
 
 export interface ControllerOpts {
   camera: THREE.PerspectiveCamera;
@@ -17,7 +20,7 @@ export interface ControllerOpts {
   heightAt(x: number, z: number): number;
   inBounds(x: number, z: number): boolean;
   /** World-space colliders near the player. May change between frames. */
-  colliders(): readonly Collider[];
+  colliders(): readonly WorldCollider[];
 }
 
 export interface Controller {
@@ -39,6 +42,9 @@ export interface Controller {
   setAspect(aspect: number): void;
   /** Title mode: he stands still and the camera drifts in a slow arc in front of him. */
   frameFor(mode: 'play' | 'title'): void;
+  /** Reduced motion: the title camera holds still, the swing into play is a cut, and the arm keeps
+   *  one length at a run. The follow camera itself stays smooth. */
+  setCalm(on: boolean): void;
 }
 
 // Tuning. Speeds in m/s, rates per second.
@@ -65,7 +71,13 @@ const PIVOT_UP = 1.5;
 const AIM_UP = 0.205; // look this far above the pivot per metre of arm: puts him low in the frame
 const CLEAR = 0.45; // camera stays this far above the ground
 const RECENTRE_AFTER = 2; // seconds of walking without a drag before the camera drifts behind him
-const NEAR_ARM = 1.3;
+const NEAR_ARM = 1.3; // shorter than this and the lens starts to climb over his head
+const MIN_ARM = 0.2; // with him standing clear of a wall, the lens is never nearer his spine than this
+const WALL_PAD = 0.3; // how wide a berth the arm gives a collider it passes
+const WALL_GAP = 0.12; // and how close the lens itself may come to the face of one
+const OVER = 0.25; // a thing whose top is this far under the sight line does not hide him
+const SQUEEZE_UP = 1.15; // metres the lens climbs per metre of arm lost under NEAR_ARM
+const SQUEEZE_AHEAD = 0.4; // and how far the aim moves out in front of him, so he is seen from above and behind
 
 export function createController(opts: ControllerOpts): Controller {
   const { camera, input, heightAt, inBounds } = opts;
@@ -91,6 +103,7 @@ export function createController(opts: ControllerOpts): Controller {
   let title = 0; // 0 play rig, 1 title rig
   let titleClock = 0;
   let portrait = 0;
+  let calm = false;
 
   const c: Controller = {
     position,
@@ -105,6 +118,7 @@ export function createController(opts: ControllerOpts): Controller {
     teleport,
     setAspect,
     frameFor,
+    setCalm,
   };
 
   // -------------------------------------------------------------------------------------------
@@ -183,20 +197,25 @@ export function createController(opts: ControllerOpts): Controller {
   }
 
   // Where a ray from (ox, oz) along the unit direction (dx, dz) first enters a collider. Infinity if never.
+  // Leaves the distance at which it comes out the far side in hitExit.
+  let hitExit = 0;
   function rayHit(col: Collider, ox: number, oz: number, dx: number, dz: number, pad: number): number {
     if (col.kind === 'circle') {
-      if (col.r < 0.5) return Infinity; // posts and small props do not crowd the camera
       const r = col.r + pad;
       const mx = ox - col.x;
       const mz = oz - col.z;
       const b = mx * dx + mz * dz;
       const cc = mx * mx + mz * mz - r * r;
-      if (cc <= 0) return 0;
       const disc = b * b - cc;
+      if (cc <= 0) {
+        hitExit = -b + Math.sqrt(Math.max(0, disc));
+        return 0;
+      }
       if (disc < 0 || b > 0) return Infinity;
-      return -b - Math.sqrt(disc);
+      const root = Math.sqrt(disc);
+      hitExit = -b + root;
+      return -b - root;
     }
-    if (Math.max(col.hw, col.hd) < 0.5) return Infinity;
     const rot = col.rot ?? 0;
     const cs = Math.cos(rot);
     const sn = Math.sin(rot);
@@ -226,6 +245,7 @@ export function createController(opts: ControllerOpts): Controller {
       t0 = Math.max(t0, Math.min(a, b));
       t1 = Math.min(t1, Math.max(a, b));
     }
+    hitExit = t1;
     return t0 <= t1 ? t0 : Infinity;
   }
 
@@ -419,12 +439,11 @@ export function createController(opts: ControllerOpts): Controller {
       }
     }
 
-    const k = snap ? 1 : 0;
     camYaw = snap ? yawTarget : dampAngle(camYaw, yawTarget, 24, dt);
-    camPitch = damp(camPitch, pitchTarget, k ? 1e6 : 24, dt);
-    const far = distTarget * (1 - portrait * 0.1) + smoothstep(WALK + 1, RUN, c.speed) * 0.7;
-    camDist = damp(camDist, far, k ? 1e6 : 6, dt);
-    pivotY = damp(pivotY, position.y + PIVOT_UP, k ? 1e6 : c.grounded ? 12 : 20, dt);
+    camPitch = snap ? pitchTarget : damp(camPitch, pitchTarget, 24, dt);
+    const far = distTarget * (1 - portrait * 0.1) + (calm ? 0 : smoothstep(WALK + 1, RUN, c.speed) * 0.7);
+    camDist = snap ? far : damp(camDist, far, 6, dt);
+    pivotY = snap ? position.y + PIVOT_UP : damp(pivotY, position.y + PIVOT_UP, c.grounded ? 12 : 20, dt);
     // Never let the pivot drift far from him on a fast climb or drop.
     pivotY = clamp(pivotY, position.y + PIVOT_UP - 0.9, position.y + PIVOT_UP + 0.9);
 
@@ -436,16 +455,38 @@ export function createController(opts: ControllerOpts): Controller {
     const cp = Math.cos(camPitch);
     const sp = Math.sin(camPitch);
 
-    // Colliders between him and the camera pull the arm in. In fast, out slow.
-    let allowed = DIST_MAX + 2;
+    // Colliders between him and the camera stop the arm short of them. The lens may come right up
+    // to a wall but never goes into one, however close he stands. Low things are let off: if the
+    // sight line clears a bench or a planter with room to spare the lens just rides over it.
+    let wall = DIST_MAX + 2;
     const cols = opts.colliders();
     const flat = camDist * cp;
+    const cpSafe = Math.max(cp, 0.2);
+    const rise = sp / cpSafe; // height the sight line gains per metre back
+    let posts = 0; // thin things the full arm reaches past
     for (let i = 0; i < cols.length; i++) {
-      const t = rayHit(cols[i], position.x, position.z, bx, bz, 0.3);
-      if (t < flat) allowed = Math.min(allowed, Math.max(NEAR_ARM, t / Math.max(cp, 0.2) - 0.15));
+      const col = cols[i];
+      const t = rayHit(col, position.x, position.z, bx, bz, WALL_PAD);
+      if (t >= flat) continue;
+      // A post or a lamp between him and the lens just crosses the picture. It only counts when
+      // the lens itself would sit in it.
+      if ((col.kind === 'circle' ? col.r : Math.max(col.hw, col.hd)) < 0.5 && hitExit < flat) {
+        posts++;
+        continue;
+      }
+      if (col.top !== undefined) {
+        const lowest = pivotY + (rise >= 0 ? t : Math.min(hitExit, flat)) * rise;
+        if (lowest > col.top + OVER) continue;
+      }
+      // Standing clear of it, the lens stops WALL_GAP short of the padded face. If a tight corner
+      // has left him nearer than the berth itself, measure to the real face instead, and let the
+      // arm go all the way to nothing: the lens then sits straight above him, still outside.
+      const reach = t > 0 ? Math.max(MIN_ARM, (t + WALL_PAD - WALL_GAP) / cpSafe) : rayHit(col, position.x, position.z, bx, bz, WALL_GAP) / cpSafe;
+      if (reach < wall) wall = reach;
     }
     // Ground rising behind him: a bank just lifts the camera (below), a wall of it pulls the arm in,
     // or the camera would climb the wall and look straight down on him.
+    let allowed = wall;
     let e0 = -1;
     for (let i = 1; i <= 6; i++) {
       const d = (camDist * i) / 6;
@@ -459,12 +500,34 @@ export function createController(opts: ControllerOpts): Controller {
       }
       e0 = e1;
     }
+    // In fast, out slow. A wall is not eased into at all: the arm is cut to it the same frame.
     block = snap ? allowed : damp(block, allowed, allowed < block ? 22 : 3.5, dt);
-    const arm = Math.min(camDist, block);
+    if (block > wall) block = wall;
+    let arm = Math.min(camDist, block);
+    // The posts let off above were judged against the full arm. Once something else has pulled the
+    // arm in, the lens can land in one of them after all: then it stops in front of that post too.
+    if (posts > 0 && arm < camDist) {
+      const lens = arm * cp;
+      for (let i = 0; i < cols.length; i++) {
+        const col = cols[i];
+        if ((col.kind === 'circle' ? col.r : Math.max(col.hw, col.hd)) >= 0.5) continue;
+        const t = rayHit(col, position.x, position.z, bx, bz, WALL_PAD);
+        if (t >= lens || hitExit <= lens) continue;
+        if (col.top !== undefined && pivotY + (rise >= 0 ? t : lens) * rise > col.top + OVER) continue;
+        const reach = Math.max(MIN_ARM, (t + WALL_PAD - WALL_GAP) / cpSafe);
+        if (reach < wall) wall = reach;
+      }
+      if (block > wall) {
+        block = wall;
+        arm = Math.min(camDist, block);
+      }
+    }
+    // With no room left behind him the lens goes up instead, and looks down over his head.
+    const squeeze = Math.max(0, NEAR_ARM - arm);
 
     let px = position.x + bx * arm * cp;
     let pz = position.z + bz * arm * cp;
-    let py = pivotY + arm * sp;
+    let py = pivotY + arm * sp + squeeze * SQUEEZE_UP;
 
     // Keep the whole arm above the ground: raise the far end until every sample along it clears.
     let need = 0;
@@ -480,16 +543,16 @@ export function createController(opts: ControllerOpts): Controller {
     const floor = heightAt(px, pz) + CLEAR * 0.7;
     if (py < floor) py = floor;
 
-    let ax = position.x;
+    let ax = position.x + fx * squeeze * SQUEEZE_AHEAD;
     // From a low camera the same aim would push his feet off the bottom of the frame.
     const low = lerp(0.5, 1, smoothstep(PITCH_MIN, PITCH, camPitch));
-    let ay = pivotY + arm * AIM_UP * low * lerp(1, 0.82, portrait) + lift * 0.35;
-    let az = position.z;
+    let ay = pivotY + arm * AIM_UP * low * lerp(1, 0.82, portrait) + lift * 0.35 - squeeze * 0.3;
+    let az = position.z + fz * squeeze * SQUEEZE_AHEAD;
 
     // The title rig: in front of him, a little below eye level, drifting from side to side.
-    title = snap ? (mode === 'title' ? 1 : 0) : damp(title, mode === 'title' ? 1 : 0, 2.6, dt);
+    title = snap || calm ? (mode === 'title' ? 1 : 0) : damp(title, mode === 'title' ? 1 : 0, 2.6, dt);
     if (title > 0.001) {
-      titleClock += dt;
+      if (!calm) titleClock += dt;
       const a = c.yaw + Math.sin(titleClock * 0.21) * 0.6 + 0.28;
       const td = lerp(4.2, 6, portrait);
       let tx = position.x - Math.sin(a) * td;
@@ -570,6 +633,10 @@ export function createController(opts: ControllerOpts): Controller {
     } else {
       vx = vz = 0;
     }
+  }
+
+  function setCalm(on: boolean): void {
+    calm = on;
   }
 
   setAspect(aspect);
