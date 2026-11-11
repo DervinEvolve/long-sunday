@@ -76,6 +76,8 @@ export const district: DistrictModule = {
 };
 
 function buildSwitchboard(ctx: DistrictContext): DistrictBuild {
+  // Anything he can walk onto tops out here: the plaza paving is 3 cm up, this is a hair over it.
+  const FLUSH = 0.035;
   const { site, kit, palette: P, rng, entries } = ctx;
   const high = ctx.quality === 'high';
   const low = ctx.quality === 'low';
@@ -110,7 +112,7 @@ function buildSwitchboard(ctx: DistrictContext): DistrictBuild {
     const s = h / 7;
     const a = rng() * 6.28;
     const ca = Math.cos(a), sa = Math.sin(a);
-    if (pit) b.add(geo.cylinder(0.95, 0.95, 0.1, 8), { color: P.grassDeep, pos: [x, y, z], flat: 0.5 });
+    if (pit) b.add(geo.cylinder(0.95, 0.95, FLUSH, 8), { color: P.grassDeep, pos: [x, y, z], flat: 0.5 });
     b.add(geo.cylinder(0.2 * s, 0.32 * s, 3.9 * s, 6, true), { color: TRUNK, pos: [x, y, z], sway: 0.2, swayBase: y });
     const leaf = { gradient: { bottom: mix(tint, P.shadow, 0.38), top: mix(tint, '#ffffff', 0.12) }, color: tint, sway: 0.5, swayBase: y };
     const id = b.newId();
@@ -212,6 +214,8 @@ function buildSwitchboard(ctx: DistrictContext): DistrictBuild {
     const step = b.newId();
     b.add(geo.box(2.6, 0.16, 0.9), { color: P.paveShade, pos: [dx, 0, FZ + 0.6], id: step });
     b.add(geo.box(2.6, 0.08, 1.4), { color: P.paveShade, pos: [dx, 0, FZ + 0.85], id: step });
+    // Nobody stands on the step: it reads as part of the door.
+    colliders.push({ kind: 'box', x: dx, z: FZ + 0.9, hw: 1.3, hd: 0.65 });
   }
 
   // Water tower on the west end of the roof.
@@ -277,8 +281,10 @@ function buildSwitchboard(ctx: DistrictContext): DistrictBuild {
   const PANEL_Z = FZ + 0.55; // front face of the panel
   const ROWS = 9;
   const COLS = low ? 9 : 12;
-  const COL0 = -3.7;
-  const COL_W = (5.75 - COL0) / (COLS - 1);
+  // Jacks to the west, row names down the east edge, so the pole wires coming in from the west
+  // never cross the lettering.
+  const COL0 = -5.75;
+  const COL_W = (3.7 - COL0) / (COLS - 1);
   const jackX = (c: number): number => COL0 + c * COL_W;
   const jackY = (r: number): number => 2.4 + r * 0.95;
   b.add(geo.box(13.8, 10.0, 0.5), { color: P.marble, pos: [0, 1.25, FZ + 0.2] });
@@ -290,7 +296,7 @@ function buildSwitchboard(ctx: DistrictContext): DistrictBuild {
     const ROW_NAMES = ['QA', 'DEVOPS', 'CLOUD', '.NET', 'JAVA', 'INFRA', 'FULL STACK', 'BACKEND', 'FRONTEND'];
     for (let r = 0; r < ROWS; r++) {
       const text = ROW_NAMES[r];
-      b.label({ text, size: fit(text, 0.2, 1.9), pos: [-5.35, jackY(r), PANEL_Z], ink: P.paper, plate: TEAL, id: panel, flat: 0.15, pad: 0.1 });
+      b.label({ text, size: fit(text, 0.2, 1.9), pos: [5.35, jackY(r), PANEL_Z], ink: P.paper, plate: TEAL, id: panel, flat: 0.15, pad: 0.1 });
     }
     const jack = geo.cylinder(0.17, 0.17, 0.1, 8);
     const hole = geo.disc(0.08, 8);
@@ -382,11 +388,21 @@ function buildSwitchboard(ctx: DistrictContext): DistrictBuild {
       }
       // Wires: two to the board from the outer insulators, landing on the top rows, spread by where
       // the pole stands. The middle insulator carries the street span from pole to pole.
+      // A pole out east of the board ties off on the east column instead, so its wires stay clear
+      // of the row names down that edge.
       const base = Math.round(((x + 22) / 40) * (COLS - 2));
+      const east = x > 7.5;
       for (let k = 0; k < 2; k++) {
         const c = Math.max(0, Math.min(COLS - 1, base + k));
         const rr = ROWS - 1 - ((k + i) % 3);
-        const end = plugAt(c, rr, P.ink as string);
+        let end: V3;
+        if (east) {
+          const ey = 8.2 + k * 1.1;
+          b.add(insul, { color: P.verdigris, pos: [7.45, ey, FZ + 0.58], rot: [Math.PI / 2, 0, 0], flat: 0.3 });
+          end = [7.45, ey, FZ + 0.84];
+        } else {
+          end = plugAt(c, rr, P.ink as string);
+        }
         const pts = span(ends[k * 2], end, 0.7 + Math.hypot(end[0] - x, end[2] - z) * 0.035, 12);
         wires.push(pts);
         b.add(geo.tube(pts, 0.035, { radial: 4, perSpan: 1 }), { color: WIRE });
@@ -413,11 +429,12 @@ function buildSwitchboard(ctx: DistrictContext): DistrictBuild {
       const a = a0 + ((a1 - a0) * i) / seg;
       out.push([Math.cos(a) * r0, -Math.sin(a) * r0]);
     }
+    // Grass and kerb are drawn down into the ground, so the walked surface stays at the paving.
     const verge = geo.extrude(out, 0.12, { cacheKey: 'switchboard-verge-' + seg });
     b.add(geo.extrude(out.map(([x, y]) => [x * 1.012, y * 1.012] as [number, number]), 0.1, { cacheKey: 'switchboard-kerb-' + seg }), {
-      color: P.marbleShade, pos: [0, 0.02, 0], rot: [-Math.PI / 2, 0, 0],
+      color: P.marbleShade, pos: [0, FLUSH - 0.053, 0], rot: [-Math.PI / 2, 0, 0],
     });
-    b.add(verge, { color: P.grass, pos: [0, 0.04, 0], rot: [-Math.PI / 2, 0, 0], flat: 0.4 });
+    b.add(verge, { color: P.grass, pos: [0, FLUSH - 0.06, 0], rot: [-Math.PI / 2, 0, 0], flat: 0.4 });
     for (const deg of [134, 158]) {
       const a = (deg * Math.PI) / 180;
       const x = Math.cos(a) * (r0 - 0.9), z = Math.sin(a) * (r0 - 0.9);
@@ -454,11 +471,11 @@ function buildSwitchboard(ctx: DistrictContext): DistrictBuild {
   // The account desk. Brick paving, a short colonnade grown over, a desk with two phones.
   // ------------------------------------------------------------------------------------------
   {
-    // Brick paving, laid a couple of centimetres proud of the plaza.
-    b.add(geo.box(8.0, 0.04, 11.6), { color: mix(P.brick, P.pave, 0.45), pos: [14.4, 0, 6.6], flat: 0.3 });
-    const seam = geo.box(8.0, 0.012, 0.06);
+    // Brick paving, laid flush with the plaza.
+    b.add(geo.box(8.0, FLUSH, 11.6), { color: mix(P.brick, P.pave, 0.45), pos: [14.4, 0, 6.6], flat: 0.3 });
+    const seam = geo.box(8.0, 0.008, 0.06);
     for (let k = 1; k < (low ? 4 : 8); k++) {
-      b.add(seam, { color: mix(P.brickDeep, P.pave, 0.35), pos: [14.4, 0.04, 0.8 + k * (11.6 / (low ? 4 : 8))], flat: 1, outline: false });
+      b.add(seam, { color: mix(P.brickDeep, P.pave, 0.35), pos: [14.4, FLUSH - 0.003, 0.8 + k * (11.6 / (low ? 4 : 8))], flat: 1, outline: false });
     }
 
     // The colonnade: four columns, an architrave with a line on it, ivy over the top.
@@ -475,6 +492,8 @@ function buildSwitchboard(ctx: DistrictContext): DistrictBuild {
       b.add(geo.bevelBox(1.05, 0.2, 1.05, 0.03), { color: P.marbleShade, pos: [CX, 5.56, z] });
       colliders.push({ kind: 'circle', x: CX, z, r: 0.6 });
     }
+    // One collider for the whole base, so he walks round the colonnade.
+    colliders.push({ kind: 'box', x: CX, z: 7.05, hw: 1.05, hd: 6.2 });
     const arch = b.add(geo.box(1.0, 0.95, 11.6), { color: P.marble, pos: [CX, 5.76, 7.05] });
     b.add(geo.box(1.35, 0.24, 12.0), { color: P.marbleShade, pos: [CX, 6.71, 7.05] });
     cast(geo.box(1.0, 1.2, 11.6), [CX, 5.76, 7.05]);
@@ -485,7 +504,7 @@ function buildSwitchboard(ctx: DistrictContext): DistrictBuild {
     clump([CX - 0.35, 4.6, 12.3], [0.55, 2.3, 0.62], LEAVES[4], undefined, 4);
     clump([CX - 0.3, 5.4, 2.3], [0.5, 1.4, 1.2], LEAVES[1], undefined, 3);
     clump([CX + 0.1, 0.55, 7.0], [0.9, 0.35, 5.6], P.moss as string, undefined, 5);
-    b.add(geo.box(2.6, 0.1, 13.0), { color: P.grass, pos: [CX + 2.35, 0, 7.05], flat: 0.4 });
+    b.add(geo.box(2.6, FLUSH, 13.0), { color: P.grass, pos: [CX + 2.35, 0, 7.05], flat: 0.4 });
 
     // The desk, facing the plaza.
     const DX = 11.6, DZ = 2.6;
@@ -544,8 +563,8 @@ function buildSwitchboard(ctx: DistrictContext): DistrictBuild {
 
   // Small things underfoot: two covers over the cable vaults.
   for (const [x, z] of [[2.2, -5.2], [-6.8, 9.4]] as const) {
-    b.add(geo.cylinder(0.5, 0.5, 0.03, 12), { color: P.steel, pos: [x, 0, z], flat: 0.4 });
-    b.add(geo.ring(0.3, 0.38, 12), { color: mix(P.steel, P.ink, 0.3), pos: [x, 0.035, z], flat: 1, outline: false });
+    b.add(geo.cylinder(0.5, 0.5, FLUSH, 12), { color: P.steel, pos: [x, 0, z], flat: 0.4 });
+    b.add(geo.ring(0.3, 0.38, 12), { color: mix(P.steel, P.ink, 0.3), pos: [x, FLUSH + 0.004, z], flat: 1, outline: false });
   }
 
   group.add(b.build('switchboard-static'));
@@ -562,7 +581,10 @@ function buildSwitchboard(ctx: DistrictContext): DistrictBuild {
     const plate = geo.box(1.7, 0.46, 0.05);
     const tabColors = [YELLOW, ORANGE, TEAL, P.pink as string];
     const named = new Map<number, string>();
-    CLIENTS.forEach((c, i) => named.set(Math.round((i * N) / CLIENTS.length), c));
+    // Every client twice round the wheel, so two or three names are always coming round toward
+    // the plaza.
+    const NAMED = CLIENTS.length * 2;
+    for (let j = 0; j < NAMED; j++) named.set(Math.round((j * N) / NAMED), CLIENTS[j % CLIENTS.length]);
     const zAxis = new THREE.Vector3(0, 0, 1);
     for (let i = 0; i < N; i++) {
       const a = (i / N) * Math.PI * 2;
@@ -674,7 +696,7 @@ function buildSwitchboard(ctx: DistrictContext): DistrictBuild {
   // Points of interest.
   // ------------------------------------------------------------------------------------------
   if (has('tek-recruiter')) pois.push({ entry: 'tek-recruiter', x: 1.0, z: FZ + 3.6, y: 3.0, reach: 4.8, prompt: 'Look at the board' });
-  if (has('tek-am')) pois.push({ entry: 'tek-am', x: 10.4, z: 8.6, y: 2.6, reach: 4.5, prompt: 'Turn the rolodex' });
+  if (has('tek-am')) pois.push({ entry: 'tek-am', x: 12.9, z: 8.6, y: 4.3, reach: 4.5, prompt: 'Turn the rolodex' });
   // Anything else filed here later still gets a place to be read: in front of the desk.
   let spare = 0;
   for (const e of entries) {

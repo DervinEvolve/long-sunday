@@ -61,6 +61,8 @@ export const district: DistrictModule = {
 };
 
 function buildGreenhouse(ctx: DistrictContext): DistrictBuild {
+  // Anything he can walk onto tops out here: the plaza paving is 3 cm up, this is a hair over it.
+  const FLUSH = 0.035;
   const { site, kit, palette: P, rng, entries } = ctx;
   const high = ctx.quality === 'high';
   const low = ctx.quality === 'low';
@@ -115,7 +117,7 @@ function buildGreenhouse(ctx: DistrictContext): DistrictBuild {
     const s = h / 7;
     const a = rng() * 6.28;
     const ca = Math.cos(a), sa = Math.sin(a);
-    b.add(geo.cylinder(0.95, 0.95, 0.08, 8), { color: P.grassDeep, pos: [x, y, z], flat: 0.5 });
+    b.add(geo.cylinder(0.95, 0.95, FLUSH, 8), { color: P.grassDeep, pos: [x, y, z], flat: 0.5 });
     b.add(geo.cylinder(0.2 * s, 0.32 * s, 3.9 * s, 6, true), { color: TRUNK, pos: [x, y, z], sway: 0.2, swayBase: y });
     const leaf = { gradient: { bottom: mix(tint, P.shadow, 0.38), top: mix(tint, '#ffffff', 0.12) }, color: tint, sway: 0.5, swayBase: y };
     const id = b.newId();
@@ -145,8 +147,8 @@ function buildGreenhouse(ctx: DistrictContext): DistrictBuild {
   const brassOpts = { color: BRASS, flat: 0.25 };
   const B = 0.13; // brass section
   {
-    // Floor: pale tiles, barely proud of the paving so his feet stay on it.
-    b.add(geo.box(HX * 2 - 0.2, 0.07, ZF - ZB - 0.2), { color: mix(P.pave, MINT, 0.25), pos: [0, 0, ZC], flat: 0.3 });
+    // Floor: pale tiles, flush with the paving so his feet stay on it.
+    b.add(geo.box(HX * 2 - 0.2, FLUSH, ZF - ZB - 0.2), { color: mix(P.pave, MINT, 0.25), pos: [0, 0, ZC], flat: 0.3 });
     // Knee wall.
     const knee = b.newId();
     const kneeColor = { gradient: { bottom: P.marbleShade, top: P.marble }, color: P.marble };
@@ -214,7 +216,7 @@ function buildGreenhouse(ctx: DistrictContext): DistrictBuild {
       for (const y of [0.05, 1.3, DOOR_H - 0.12]) b.add(geo.box(1.2, 0.09, 0.09), { ...brassOpts, id: leaf, pos: [cx, y, cz], rot: r });
     }
     // A marble step at the door.
-    b.add(geo.bevelBox(DOOR * 2 + 1.0, 0.08, 1.0, 0.03), { color: P.marble, pos: [0, 0, ZF + 0.45] });
+    b.add(geo.bevelBox(DOOR * 2 + 1.0, FLUSH + 0.005, 1.0, 0.01), { color: P.marble, pos: [0, 0, ZF + 0.45] });
 
     // The name band across the front, under the gable.
     const bandY = EAVE - 1.0;
@@ -222,8 +224,8 @@ function buildGreenhouse(ctx: DistrictContext): DistrictBuild {
     b.add(geo.box(HX * 2 + 0.5, 0.14, 0.46), { color: BRASS, pos: [0, bandY - 0.07, ZF - 0.12], flat: 0.3 });
     {
       const name = site.name.toUpperCase();
-      b.label({ text: name, size: fit(name, 0.52, 9.5), pos: [0, bandY + 0.6, ZF + 0.06], ink: P.ink, plate: P.marble, id: band, pad: 0.1 });
-      b.label({ text: site.years, size: 0.2, pos: [0, bandY + 0.2, ZF + 0.06], ink: P.violet, plate: P.marble, id: band, pad: 0.1 });
+      b.label({ text: name, size: fit(name, 0.46, 9.5), pos: [0, bandY + 0.68, ZF + 0.06], ink: P.ink, plate: P.marble, id: band, pad: 0.1 });
+      b.label({ text: site.years.toUpperCase(), size: 0.34, pos: [0, bandY + 0.26, ZF + 0.06], ink: P.violet, plate: P.marble, id: band, pad: 0.1 });
     }
 
     // Gables: glass triangles in brass, a round brass window at the front.
@@ -689,7 +691,7 @@ function buildGreenhouse(ctx: DistrictContext): DistrictBuild {
       const pot = b.add(geo.cylinder(0.72, 0.52, 0.9, 14), { color: TERRA, pos: [cx, 0, cz] });
       b.add(geo.cylinder(0.8, 0.8, 0.14, 14), { color: mix(TERRA, '#ffffff', 0.15), pos: [cx, 0.9, cz] });
       b.add(geo.cylinder(0.7, 0.7, 0.04, 14), { color: SOIL, pos: [cx, 0.98, cz] });
-      b.label({ text: 'EPOCH 14', size: 0.13, pos: [cx, 0.62, cz + 0.66], rot: [-0.2, 0, 0], ink: P.paper, plate: TERRA, id: pot, pad: 0.06 });
+      b.label({ text: 'ROUND 14', size: 0.13, pos: [cx, 0.62, cz + 0.66], rot: [-0.2, 0, 0], ink: P.paper, plate: TERRA, id: pot, pad: 0.06 });
       b.label({ text: '0.7067', size: 0.1, pos: [cx, 0.4, cz + 0.63], rot: [-0.2, 0, 0], ink: P.paper, plate: TERRA, id: pot, pad: 0.06 });
       const sb = 1.0;
       b.add(geo.cylinder(0.05, 0.08, 1.7, 6), { color: P.leafDeep, pos: [cx, 1.0, cz], sway: 0.4, swayBase: sb });
@@ -765,13 +767,13 @@ function buildGreenhouse(ctx: DistrictContext): DistrictBuild {
       const x0 = sx * 2.4;
       const x1 = sx * 9.5;
       const cx = (x0 + x1) / 2;
-      b.add(geo.bevelBox(Math.abs(x1 - x0), 0.08, 9.0, 0.03), { ...lawn, pos: [cx, 0, 10.5] });
-      // A kerb of marble round it.
-      b.add(geo.box(Math.abs(x1 - x0) + 0.3, 0.14, 0.18), { color: P.marble, pos: [cx, 0, 15.0] });
-      b.add(geo.box(0.18, 0.14, 9.0), { color: P.marble, pos: [x0, 0, 10.5] });
+      b.add(geo.bevelBox(Math.abs(x1 - x0), FLUSH, 9.0, 0.01), { ...lawn, pos: [cx, 0, 10.5] });
+      // A kerb of marble round it, a thin edge just over the lawn.
+      b.add(geo.box(Math.abs(x1 - x0) + 0.3, 0.06, 0.18), { color: P.marble, pos: [cx, 0, 15.0] });
+      b.add(geo.box(0.18, 0.06, 9.0), { color: P.marble, pos: [x0, 0, 10.5] });
       // A bed of flowers in the lawn.
       const fx = sx * 6.2;
-      b.add(geo.cylinder(1.6, 1.6, 0.14, 14), { color: SOIL, pos: [fx, 0, 10.0], flat: 0.4 });
+      b.add(geo.cylinder(1.6, 1.6, FLUSH + 0.005, 14), { color: SOIL, pos: [fx, 0, 10.0], flat: 0.4 });
       for (let k = 0; k < (low ? 4 : 8); k++) {
         const a = (k / 8) * Math.PI * 2;
         const r = k % 2 ? 1.0 : 0.55;
@@ -781,10 +783,10 @@ function buildGreenhouse(ctx: DistrictContext): DistrictBuild {
       }
     }
     // Brick apron in front of the door.
-    b.add(geo.box(4.8, 0.06, 2.4), { color: mix(P.brick, P.pave, 0.45), pos: [0, 0, ZF + 1.6], flat: 0.3 });
+    b.add(geo.box(4.8, FLUSH, 2.4), { color: mix(P.brick, P.pave, 0.45), pos: [0, 0, ZF + 1.6], flat: 0.3 });
     // Gravel paths to the benches and the desk.
-    b.add(geo.box(4.0, 0.06, 1.8), { color: P.paveShade, pos: [-8.0, 0, 5.0], flat: 0.3 });
-    b.add(geo.box(4.0, 0.06, 1.8), { color: P.paveShade, pos: [8.0, 0, 5.0], flat: 0.3 });
+    b.add(geo.box(4.0, FLUSH, 1.8), { color: P.paveShade, pos: [-8.0, 0, 5.0], flat: 0.3 });
+    b.add(geo.box(4.0, FLUSH, 1.8), { color: P.paveShade, pos: [8.0, 0, 5.0], flat: 0.3 });
     // Box hedges along the house.
     for (const sx of [-1, 1]) {
       b.add(geo.bevelBox(0.9, 0.9, 12, 0.2), { gradient: { bottom: P.grassDeep, top: P.grassLight }, color: P.grass, pos: [sx * (HX + 0.9), 0, ZC - 1.5], hatch: 0.05 });

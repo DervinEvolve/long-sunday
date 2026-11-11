@@ -1,4 +1,4 @@
-// The Mask Garden. Diaspora DAO, 2022 to 2024.
+// The Mask Garden. Diaspora DAO, 2023 to 2024.
 // A community garden on a gap lot between two brick party walls. The walls stand north and east
 // and the alley between them is the road on to Sky Harbor. Masks grow here the way sunflowers do:
 // seedlings in the raised beds, bigger ones on posts that turn to watch whoever walks by, three
@@ -67,9 +67,10 @@ function buildGarden(ctx: DistrictContext): DistrictBuild {
   const GREEN = site.accents[2];
   const CREAM = P.marble;
 
-  // Heights. The plaza paving is 3 cm proud of the pad, the lawns sit a little over that.
+  // Heights. The plaza paving is 3 cm proud of the pad and the lawns a centimetre over that, so
+  // whoever walks across the grass keeps his shoes in sight.
   const PAVE = 0.03;
-  const LAWN = 0.085;
+  const LAWN = 0.04;
   const shadePave = mix(mix(P.pave, RED, 0.12), P.shadow, 0.3);
   const shadeLawn = mix(P.grass, P.shadow, 0.34);
 
@@ -95,7 +96,7 @@ function buildGarden(ctx: DistrictContext): DistrictBuild {
     return w > max ? (size * max) / w : size;
   };
   const cast = (g: THREE.BufferGeometry, pos: V3, rot?: V3, scale?: number | V3, lawn = true): void => {
-    b.shadow?.(g, { color: lawn ? shadeLawn : shadePave, sun, pos, rot, scale, y: lawn ? LAWN : PAVE, lift: lawn ? 0.03 : 0.02 });
+    b.shadow?.(g, { color: lawn ? shadeLawn : shadePave, sun, pos, rot, scale, y: lawn ? LAWN : PAVE, lift: lawn ? 0.012 : 0.02 });
   };
   const boxCollider = (f: Frame, lx: number, lz: number, hw: number, hd: number): void => {
     const p = at(f, lx, 0, lz);
@@ -229,7 +230,7 @@ function buildGarden(ctx: DistrictContext): DistrictBuild {
     const MOWN = mix(P.grass, P.grassLight, 0.5);
     const band = (t0: number, t1: number, r0: number, r1: number): void => {
       const a0 = t0 + Math.asin((PATH_HALF + 0.5) / r0) / D2R, a1 = t1 - Math.asin((PATH_HALF + 0.5) / r0) / D2R;
-      b.add(geo.ring(r0, r1, Math.max(6, Math.round((a1 - a0) / (low ? 12 : 7))), (a1 - a0) * D2R), { color: MOWN, pos: [0, LAWN + 0.01, 0], rot: [0, -a1 * D2R, 0], flat: 0.35, outline: false });
+      b.add(geo.ring(r0, r1, Math.max(6, Math.round((a1 - a0) / (low ? 12 : 7))), (a1 - a0) * D2R), { color: MOWN, pos: [0, LAWN + 0.005, 0], rot: [0, -a1 * D2R, 0], flat: 0.35, outline: false });
     };
     for (const [r0, r1] of [[9.6, 11.6], [14.4, 16.6], [19.2, 20.3]] as const) {
       band(T_IN, T_NORTH, r0, r1);
@@ -269,7 +270,7 @@ function buildGarden(ctx: DistrictContext): DistrictBuild {
         const k = d / len;
         const x = a[0] + (c[0] - a[0]) * k + (rng() - 0.5) * 0.16;
         const z = a[1] + (c[1] - a[1]) * k + (rng() - 0.5) * 0.16;
-        b.add(geo.cylinder(r, r, 0.07, 7), { color: tone, pos: [x, LAWN - 0.012, z], rot: [0, rng() * 6.28, 0], scale: [1, 1, 0.82 + rng() * 0.3] });
+        b.add(geo.cylinder(r, r, 0.04, 7), { color: tone, pos: [x, LAWN - 0.012, z], rot: [0, rng() * 6.28, 0], scale: [1, 1, 0.82 + rng() * 0.3] });
       }
       carry = d - len;
     }
@@ -359,16 +360,19 @@ function buildGarden(ctx: DistrictContext): DistrictBuild {
     const PW = 14.2, PH = 5.4, PY = 7.1, PX = -6.6;
     b.add(geo.box(PW + 0.6, PH + 0.6, 0.1), { color: CREAM, pos: at(FA, PX, PY - 0.3, 0.05), rot: rotA, flat: 0.4 });
     const panel = b.add(geo.box(PW, PH, 0.1), { color: GOLD, pos: at(FA, PX, PY, 0.12), rot: rotA, flat: 0.45 });
-    const s1 = fit('THE MASK', 1.75, PW - 2.2);
-    const s2 = fit('GARDEN', 1.75, PW - 2.2);
+    const s1 = fit('THE MASK', 1.75, PW - 2.6);
+    const s2 = fit('GARDEN', 1.75, PW - 2.6);
     b.label({ text: 'THE MASK', size: s1, pos: at(FA, PX, PY + PH * 0.71, 0.17), rot: rotA, ink: P.ink, plate: GOLD, id: panel, flat: 0.45, pad: 0.2, jitter: 0.3 });
     b.label({ text: 'GARDEN', size: s2, pos: at(FA, PX, PY + PH * 0.28, 0.17), rot: rotA, ink: P.ink, plate: GOLD, id: panel, flat: 0.45, pad: 0.2, jitter: 0.3 });
     // A red rule between the two lines, and a small mask of three shapes at each end of it.
-    b.add(geo.box(PW - 5.2, 0.14, 0.04), { color: RED, pos: at(FA, PX, PY + PH * 0.5 - 0.07, 0.19), rot: rotA, flat: 1, outline: false });
+    // Both sit low in the gap between the lines and the shapes stand out past the ends of the words,
+    // so from the street neither one joins a letter.
+    const RY = PY + PH * 0.5 - 0.3;
+    b.add(geo.box(PW - 5.2, 0.14, 0.04), { color: RED, pos: at(FA, PX, RY - 0.07, 0.19), rot: rotA, flat: 1, outline: false });
     for (const side of [-1, 1]) {
-      const x = PX + side * (PW / 2 - 1.3);
-      b.add(zdisc(0.42, 0.06, 12), { color: RED, pos: at(FA, x, PY + PH * 0.5, 0.2), rot: rotA, flat: 0.8 });
-      b.add(geo.box(0.9, 0.12, 0.08), { color: GREEN, pos: at(FA, x, PY + PH * 0.5 + 0.12, 0.22), rot: rotA, flat: 0.8 });
+      const x = PX + side * (PW / 2 - 0.55);
+      b.add(zdisc(0.42, 0.06, 12), { color: RED, pos: at(FA, x, RY, 0.2), rot: rotA, flat: 0.8 });
+      b.add(geo.box(0.9, 0.12, 0.08), { color: GREEN, pos: at(FA, x, RY + 0.12, 0.22), rot: rotA, flat: 0.8 });
     }
   }
   // Ivy has most of the north wall below the sign, and is starting on the sign's corners.
@@ -768,7 +772,8 @@ function buildGarden(ctx: DistrictContext): DistrictBuild {
     boxCollider(FB, sx + 2.97, 10.55, 2.3, 3.75);
     const a0 = at(FB, sx, 0, 15.0), a1 = at(FB, sx, 0, 17.4);
     stones([[a0[0], a0[2]], [a1[0], a1[2]]]);
-    const stand = at(FB, sx, 0, 6.3);
+    // The spot is off to the screen's left, so its marker hangs beside the screen and never on it.
+    const stand = at(FB, sx - 3.9, 0, 6.4);
     poi('consensus-demo', stand[0], stand[2], 'Step up to the stage', 2.6);
   }
 
@@ -944,14 +949,14 @@ function buildGarden(ctx: DistrictContext): DistrictBuild {
     for (let i = 0; i < dead.length; i++) dry.push([dead[i][0] - 1.0 - i * 0.45, dead[i][1] + 0.3 - i * 0.2]);
     dry.push([14.2, -20.6], [18.6, -19.2]);
     for (let i = dead.length - 1; i >= 0; i--) dry.push([dead[i][0] + 1.0 + i * 0.4, dead[i][1] + 0.2 + i * 0.25]);
-    slab(dry, LAWN - 0.02, 0.04, { color: mix(P.grass, DRY[0], 0.72), flat: 0.5, outline: false });
+    slab(dry, LAWN - 0.03, 0.036, { color: mix(P.grass, DRY[0], 0.72), flat: 0.5, outline: false });
     for (let i = 0; i < dead.length - 1; i++) {
       const a = dead[i], c = dead[i + 1];
       const n = 3 - Math.min(2, i);
       for (let j = 0; j < n; j++) {
         const k = (j + 0.3) / n;
         const r = 0.5 - i * 0.07 - j * 0.02;
-        b.add(geo.cylinder(r, r, 0.06, 5), { color: mix(P.paveShade, DRY[1], 0.3 + i * 0.12), pos: [a[0] + (c[0] - a[0]) * k + (rng() - 0.5) * 0.5, LAWN + 0.005, a[1] + (c[1] - a[1]) * k + (rng() - 0.5) * 0.4], rot: [0, rng() * 6.28, (rng() - 0.5) * 0.08], scale: [1, 1, 0.7 + rng() * 0.3] });
+        b.add(geo.cylinder(r, r, 0.03, 5), { color: mix(P.paveShade, DRY[1], 0.3 + i * 0.12), pos: [a[0] + (c[0] - a[0]) * k + (rng() - 0.5) * 0.5, LAWN + 0.004, a[1] + (c[1] - a[1]) * k + (rng() - 0.5) * 0.4], rot: [0, rng() * 6.28, (rng() - 0.5) * 0.08], scale: [1, 1, 0.7 + rng() * 0.3] });
       }
     }
     const weeds: [number, number, number][] = [[9.9, -11.8, 0], [12.5, -14.1, 1], [12.2, -16.4, 2], [15.0, -16.6, 0], [14.3, -18.9, 1], [17.2, -18.0, 2], [10.4, -9.6, 2]];
@@ -1085,7 +1090,7 @@ function buildGarden(ctx: DistrictContext): DistrictBuild {
   // The shadow of the one overhead. It falls across paving and lawn alike, so it is drawn as a
   // screen of violet that lets either show through.
   const HS = 0.78;
-  const HERO_Y = 4.9;
+  const HERO_Y = 6.8; // high enough that the roots swing above the follow camera
   const heroYaw = facing(site.arrive.x - HERO[0], site.arrive.z - HERO[1]);
   const heroFace = geo.extrude([[-2.5, 0], [2.5, 0], [4.1, 4.4], [4.1, 10.0], [2.3, 12.6], [-2.3, 12.6], [-4.1, 10.0], [-4.1, 4.4]], 1.4, { cacheKey: 'maskgarden-hero-face' });
   {
@@ -1094,7 +1099,7 @@ function buildGarden(ctx: DistrictContext): DistrictBuild {
     const p = flat.getAttribute('position');
     const n = flat.getAttribute('normal');
     const sy = Math.max(0.12, sun[1]);
-    const ground = LAWN + 0.042;
+    const ground = LAWN + 0.018;
     for (let i = 0; i < p.count; i++) {
       const h = Math.max(0, p.getY(i) - ground);
       p.setXYZ(i, p.getX(i) - (sun[0] / sy) * h, ground, p.getZ(i) - (sun[2] / sy) * h);
@@ -1132,7 +1137,7 @@ function buildGarden(ctx: DistrictContext): DistrictBuild {
       hb.add(geo.box(0.75, tall, 0.9), { color: i % 2 === 0 ? RED : GOLD, pos: [i * 1.05, 12.3, 0], rot: [0, 0, -i * 0.24] });
     }
     // Roots, still hanging off the chin.
-    const roots: [number, number, number, number][] = [[-1.8, 0.3, 2.6, 0.5], [-0.8, -0.3, 3.4, -0.4], [0.3, 0.2, 2.9, 0.3], [1.2, -0.2, 3.6, -0.5], [2.0, 0.3, 2.3, 0.6]];
+    const roots: [number, number, number, number][] = [[-1.8, 0.3, 2.6, 0.5], [-0.8, -0.3, 2.6, -0.4], [0.3, 0.2, 2.9, 0.3], [1.2, -0.2, 2.8, -0.5], [2.0, 0.3, 2.3, 0.6]];
     for (const [x, z, len, drift] of roots) {
       hb.add(geo.tube([[x, 0.2, z], [x + drift * 0.4, -len * 0.45, z + drift * 0.3], [x + drift, -len, z - drift * 0.2]], 0.11, { radial: 5, perSpan: 3 }), { color: TRUNK });
       hb.add(geo.ico(0.3, 0), { color: SOIL, pos: [x + drift, -len, z - drift * 0.2], scale: [1, 0.8, 1] });
@@ -1148,12 +1153,16 @@ function buildGarden(ctx: DistrictContext): DistrictBuild {
   // ------------------------------------------------------------------------------------------
   // Seedlings: a small mask on a stalk. The heads are one shape, many times, tinted.
   // ------------------------------------------------------------------------------------------
-  const TINTS = [RED, GOLD, GREEN, CREAM, '#a89a86', '#b7a48a'].map((c) => new THREE.Color(c));
+  const TINTS = [RED, GOLD, GREEN, '#5f9fa8', '#a89a86', '#b7a48a'].map((c) => new THREE.Color(c));
   {
     const sb = kit.builder();
+    // A face, kept apart: two brows, two eyes under them, and a little nose that hangs free.
     const faceId = sb.add(zdisc(0.25, 0.08, 9), { color: '#ffffff', pos: [0, 1.06, 0] });
-    sb.add(geo.box(0.46, 0.07, 0.13), { color: IRON, pos: [0, 1.1, 0], id: faceId, flat: 0.5 });
-    sb.add(geo.box(0.07, 0.2, 0.13), { color: IRON, pos: [0, 0.9, 0], id: faceId, flat: 0.5 });
+    for (const s of [-1, 1]) {
+      sb.add(geo.box(0.15, 0.055, 0.13), { color: IRON, pos: [s * 0.11, 1.16, 0], rot: [0, 0, s * -0.18], id: faceId, flat: 0.5 });
+      sb.add(zdisc(0.045, 0.11, 6), { color: IRON, pos: [s * 0.1, 1.055, 0], id: faceId, flat: 0.5 });
+    }
+    sb.add(tri(0.055, 0.13, 0.13), { color: '#e0a080', pos: [0, 0.975, 0], rot: [0, 0, Math.PI], id: faceId, flat: 0.5 });
     const n = sprouts.length / 8;
     const mesh = kit.instances(sb.geometry ? sb.geometry() : geo.box(0.5, 0.5, 0.1), n);
     mesh.name = 'maskgarden-seedlings';
@@ -1186,9 +1195,13 @@ function buildGarden(ctx: DistrictContext): DistrictBuild {
     pb.add(new THREE.BoxGeometry(1.1, 1.1, 0.22).rotateZ(Math.PI / 4), { color: '#ffffff', pos: [0, 0.76, 0] });
     // The tint multiplies everything, so the features are baked dull and come out as a deep tone of it.
     const DEEP = '#8478b4';
-    pb.add(geo.box(1.7, 0.17, 0.32), { color: DEEP, pos: [0, 0.93, 0] });
-    pb.add(geo.box(0.17, 0.72, 0.34), { color: DEEP, pos: [0, 0.2, 0] });
-    for (const s of [-1, 1]) pb.add(zdisc(0.13, 0.32, 8), { color: IRON, pos: [s * 0.32, 0.72, 0], flat: 0.5 });
+    // A face with its parts kept apart: two brows lifted at the outer ends, two eyes, a short nose
+    // that hangs clear of everything.
+    for (const s of [-1, 1]) {
+      pb.add(geo.box(0.44, 0.13, 0.32), { color: DEEP, pos: [s * 0.31, 0.95, 0], rot: [0, 0, s * 0.2] });
+      pb.add(zdisc(0.13, 0.32, 8), { color: IRON, pos: [s * 0.32, 0.72, 0], flat: 0.5 });
+    }
+    pb.add(tri(0.12, 0.3, 0.3), { color: DEEP, pos: [0, 0.6, 0], rot: [0, 0, Math.PI] });
     pb.add(tri(0.3, 0.6, 0.26), { color: DEEP, pos: [0, 1.46, 0] });
     const mesh = kit.instances(pb.geometry ? pb.geometry() : geo.box(1, 3, 0.2), POSTS);
     mesh.name = 'maskgarden-posts';
@@ -1198,7 +1211,8 @@ function buildGarden(ctx: DistrictContext): DistrictBuild {
       const near = Math.hypot(site.arrive.x - x, site.arrive.z - z) < 16;
       postHome[i] = near ? facing(site.arrive.x - x, site.arrive.z - z) : facing(-x, -z);
       postYaw[i] = postHome[i];
-      mesh.setColorAt(i, TINTS[i % 3]);
+      // No yellow up here: a yellow diamond on a pole reads as a road sign before it reads as a face.
+      mesh.setColorAt(i, TINTS[[0, 2, 3][i % 3]]);
     }
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     return mesh;
@@ -1283,6 +1297,7 @@ function buildGarden(ctx: DistrictContext): DistrictBuild {
     if (bulbs.instanceColor) bulbs.instanceColor.needsUpdate = true;
   };
   lightBulbs(0);
+  let bulbFrame = 0;
 
   // ------------------------------------------------------------------------------------------
   // Price tags. Each hangs on a thread from the thing it prices and swings a little.
@@ -1331,8 +1346,12 @@ function buildGarden(ctx: DistrictContext): DistrictBuild {
         const diff = want - postYaw[i];
         postYaw[i] += Math.atan2(Math.sin(diff), Math.cos(diff)) * k;
       }
-      placePosts(t);
-      lightBulbs(t);
+      // The shimmer of the bulbs and the nod of the post masks only read close to, so from further
+      // off they keep the last state they had and nothing is sent again. The bulbs step every
+      // third frame even close up: a slow wobble does not need more.
+      const d2 = player.x * player.x + player.z * player.z;
+      if (d2 < 45 * 45) placePosts(t);
+      if (d2 < 30 * 30 && ++bulbFrame % 3 === 0) lightBulbs(t);
       swingTags(t);
     },
   };

@@ -43,7 +43,10 @@ function buildTerraces(ctx: DistrictContext): DistrictBuild {
   const low = ctx.quality === 'low';
   const sun = ctx.sun ?? FALLBACK_SUN;
   const [CREAM, TEAL, CYAN] = site.accents as [string, string, string];
-  const LAWN_Y = 0.05;
+  // Lawns top out here: the plaza paving is 3 cm up, this is a hair over it, so his feet stay on the
+  // grass. The committee court sits a few millimetres over the lawn.
+  const LAWN_Y = 0.034;
+  const COURT = LAWN_Y + 0.006;
   const paveShade = mix(mix(P.pave, CREAM, 0.1), P.shadow, 0.3);
   const lawnShade = mix(P.grass, P.shadow, 0.35);
 
@@ -81,8 +84,8 @@ function buildTerraces(ctx: DistrictContext): DistrictBuild {
     const s = h / 7;
     const a = rng() * 6.28;
     const ca = Math.cos(a), sa = Math.sin(a);
-    b.add(geo.cylinder(1.0, 1.0, 0.12, 10), { color: P.grassDeep, pos: [x, y, z], flat: 0.5 });
-    b.add(geo.cylinder(1.12, 1.12, 0.16, 10, true), { color: P.brick, pos: [x, y, z] });
+    b.add(geo.cylinder(1.0, 1.0, LAWN_Y, 10), { color: P.grassDeep, pos: [x, y, z], flat: 0.5 });
+    b.add(geo.cylinder(1.12, 1.12, 0.08, 10, true), { color: P.brick, pos: [x, y, z] });
     b.add(geo.cylinder(0.2 * s, 0.32 * s, 3.9 * s, 6, true), { color: TRUNK, pos: [x, y, z], sway: 0.2, swayBase: y });
     const leaf = { gradient: { bottom: mix(tint, P.shadow, 0.38), top: mix(tint, '#ffffff', 0.12) }, color: tint, sway: 0.5, swayBase: y };
     const id = b.newId();
@@ -400,19 +403,20 @@ function buildTerraces(ctx: DistrictContext): DistrictBuild {
     const CR = 4.6;
     const N = 8;
     const toC = Math.atan2(-CZ, -CX);
-    b.add(geo.cylinder(CR + 0.9, CR + 0.9, 0.06, 32), { color: P.marbleShade, pos: [CX, LAWN_Y, CZ] });
-    b.add(geo.cylinder(CR - 0.7, CR - 0.7, 0.07, 28), { color: P.pave, pos: [CX, LAWN_Y, CZ] });
+    // The floor of the court is sunk to a hair over the lawn, so he walks in on top of it.
+    b.add(geo.cylinder(CR + 0.9, CR + 0.9, 0.06, 32), { color: P.marbleShade, pos: [CX, COURT - 0.063, CZ] });
+    b.add(geo.cylinder(CR - 0.7, CR - 0.7, 0.07, 28), { color: P.pave, pos: [CX, COURT - 0.07, CZ] });
     for (let k = 0; k < N; k++) {
       // A gap faces the plaza.
       const a = toC + ((k + 0.5) / N) * Math.PI * 2;
       const x = CX + Math.cos(a) * CR;
       const z = CZ + Math.sin(a) * CR;
-      column(x, LAWN_Y + 0.06, z, 3.9, 0.3, LAWN_Y + 0.06);
+      column(x, COURT, z, 3.9, 0.3, COURT);
       colliders.push({ kind: 'circle', x, z, r: 0.45 });
       if (k % 3 === 1) clump([x + Math.cos(a) * 0.3, 1.5, z + Math.sin(a) * 0.3], [0.3, 1.1, 0.3], LEAVES[k % 2 ? 0 : 3], [0, -a, 0], 4, 0.05);
     }
     // The ring beam over the columns, with a hedge planted along it.
-    const ry = LAWN_Y + 0.06 + 3.9;
+    const ry = COURT + 3.9;
     b.add(geo.lathe([[CR + 0.5, ry], [CR + 0.5, ry + 0.55], [CR - 0.5, ry + 0.55], [CR - 0.5, ry]], 32, { crease: 40, cacheKey: 'terraces-ring' }), { color: P.marble, pos: [CX, 0, CZ] });
     b.add(geo.lathe([[CR + 0.52, ry + 0.12], [CR + 0.52, ry + 0.24], [CR + 0.4, ry + 0.24], [CR + 0.4, ry + 0.12]], 32, { crease: 40, cacheKey: 'terraces-ring-band' }), { color: TEAL, pos: [CX, 0, CZ], flat: 0.4 });
     const nh = low ? 6 : 12;
@@ -428,10 +432,10 @@ function buildTerraces(ctx: DistrictContext): DistrictBuild {
     }
     // The table: a round top on a fat pedestal.
     const tid = b.newId();
-    b.add(geo.cylinder(0.55, 0.75, 0.82, 12), { color: P.marbleShade, pos: [CX, LAWN_Y + 0.07, CZ], id: tid });
+    b.add(geo.cylinder(0.55, 0.75, 0.82, 12), { color: P.marbleShade, pos: [CX, COURT, CZ], id: tid });
     const top = geo.cylinder(1.55, 1.5, 0.2, 24);
-    b.add(top, { color: P.marble, pos: [CX, LAWN_Y + 0.89, CZ] });
-    cast(top, [CX, LAWN_Y + 0.89, CZ], undefined, undefined, LAWN_Y + 0.13);
+    b.add(top, { color: P.marble, pos: [CX, COURT + 0.82, CZ] });
+    cast(top, [CX, COURT + 0.82, CZ], undefined, undefined, COURT + 0.06);
     colliders.push({ kind: 'circle', x: CX, z: CZ, r: 1.65 });
     // The rubric: a tablet standing on the table, facing the way in.
     const yaw = toC;
@@ -439,20 +443,20 @@ function buildTerraces(ctx: DistrictContext): DistrictBuild {
     const at = place(CX, CZ, tYaw);
     const tr: V3 = [0, tYaw, 0];
     const tb: V3 = [0, tYaw + Math.PI, 0];
-    b.add(geo.bevelBox(1.0, 0.12, 0.4, 0.03), { color: TEAL, pos: at(0, LAWN_Y + 1.09, 0), rot: tr, flat: 0.3 });
-    const tablet = b.add(geo.bevelBox(1.6, 1.15, 0.16, 0.04), { color: CREAM, pos: at(0, LAWN_Y + 1.2, 0), rot: tr });
-    b.label({ text: 'THE RUBRIC', size: 0.16, pos: at(0, LAWN_Y + 2.1, 0.085), rot: tr, ink: P.ink, plate: CREAM, id: tablet, pad: 0.08 });
-    b.label({ text: 'EVIDENCE\nCALIBRATION\nDECISION', size: 0.105, align: 'left', anchor: 'center', pos: at(0, LAWN_Y + 1.62, 0.085), rot: tr, ink: P.violet, plate: CREAM, id: tablet, pad: 0.08, lineHeight: 1.8 });
-    b.label({ text: 'HIRING\nCOMMITTEE', size: 0.16, align: 'center', pos: at(0, LAWN_Y + 1.78, -0.085), rot: tb, ink: P.ink, plate: CREAM, id: tablet, pad: 0.08 });
+    b.add(geo.bevelBox(1.0, 0.12, 0.4, 0.03), { color: TEAL, pos: at(0, COURT + 1.02, 0), rot: tr, flat: 0.3 });
+    const tablet = b.add(geo.bevelBox(1.6, 1.15, 0.16, 0.04), { color: CREAM, pos: at(0, COURT + 1.13, 0), rot: tr });
+    b.label({ text: 'THE RUBRIC', size: 0.16, pos: at(0, COURT + 2.03, 0.085), rot: tr, ink: P.ink, plate: CREAM, id: tablet, pad: 0.08 });
+    b.label({ text: 'EVIDENCE\nCALIBRATION\nDECISION', size: 0.105, align: 'left', anchor: 'center', pos: at(0, COURT + 1.55, 0.085), rot: tr, ink: P.violet, plate: CREAM, id: tablet, pad: 0.08, lineHeight: 1.8 });
+    b.label({ text: 'HIRING\nCOMMITTEE', size: 0.16, align: 'center', pos: at(0, COURT + 1.71, -0.085), rot: tb, ink: P.ink, plate: CREAM, id: tablet, pad: 0.08 });
     // Packets on the table.
     for (let k = 0; k < 5; k++) {
       const a = (k / 5) * Math.PI * 2 + 0.6;
-      b.add(geo.box(0.36, 0.05, 0.48), { color: k % 2 ? P.bone : CYAN, pos: [CX + Math.cos(a) * 1.05, LAWN_Y + 1.09, CZ + Math.sin(a) * 1.05], rot: [0, -a, 0], flat: 0.5 });
+      b.add(geo.box(0.36, 0.05, 0.48), { color: k % 2 ? P.bone : CYAN, pos: [CX + Math.cos(a) * 1.05, COURT + 1.02, CZ + Math.sin(a) * 1.05], rot: [0, -a, 0], flat: 0.5 });
     }
     // Eight seats round it, leaving a gap at the front of the tablet.
     for (let k = 0; k < 8; k++) {
       const a = toC + ((k + 0.5) / 8) * Math.PI * 2;
-      b.add(geo.cylinder(0.3, 0.34, 0.5, 8), { color: k % 2 ? P.marble : P.marbleShade, pos: [CX + Math.cos(a) * 2.35, LAWN_Y + 0.07, CZ + Math.sin(a) * 2.35] });
+      b.add(geo.cylinder(0.3, 0.34, 0.5, 8), { color: k % 2 ? P.marble : P.marbleShade, pos: [CX + Math.cos(a) * 2.35, COURT, CZ + Math.sin(a) * 2.35] });
     }
     if (has('committees')) {
       const d = 3.3;

@@ -289,8 +289,10 @@ function buildPostcards(ctx: DistrictContext): DistrictBuild {
     const w = bb.measure ? bb.measure({ text, size }).width : text.length * size * 0.7;
     return w > max ? (size * max) / w : size;
   };
-  const cast = (gg: THREE.BufferGeometry, pos: V3, rot?: V3, scale?: number | V3, color: string = lawnShade, y = 0.06): void => {
-    b.shadow?.(gg, { color, sun, pos, rot, scale, y, lift: 0.015 });
+  // The top of the lawn: a centimetre over the paving and no more, so his shoes stay in sight on the grass.
+  const TOP = 0.04;
+  const cast = (gg: THREE.BufferGeometry, pos: V3, rot?: V3, scale?: number | V3, color: string = lawnShade, y = TOP): void => {
+    b.shadow?.(gg, { color, sun, pos, rot, scale, y, lift: 0.01 });
   };
 
   // A clump of leaf: hedge tops, ivy, moss, flowers.
@@ -308,18 +310,18 @@ function buildPostcards(ctx: DistrictContext): DistrictBuild {
   };
 
   // ==========================================================================================
-  // Ground: a round lawn a few centimetres proud of the paving, a paved hearth in the middle,
+  // Ground: a round lawn a centimetre proud of the paving, a paved hearth in the middle,
   // stepping stones in from the arch and out to the balloon.
   // ==========================================================================================
   const LAWN_R = 15.5;
   const SEG = high ? 56 : 36;
-  b.add(geo.cylinder(LAWN_R, LAWN_R, 0.05, SEG), { color: LAWN, pos: [0, 0, 0], flat: 0.15 });
+  b.add(geo.cylinder(LAWN_R, LAWN_R, TOP, SEG), { color: LAWN, pos: [0, 0, 0], flat: 0.15 });
   b.add(geo.cylinder(LAWN_R + 0.18, LAWN_R + 0.18, 0.035, SEG), { color: P.marbleShade, pos: [0, 0, 0], flat: 0.3 });
-  b.add(geo.cylinder(3.3, 3.3, 0.035, 24), { color: P.pave, pos: [0, 0.05, 0], flat: 0.2 });
-  const stone = geo.cylinder(0.42, 0.46, 0.04, 9);
+  b.add(geo.cylinder(3.3, 3.3, 0.01, 24), { color: P.pave, pos: [0, TOP, 0], flat: 0.2 });
+  const stone = geo.cylinder(0.42, 0.46, 0.01, 9);
   for (let i = 0; i < 7; i++) {
     const z = 4.2 + i * 1.55;
-    b.add(stone, { color: i % 2 ? P.pave : P.marble, pos: [(i % 2 ? 0.28 : -0.28), 0.05, z], rot: [0, i, 0], flat: 0.2 });
+    b.add(stone, { color: i % 2 ? P.pave : P.marble, pos: [(i % 2 ? 0.28 : -0.28), TOP, z], rot: [0, i, 0], flat: 0.2 });
   }
   // The balloon sits out past the ring, through the gap between Cape Verde and Puerto Rico.
   const BA = (197.5 * Math.PI) / 180;
@@ -331,7 +333,7 @@ function buildPostcards(ctx: DistrictContext): DistrictBuild {
     const side = i % 2 ? 0.28 : -0.28;
     const x = Math.sin(BA) * r + Math.cos(BA) * side;
     const z = Math.cos(BA) * r - Math.sin(BA) * side;
-    b.add(stone, { color: i % 2 ? P.pave : P.marble, pos: [x, 0.05, z], rot: [0, i * 2, 0], flat: 0.2 });
+    b.add(stone, { color: i % 2 ? P.pave : P.marble, pos: [x, TOP, z], rot: [0, i * 2, 0], flat: 0.2 });
   }
   // A paved landing round the basket.
   b.add(geo.cylinder(3.0, 3.0, 0.04, 20), { color: mix(P.pave, YELLOW, 0.12), pos: [bx, 0, bz], flat: 0.2 });
@@ -344,6 +346,7 @@ function buildPostcards(ctx: DistrictContext): DistrictBuild {
   const CH = 3.0; // card height
   const PL = 0.35; // plinth height
   const CD = 0.14; // card thickness
+  const HEAD = 0.5; // the strip above the picture that carries the name
   const PY = PL + CH - 0.12 - V; // picture centre
   const LAYER = 0.011;
   const cardIds: string[] = [];
@@ -364,10 +367,11 @@ function buildPostcards(ctx: DistrictContext): DistrictBuild {
     b.add(plinth, { gradient: { bottom: P.marbleShade, top: P.marble }, color: P.marble, pos: at(0, 0.04, 0), rot });
     if (!low && i % 3 !== 1) clump(at((i % 2 ? 1 : -1) * (CW / 2 + 0.05), 0.3, 0.2), [0.42, 0.26, 0.35], P.moss as string, rot, 3, 0);
 
-    // The card itself, cream like old card stock.
-    const bodyGeo = geo.bevelBox(CW, CH, CD, 0.03);
+    // The card itself, cream like old card stock. It stands a strip taller than the picture needs:
+    // the name goes up there, where he cannot stand in front of it while he reads.
+    const bodyGeo = geo.bevelBox(CW, CH + HEAD, CD, 0.03);
     const body = b.add(bodyGeo, { color: P.bone, pos: at(0, PL, 0), rot, flat: 0.35 });
-    cast(bodyGeo, at(0, PL, 0), rot, undefined, lawnShade, 0.05);
+    cast(bodyGeo, at(0, PL, 0), rot, undefined, lawnShade, TOP);
 
     // The poster, layer on layer out from the face.
     const z0 = CD / 2 + 0.006;
@@ -392,7 +396,7 @@ function buildPostcards(ctx: DistrictContext): DistrictBuild {
     painter.rect(-U - 0.05, -V - 0.05, U + 0.05, V + 0.05, card.frame, 0);
     card.draw(painter);
     const nameSize = fit(b, card.name, 0.27, CW - 0.35);
-    b.label({ text: card.name, size: nameSize, pos: at(0, PL + 0.5, CD / 2), rot, ink: P.ink, plate: P.bone, id: body, flat: 0.35, pad: 0.12 });
+    b.label({ text: card.name, size: nameSize, pos: at(0, PL + CH + HEAD / 2 - 0.1, CD / 2), rot, ink: P.ink, plate: P.bone, id: body, flat: 0.35, pad: 0.12 });
 
     // The back: stamp, a line down the middle, address lines, POST CARD across the top.
     const bz0 = -CD / 2 - 0.006;
@@ -407,8 +411,9 @@ function buildPostcards(ctx: DistrictContext): DistrictBuild {
 
     box(cx, cz, (CW + 0.45) / 2, 0.45, th);
     if (has(card.id)) {
+      // The marker hangs clear above the card's top edge, so it never sits on the name.
       const r = RING - 2.2;
-      pois.push({ entry: card.id, x: wx(Math.sin(phi) * r, Math.cos(phi) * r), z: wz(Math.sin(phi) * r, Math.cos(phi) * r), y: 3.7, reach: 3.6, prompt: 'Read the postcard' });
+      pois.push({ entry: card.id, x: wx(Math.sin(phi) * r, Math.cos(phi) * r), z: wz(Math.sin(phi) * r, Math.cos(phi) * r), y: 4.4, reach: 3.6, prompt: 'Read the postcard' });
     }
     cardIds.push(card.id);
   }
@@ -528,7 +533,9 @@ function buildPostcards(ctx: DistrictContext): DistrictBuild {
           id,
         });
         if (!low && (d / step) % 2 < 1) b.add(geo.sphere(0.1, 6, 4), { color: (d % 3 ? P.pink : YELLOW), pos: [x, 0.88, z], flat: 0.7 });
-        box(x, z, 1.1, 0.45, a);
+        // Three small rounds down its length stop him as well as one box would, and leave the camera
+        // free to look over the top: the hedge is lower than his shoulders.
+        for (const k of [-0.75, 0, 0.75]) circle(x + Math.cos(a) * k, z - Math.sin(a) * k, 0.45);
       }
     }
 

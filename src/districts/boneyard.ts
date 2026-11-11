@@ -146,10 +146,10 @@ function buildBoneyard(ctx: DistrictContext): DistrictBuild {
     if (f) addIn(f, g, opts);
     else b.add(g, opts);
   };
-  // A low mound of moss or lawn, a few centimetres proud of the paving.
+  // A low patch of moss or lawn, level with the paving.
   const bed = (x: number, z: number, sx: number, sz: number, tint: ColorLike, yaw = 0): void => {
     const y = ground(x, z);
-    // An uneven flat patch: a ragged outline pushed up 14 cm, its foot under the paving.
+    // An uneven flat patch: a ragged outline whose top stands 3 cm up, so shoes stay on it.
     const pts: [number, number][] = [];
     const n = 11;
     for (let i = 0; i < n; i++) {
@@ -160,7 +160,7 @@ function buildBoneyard(ctx: DistrictContext): DistrictBuild {
     const g0 = geo.extrude(pts, 0.2, { crease: 30 });
     const g = g0.clone().rotateX(-Math.PI / 2);
     g0.dispose();
-    b.add(g, { color: tint, pos: [x, y + 0.04, z], rot: [0, yaw, 0], scale: [sx, 1, sz], flat: 0.35 });
+    b.add(g, { color: tint, pos: [x, y - 0.07, z], rot: [0, yaw, 0], scale: [sx, 1, sz], flat: 0.35 });
   };
   // A street tree: trunk and three masses of leaf.
   const tree = (x: number, z: number, h: number, tint: ColorLike, pit = true, yAt?: number): void => {
@@ -302,7 +302,7 @@ function buildBoneyard(ctx: DistrictContext): DistrictBuild {
     }
     // The missing piece of rib four lies on the ground off to one side.
     addIn(rf, piece, { color: BONE, pos: [-9.6, 0.4, -1.5], rot: [-Math.PI / 2, 0, 0], hatch: 0.04 });
-    for (const [px, pz] of [[-11.4, -1.2], [-7.8, -1.9]]) {
+    for (const [px, pz] of [[-10.9, -2.5], [-7.8, -1.9]]) {
       const c = inFrame(rf, [px, 0, pz]);
       circle(c.pos[0], c.pos[2], 1.0);
     }
@@ -576,13 +576,13 @@ function buildBoneyard(ctx: DistrictContext): DistrictBuild {
       pts.push([Math.cos(a) * TW / 2, TH - TW / 2 + Math.sin(a) * TW / 2]);
     }
     const tablet = geo.extrude(pts, 0.3, { cacheKey: 'boneyard-tablet' });
-    const names = ['SOLANA', 'ETHER'];
+    const names = ['SOLANA', 'ETHEREUM'];
     for (let k = 0; k < 2; k++) {
       const ox = (k - 0.5) * 2.3;
       const tf = frame([ox, 0.45, k * 0.3], [k ? -0.08 : -0.03, k ? -0.12 : 0.1, k ? 0.07 : -0.03], f);
       addIn(f, geo.bevelBox(1.9, 0.5, 0.8, 0.06), { ...mossyMarble, pos: [ox, -0.05, k * 0.3 + 0.05] });
       const face = addIn(tf, tablet, { color: P.marble, pos: [0, 0, 0] });
-      labelIn(tf, { text: names[k], size: 0.13, pos: [0, 0.32, 0.16], ink: P.violet, plate: P.marble, id: face, pad: 0.06 });
+      labelIn(tf, { text: names[k], size: 0.18, pos: [0, 1.5, 0.16], ink: P.ink, plate: P.marble, id: face, pad: 0.06 });
       const c = inFrame(f, [ox, 0, k * 0.3]);
       box(c.pos[0], c.pos[2], 0.95, 0.42, yaw);
     }
@@ -593,7 +593,7 @@ function buildBoneyard(ctx: DistrictContext): DistrictBuild {
     const pc = inFrame(f, [0, 0, 1.55]);
     box(pc.pos[0], pc.pos[2], 1.3, 0.2, yaw);
     // The one that did get written has something growing at its foot.
-    clump([-1.4, 0.45, 0.55], [0.35, 0.5, 0.3], SPROUT, undefined, 3, 0.3, f);
+    clump([-1.75, 0.45, 0.6], [0.35, 0.5, 0.3], SPROUT, undefined, 3, 0.3, f);
     clump([2.0, 0.2, -0.3], [0.8, 1.0, 0.7], P.leafDeep, undefined, 4, 0.15, f);
     const p = inFrame(f, [0, 0, 3.4]);
     poi('contracts', p.pos[0], p.pos[2], 'Read the tablets', 3.2);
@@ -697,7 +697,9 @@ function buildBoneyard(ctx: DistrictContext): DistrictBuild {
     const coping = geo.bevelBox(4.9, 0.22, 0.8, 0.04);
     const bankId = b.newId();
     const wallId = b.newId();
-    const gaps = [0, 1.75, 4.1]; // the road, then two places where the wall came down
+    // The road, then two places where the wall came down. Both breaks face the gentle side of the
+    // bank, so whoever walks out through one can climb on to the pavement.
+    const gaps = [0, 2.67, 4.1];
     const gapHalf = [0.42, 0.13, 0.13];
     const isGap = (a: number): number => {
       for (let i = 0; i < gaps.length; i++) {

@@ -257,14 +257,15 @@ function buildObservatory(ctx: DistrictContext): DistrictBuild {
     circle(x, z, 0.72);
   };
 
-  // The floor: a round of marble a few centimetres proud of the plaza, with two inlaid rings.
+  // The floor: a round of marble a step of a centimetre or two over the plaza, with two inlaid rings.
+  // Kept that low so whoever walks in keeps his shoes on top of it.
   const floorId = b.newId();
   const floorSeg = low ? 28 : 40;
-  b.add(geo.cylinder(9.5, 9.5, 0.07, floorSeg), { color: MARBLE_MID, pos: [0, 0, RZ], id: floorId });
-  b.add(geo.box(10.9, 0.07, 6.0), { color: MARBLE_MID, pos: [0, 0, RZ + RC + 1.4], id: floorId });
-  b.add(geo.cylinder(8.3, 8.3, 0.1, floorSeg), { color: P.marble, pos: [0, 0, RZ] });
-  b.add(geo.ring(4.5, 4.85, floorSeg), { color: INDIGO, pos: [0, 0.115, RZ], flat: 0.6 });
-  b.add(geo.ring(1.9, 2.05, 24), { color: BRASS, pos: [0, 0.115, RZ], flat: 0.5 });
+  b.add(geo.cylinder(9.5, 9.5, 0.04, floorSeg), { color: MARBLE_MID, pos: [0, 0, RZ], id: floorId });
+  b.add(geo.box(10.9, 0.04, 6.0), { color: MARBLE_MID, pos: [0, 0, RZ + RC + 1.4], id: floorId });
+  b.add(geo.cylinder(8.3, 8.3, 0.048, floorSeg), { color: P.marble, pos: [0, 0, RZ] });
+  b.add(geo.ring(4.5, 4.85, floorSeg), { color: INDIGO, pos: [0, 0.053, RZ], flat: 0.6 });
+  b.add(geo.ring(1.9, 2.05, 24), { color: BRASS, pos: [0, 0.053, RZ], flat: 0.5 });
 
   // Twelve columns. The street axis falls in a gap, and that gap is the door.
   const N_COL = 12;
@@ -330,7 +331,7 @@ function buildObservatory(ctx: DistrictContext): DistrictBuild {
   b.label({ text: site.years.toUpperCase(), size: 0.17, pos: [0, COL_H + 0.19, PZ + 0.65], ink: P.violet, plate: P.marble, id: porch, flat: 0.2, pad: 0.15 });
 
   // Under the dome: the eyepiece. A marble pier, a brass pipe up through the ceiling to the telescope.
-  b.add(geo.cylinder(0.85, 1.0, 0.95, 12), { gradient: { bottom: P.marbleShade, top: P.marble }, color: P.marble, pos: [0, 0.1, RZ] });
+  b.add(geo.cylinder(0.85, 1.0, 1.0, 12), { gradient: { bottom: P.marbleShade, top: P.marble }, color: P.marble, pos: [0, 0.048, RZ] });
   b.add(geo.cylinder(0.5, 0.6, 0.16, 10), { color: BRASS, pos: [0, 1.05, RZ], flat: 0.3 });
   b.add(geo.cylinder(0.17, 0.2, COL_H - 0.5, 8, true), { gradient: { bottom: BRASS, top: BRASS_DEEP }, color: BRASS, pos: [0, 1.2, RZ] });
   b.add(rod([0, 1.72, RZ], [0, 1.52, RZ + 1.0], 0.15, 0.11, 8), { color: BRASS_LIGHT, flat: 0.3 });
@@ -369,24 +370,26 @@ function buildObservatory(ctx: DistrictContext): DistrictBuild {
   // ------------------------------------------------------------------------------------------
   const lineFrom = Math.hypot(site.arrive.x, site.arrive.z);
   const MED_Z = PZ + 3.3;
-  b.add(geo.box(0.2, 0.03, lineFrom - MED_Z - 1.2), { color: P.violet, pos: [0, GROUND, (lineFrom + MED_Z + 1.2) / 2], flat: 1 });
-  b.add(geo.cylinder(1.42, 1.42, 0.07, 24), { color: BRASS, pos: [0, GROUND - 0.02, MED_Z], flat: 0.4 });
-  const half = (start: number): THREE.BufferGeometry => new THREE.CylinderGeometry(1.14, 1.14, 0.1, 14, 1, false, start, Math.PI).translate(0, 0.05, 0);
+  // All of it lies nearly flush with the paving, so his shoes stay in sight as he walks over it.
+  b.add(geo.box(0.2, 0.012, lineFrom - MED_Z - 1.2), { color: P.violet, pos: [0, 0.03, (lineFrom + MED_Z + 1.2) / 2], flat: 1 });
+  b.add(geo.cylinder(1.42, 1.42, 0.02, 24), { color: BRASS, pos: [0, 0.03, MED_Z], flat: 0.4 });
+  const half = (start: number): THREE.BufferGeometry => new THREE.CylinderGeometry(1.14, 1.14, 0.02, 14, 1, false, start, Math.PI).translate(0, 0.01, 0);
   const teal = half(0), coral = half(Math.PI);
-  b.add(teal, { color: P.teal, pos: [0, GROUND, MED_Z], flat: 1 });
-  b.add(coral, { color: CORAL, pos: [0, GROUND, MED_Z], flat: 1 });
+  b.add(teal, { color: P.teal, pos: [0, 0.035, MED_Z], flat: 1 });
+  b.add(coral, { color: CORAL, pos: [0, 0.035, MED_Z], flat: 1 });
   teal.dispose();
   coral.dispose();
-  b.add(geo.cylinder(0.5, 0.5, 0.13, 14), { color: P.violet, pos: [0, GROUND, MED_Z], flat: 1 });
+  b.add(geo.cylinder(0.5, 0.5, 0.03, 14), { color: P.violet, pos: [0, 0.03, MED_Z], flat: 1 });
 
   // ------------------------------------------------------------------------------------------
   // The forecourt. Two lawns either side of the line, each with cypresses and a clipped ball.
   // ------------------------------------------------------------------------------------------
   for (const side of [-1, 1]) {
     const x = side * 5.5;
-    b.add(geo.box(4.8, 0.06, 13.4), { color: P.paveShade, pos: [x, GROUND - 0.02, 13.6] });
-    b.add(geo.box(4.3, 0.1, 12.9), { color: P.grass, pos: [x, GROUND - 0.02, 13.6] });
-    b.add(geo.box(2.6, 0.02, 11.2), { color: P.grassLight, pos: [x, GROUND + 0.085, 13.6], flat: 0.4, outline: false });
+    // Kerb, lawn and mown stripe each a few millimetres over the last: underfoot it is all one level.
+    b.add(geo.box(4.8, 0.012, 13.4), { color: P.paveShade, pos: [x, 0.03, 13.6] });
+    b.add(geo.box(4.3, 0.012, 12.9), { color: P.grass, pos: [x, 0.034, 13.6] });
+    b.add(geo.box(2.6, 0.004, 11.2), { color: P.grassLight, pos: [x, 0.046, 13.6], flat: 0.4, outline: false });
     // The tall ones stand at the far end, by the door, so the way in stays open to either side.
     cypress(x, 8.8, 5.6, 0.1);
     circle(x, 8.8, 0.5);
@@ -433,9 +436,9 @@ function buildObservatory(ctx: DistrictContext): DistrictBuild {
   for (const side of [-1, 1]) {
     const a0 = (26 * Math.PI) / 180, arc = (46 * Math.PI) / 180;
     const ry = (side > 0 ? a0 : -a0 - arc) - Math.PI / 2;
-    b.add(geo.ring(26.1, 31.7, lawnSeg, arc + 0.02), { color: P.paveShade, pos: [0, GROUND + 0.02, 0], rot: [0, ry - 0.01, 0] });
-    b.add(geo.ring(26.4, 31.4, lawnSeg, arc), { color: P.grass, pos: [0, GROUND + 0.05, 0], rot: [0, ry, 0] });
-    b.add(geo.ring(27.6, 30.2, lawnSeg, arc - 0.1), { color: P.grassLight, pos: [0, GROUND + 0.065, 0], rot: [0, ry + 0.05, 0], flat: 0.4, outline: false });
+    b.add(geo.ring(26.1, 31.7, lawnSeg, arc + 0.02), { color: P.paveShade, pos: [0, 0.036, 0], rot: [0, ry - 0.01, 0] });
+    b.add(geo.ring(26.4, 31.4, lawnSeg, arc), { color: P.grass, pos: [0, 0.042, 0], rot: [0, ry, 0] });
+    b.add(geo.ring(27.6, 30.2, lawnSeg, arc - 0.1), { color: P.grassLight, pos: [0, 0.048, 0], rot: [0, ry + 0.05, 0], flat: 0.4, outline: false });
     for (const [deg, h, tint] of [[36, 6.6, P.leaf], [60, 7.4, P.grassDeep]] as const) {
       const a = (side * deg * Math.PI) / 180;
       tree(Math.sin(a) * 28.9, Math.cos(a) * 28.9, h, tint);
@@ -668,12 +671,13 @@ function buildObservatory(ctx: DistrictContext): DistrictBuild {
     const hc = Math.cos(head), hs = Math.sin(head);
     const at = (lx: number, y: number, lz: number): V3 => [X + lx * hc + lz * hs, y, Z - lx * hs + lz * hc];
     const rot: V3 = [0, head, 0];
-    b.add(geo.bevelBox(5.6, 0.1, 5.6, 0.04), { color: P.marbleShade, pos: at(0, 0, 0), rot });
-    b.add(geo.box(4.9, 0.13, 4.9), { color: P.marble, pos: at(0, 0, 0), rot });
+    // Its floor is a low step of two centimetres or so: anyone who walks on keeps his shoes in sight.
+    b.add(geo.bevelBox(5.6, 0.04, 5.6, 0.015), { color: P.marbleShade, pos: at(0, 0, 0), rot });
+    b.add(geo.box(4.9, 0.048, 4.9), { color: P.marble, pos: at(0, 0, 0), rot });
     const post = geo.cylinder(0.2, 0.25, 3.0, 8);
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
       const p = at(sx * 2.05, 0, sz * 2.05);
-      b.add(geo.box(0.7, 0.3, 0.7), { color: MARBLE_MID, pos: [p[0], 0.1, p[2]], rot });
+      b.add(geo.box(0.7, 0.352, 0.7), { color: MARBLE_MID, pos: [p[0], 0.048, p[2]], rot });
       b.add(post, { color: P.marble, pos: [p[0], 0.4, p[2]], flat: 0.25 });
       b.add(geo.box(0.66, 0.2, 0.66), { color: MARBLE_MID, pos: [p[0], 3.4, p[2]], rot });
       cast(post, [p[0], 0.4, p[2]]);
@@ -693,14 +697,15 @@ function buildObservatory(ctx: DistrictContext): DistrictBuild {
     b.add(geo.cylinder(0.14, 0.22, 0.1, 6), { color: BRASS, pos: at(0, 2.02, 0), flat: 0.3 });
     // A bench to sit on under it.
     b.add(geo.bevelBox(2.4, 0.14, 0.7, 0.04), { color: P.marble, pos: at(0, 0.5, -1.55), rot });
-    for (const sx of [-1, 1]) b.add(geo.box(0.3, 0.4, 0.6), { color: MARBLE_MID, pos: at(sx * 0.85, 0.12, -1.55), rot });
+    for (const sx of [-1, 1]) b.add(geo.box(0.3, 0.47, 0.6), { color: MARBLE_MID, pos: at(sx * 0.85, 0.048, -1.55), rot });
     const bench = at(0, 0, -1.55);
     boxed(bench[0], bench[2], 1.25, 0.4, head);
     clump(at(-2.75, 0.3, 1.9), [0.8, 0.4, 0.6], P.moss, rot);
     clump(at(2.8, 0.25, -1.2), [0.6, 0.35, 0.9], P.moss, rot);
     clump(at(2.42, 2.3, 2.2), [0.35, 1.5, 0.5], P.leafDeep, rot, 5);
     const p = at(0, 0, 3.6);
-    poi('mayo', p[0], p[2], 'Stand by the lamp', 2.3, 5);
+    // The marker rides over the roof: any lower and it hangs right on the lamp.
+    poi('mayo', p[0], p[2], 'Stand by the lamp', 4.8, 5);
   }
 
   // ------------------------------------------------------------------------------------------

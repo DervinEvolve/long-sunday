@@ -218,8 +218,10 @@ function buildSkyHarbor(ctx: DistrictContext): DistrictBuild {
   const DECK_SHADE = mix(DECK_C, P.shadow, 0.28);
   const LAWN_SHADE = mix(P.grass, P.shadow, 0.32);
   const GROUND = 0.045; // the plaza is drawn a few centimetres proud of the pad: shadows and inlays go just above it
-  const DECK = 0.09; // the top of the platform
-  const LAWN = 0.1; // the top of a lawn bed
+  // The platform and the lawns stand only a centimetre over the paving, so his shoes stay in sight
+  // wherever he walks. The pier shows its thickness as the marble body under the deck.
+  const DECK = 0.04; // the top of the platform
+  const LAWN = 0.04; // the top of a lawn bed
   const GREENS = [P.grass, P.leaf, P.grassDeep, P.moss] as const;
 
   // The frame. +z looks back down the street the visitor came up.
@@ -305,7 +307,7 @@ function buildSkyHarbor(ctx: DistrictContext): DistrictBuild {
   const drip = (x: number, y: number, z: number, len: number, r: number, tint: ColorLike = P.moss): void => {
     b.add(geo.cone(r, len, 5), { gradient: { bottom: mix(tint, P.shadow, 0.3), top: tint }, color: tint, pos: [x, y, z], scale: [1, -1, 1] });
   };
-  // A lawn: a flat bed a few centimetres proud of the paving, with a kerb of darker green.
+  // A lawn: a flat bed a centimetre proud of the paving.
   const lawn = (pts: P2[], tint: ColorLike = P.grass): void => {
     b.add(slab(pts, LAWN), { color: tint, flat: 0.35 });
   };
@@ -359,7 +361,7 @@ function buildSkyHarbor(ctx: DistrictContext): DistrictBuild {
     }
     // The teal line of the road does not stop at the kerb: it crosses the plaza, runs down the
     // platform, under the gates and out along the pier to the very end.
-    b.add(geo.box(0.26, 0.062, 22.6 - PLAT_Z0), { color: P.teal, pos: [0, 0, (22.6 + PLAT_Z0) / 2], flat: 0.6, outline: false });
+    b.add(geo.box(0.26, 0.045, 22.6 - PLAT_Z0), { color: P.teal, pos: [0, 0, (22.6 + PLAT_Z0) / 2], flat: 0.6, outline: false });
     b.add(geo.box(0.26, 0.012, PLAT_Z0 - (PIER_END + 0.3)), { color: P.teal, pos: [0, DECK, (PLAT_Z0 + PIER_END + 0.3) / 2], flat: 0.6, outline: false });
     // The warning strip along the edge the train stands at.
     b.add(geo.box(0.5, 0.012, PLAT_Z0 + 15.5), { color: P.yellow, pos: [PLAT_X0 + 0.35, DECK, (PLAT_Z0 - 15.5) / 2], flat: 0.6 });
@@ -656,7 +658,8 @@ function buildSkyHarbor(ctx: DistrictContext): DistrictBuild {
     clump([WALL_X + 0.25, 0.3, -23.2], [0.45, 0.45, 1.1], P.grassDeep, undefined, 3, ivy);
     clump([-WALL_X - 0.1, 0.9, -17.4], [0.45, 0.5, 1.2], P.moss, undefined, 3);
     clump([WALK + 0.55, 0.22, GATE_Z[0] + 0.5], [0.6, 0.3, 0.5], P.moss, undefined, 3);
-    poi('krill', 0, -26.9, 'Watch the whale and the krill', 2.3);
+    // Left of the line, so the marker clears the balance and he clears the plate.
+    poi('krill', -1.0, -26.9, 'Watch the whale and the krill', 2.3);
   }
 
   // ------------------------------------------------------------------------------------------
@@ -746,9 +749,9 @@ function buildSkyHarbor(ctx: DistrictContext): DistrictBuild {
   const WHEEL_Y = 13.4;
   {
     // The ground under them: a round of darker paving with the wheels inlaid in brass.
-    b.add(geo.cylinder(8, 8, 0.07, high ? 36 : 24), { color: mix(PADC, VIOLET, 0.16), pos: [GX, 0, GZ], flat: 0.3 });
+    b.add(geo.cylinder(8, 8, 0.04, high ? 36 : 24), { color: mix(PADC, VIOLET, 0.16), pos: [GX, 0, GZ], flat: 0.3 });
     for (const [r0, r1] of [[6.5, 6.78], [4.6, 4.84], [2.9, 3.1]] as const) {
-      b.add(geo.ring(r0, r1, high ? 40 : 28), { color: BRASS, pos: [GX, 0.082, GZ], flat: 0.5, outline: false });
+      b.add(geo.ring(r0, r1, high ? 40 : 28), { color: BRASS, pos: [GX, 0.046, GZ], flat: 0.5, outline: false });
     }
 
     const LEAN = 0.5;
@@ -786,7 +789,8 @@ function buildSkyHarbor(ctx: DistrictContext): DistrictBuild {
     clump([TX - ldx * 2.0 + 0.6, 1.1, TZ - ldz * 2.0 - 0.3], [0.9, 0.9, 0.5], P.grassDeep, [0, face + 0.5, 0], 4, moss);
     clump([TX + 2.3, 0.3, TZ + 0.6], [0.7, 0.35, 0.9], P.moss, undefined, 3);
     circle(TX, TZ, 2.75);
-    poi('ophanim', TX + Math.sin(face) * 3.7, TZ + Math.cos(face) * 3.7, 'Listen at the horn', 2.6);
+    // A step off the plinth's middle, so he does not stand over its name and the marker hangs beside the horn.
+    poi('ophanim', TX + Math.sin(face) * 3.7 - Math.cos(face) * 1.6, TZ + Math.cos(face) * 3.7 + Math.sin(face) * 1.6, 'Listen at the horn', 2.6);
   }
 
   // ------------------------------------------------------------------------------------------
@@ -885,7 +889,8 @@ function buildSkyHarbor(ctx: DistrictContext): DistrictBuild {
     clump(at(B, 1.7, 0.25, -1.2), [0.6, 0.3, 0.8], P.moss, undefined, 3);
     drip(...(at(B, -1.56, 2.3, -1.4) as V3), 1.2, 0.2, P.moss);
     boxed(B.x, B.z, 1.6, 1.6, B.turn);
-    const p = at(B, 0, 0, 2.75);
+    // Off to one side of the open front, so the marker hangs by the post and the headphones show.
+    const p = at(B, 1.3, 0, 2.75);
     poi('empathy-archives', p[0], p[2], 'Pick up the headphones', 2.0);
   }
 
@@ -1038,7 +1043,6 @@ function buildSkyHarbor(ctx: DistrictContext): DistrictBuild {
   const krillGeo = kb.geometry ? kb.geometry() : geo.box(0.3, 0.2, 1.4);
   const krill = kit.instances(krillGeo, N_KRILL, { flat: 0.5 });
   krill.name = 'skyharbor-krill';
-  krill.frustumCulled = false;
   inner.add(krill);
   // Per krill: where it is round the ring, how fast, how far out, how high, how big, its own bob.
   const kA = new Float32Array(N_KRILL);
@@ -1178,12 +1182,18 @@ function buildSkyHarbor(ctx: DistrictContext): DistrictBuild {
     hands.instanceMatrix.needsUpdate = true;
   };
   update(0, 0);
+  // The krill swim right round the whale, and the whale drifts: one fixed ball that holds the ring
+  // at its widest and the whale at either end of its drift, so the shoal is skipped when it is
+  // behind him and never cut off when it is not.
+  krill.boundingSphere = new THREE.Sphere(new THREE.Vector3(WX, WY, WZ + 1.2), RING_A * 1.18 + 12);
 
   return {
     group,
     colliders,
     pois,
     update,
+    // The pier, the whale and the krill reach well past the pad: about 90 m out, and up.
+    cullRadius: 95,
     dispose() {
       krill.geometry.dispose();
       hands.geometry.dispose();

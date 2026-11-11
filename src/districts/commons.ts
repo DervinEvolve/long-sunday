@@ -99,7 +99,9 @@ function buildCommons(ctx: DistrictContext): DistrictBuild {
   const low = ctx.quality === 'low';
   const sun = ctx.sun ?? FALLBACK_SUN;
   const [BLUE, CORAL, CREAM] = site.accents as [string, string, string];
-  const LAWN_Y = 0.05;
+  // Lawns, beds and the orchestra floor top out here: the plaza paving is 3 cm up, this is a hair
+  // over it, so his feet stay on whatever he walks onto.
+  const LAWN_Y = 0.035;
   const paveShade = mix(mix(P.pave, BLUE, 0.08), P.shadow, 0.3);
   const lawnShade = mix(P.grass, P.shadow, 0.35);
 
@@ -136,7 +138,7 @@ function buildCommons(ctx: DistrictContext): DistrictBuild {
     const s = h / 7;
     const a = rng() * 6.28;
     const ca = Math.cos(a), sa = Math.sin(a);
-    if (!onLawn) b.add(geo.cylinder(0.95, 0.95, 0.1, 8), { color: P.grassDeep, pos: [x, 0, z], flat: 0.5 });
+    if (!onLawn) b.add(geo.cylinder(0.95, 0.95, LAWN_Y, 8), { color: P.grassDeep, pos: [x, 0, z], flat: 0.5 });
     b.add(geo.cylinder(0.2 * s, 0.32 * s, 3.9 * s, 6, true), { color: TRUNK, pos: [x, y, z], sway: 0.2, swayBase: y });
     const leaf = { gradient: { bottom: mix(tint, P.shadow, 0.38), top: mix(tint, '#ffffff', 0.12) }, color: tint, sway: 0.5, swayBase: y };
     const id = b.newId();
@@ -149,7 +151,7 @@ function buildCommons(ctx: DistrictContext): DistrictBuild {
   };
   // A bed of flowers: a low rim of soil green with a few coloured heads in it.
   const bed = (x: number, z: number, r: number, n: number): void => {
-    b.add(geo.cylinder(r, r, 0.12, 12), { color: P.grassDeep, pos: [x, 0, z], flat: 0.4 });
+    b.add(geo.cylinder(r, r, LAWN_Y, 12), { color: P.grassDeep, pos: [x, 0, z], flat: 0.4 });
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + rng();
       const d = r * (0.25 + rng() * 0.5);
@@ -158,7 +160,7 @@ function buildCommons(ctx: DistrictContext): DistrictBuild {
   };
 
   // ------------------------------------------------------------------------------------------
-  // The green. Three lawns a few centimetres proud of the paving, clear of the three roads.
+  // The green. Three lawns flush with the paving, clear of the three roads.
   // ------------------------------------------------------------------------------------------
   const lawn = (x: number, z: number, rx: number, rz: number, rot = 0): void => {
     const lid = b.newId();
@@ -302,7 +304,7 @@ function buildCommons(ctx: DistrictContext): DistrictBuild {
   const TREAD = 0.95;
   const RISE = 0.42;
   const TIERS = 6;
-  const FLOOR = 0.08;
+  const FLOOR = LAWN_Y;
   const R_TOP = R_ORCH + TIERS * TREAD;
   const R_BANK = R_TOP + 3.0;
   const H_TOP = FLOOR + TIERS * RISE;
@@ -354,7 +356,9 @@ function buildCommons(ctx: DistrictContext): DistrictBuild {
     // The whiteboard monoliths, where the stage would be. White on both faces.
     const AO = AC + Math.PI; // toward the plaza
     const fronts = ['THE SCREEN', 'SYSTEM DESIGN', 'CODING'];
-    const backs = ['A MONTH', 'INTERVIEW PREP', '160 SEATS'];
+    // From the plaza the backs read left to right: more than 160 seats, interview prep, a month.
+    // The number is spelled out so the hand lettering cannot turn it into a word.
+    const backs = ['A MONTH', 'INTERVIEW PREP', 'MORE THAN\nONE HUNDRED\nSIXTY SEATS'];
     for (let k = 0; k < 3; k++) {
       const a = AO + (k - 1) * 46 * DEG;
       const x = TX + Math.cos(a) * 6.0;
@@ -388,7 +392,7 @@ function buildCommons(ctx: DistrictContext): DistrictBuild {
       } else {
         for (let l = 0; l < 4; l++) mk(-0.2 + ((l * 37) % 5) * 0.06, 1.75 - l * 0.33, 1.2 - ((l * 3) % 4) * 0.18, 0.05, l === 2 ? CORAL : (P.ink as string));
       }
-      b.label({ text: backs[k], size: fit(backs[k], 0.34, W - 0.3), pos: at(0, 0.47 + H * 0.62, -zf), rot: [0, yaw + Math.PI, 0], ink: P.ink, plate: BOARD, id: face, flat: 0.55, pad: 0.1 });
+      b.label({ text: backs[k], size: fit(backs[k], 0.34, W - 0.3), align: 'center', pos: at(0, 0.47 + H * 0.62, -zf), rot: [0, yaw + Math.PI, 0], ink: P.ink, plate: BOARD, id: face, flat: 0.55, pad: 0.1 });
       colliders.push({ kind: 'box', x, z, hw: W / 2 + 0.3, hd: D / 2 + 0.3, rot: yaw });
     }
   }

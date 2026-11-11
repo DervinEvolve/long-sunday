@@ -75,6 +75,8 @@ export const district: DistrictModule = {
 };
 
 function buildStudio(ctx: DistrictContext): DistrictBuild {
+  // Anything he can walk onto tops out here: the plaza paving is 3 cm up, this is a hair over it.
+  const FLUSH = 0.035;
   const { site, kit, palette: P, rng, entries } = ctx;
   const high = ctx.quality === 'high';
   const low = ctx.quality === 'low';
@@ -129,7 +131,7 @@ function buildStudio(ctx: DistrictContext): DistrictBuild {
     const a = rng() * 6.28;
     const ca = Math.cos(a);
     const sa = Math.sin(a);
-    if (pit) b.add(geo.cylinder(0.95, 0.95, 0.06, 10), { color: P.grassDeep, pos: [x, y, z], flat: 0.5 });
+    if (pit) b.add(geo.cylinder(0.95, 0.95, FLUSH, 10), { color: P.grassDeep, pos: [x, y, z], flat: 0.5 });
     b.add(geo.cylinder(0.18 * s, 0.3 * s, 3.9 * s, 6, true), { color: TRUNK, pos: [x, y, z], sway: 0.2, swayBase: y });
     const leaf = { gradient: { bottom: mix(tint, P.shadow, 0.38), top: mix(tint, '#ffffff', 0.12) }, color: tint, sway: 0.5, swayBase: y };
     const id = b.newId();
@@ -391,8 +393,8 @@ function buildStudio(ctx: DistrictContext): DistrictBuild {
   const SHEET_FRONT = SHEET_Z + 0.1;
   {
     // Paving under it: a round of marble set into the yard.
-    b.add(geo.cylinder(7.6, 7.6, 0.03, 32), { color: P.marbleShade, pos: [EZ_X, 0, EZ_Z], flat: 0.4 });
-    b.add(geo.cylinder(7.0, 7.0, 0.045, 32), { color: P.marble, pos: [EZ_X, 0, EZ_Z], flat: 0.4 });
+    b.add(geo.cylinder(7.6, 7.6, FLUSH - 0.003, 32), { color: P.marbleShade, pos: [EZ_X, 0, EZ_Z], flat: 0.4 });
+    b.add(geo.cylinder(7.0, 7.0, FLUSH, 32), { color: P.marble, pos: [EZ_X, 0, EZ_Z], flat: 0.4 });
 
     // Legs: two at the front behind the board, leaning in to meet at the top, and one behind.
     const legId = b.newId();
@@ -459,8 +461,8 @@ function buildStudio(ctx: DistrictContext): DistrictBuild {
     ];
     for (let i = 0; i < splat.length; i++) {
       const s = splat[i];
-      const g = geo.extrude(bloomOutline(70 + i, s.r, 20), 0.02, { cacheKey: `studio-splat-${i}` });
-      b.add(g, { color: s.c, pos: E(s.x, 0.06, s.z), rot: yawed([-Math.PI / 2, 0, 0], yE), flat: 0.8, outline: false });
+      const g = geo.extrude(bloomOutline(70 + i, s.r, 20), 0.006, { cacheKey: `studio-splat-${i}` });
+      b.add(g, { color: s.c, pos: E(s.x, FLUSH + 0.003, s.z), rot: yawed([-Math.PI / 2, 0, 0], yE), flat: 0.8, outline: false });
     }
   }
 
@@ -510,7 +512,8 @@ function buildStudio(ctx: DistrictContext): DistrictBuild {
     const pq = JF(-1.4, 0, -0.35);
     b.add(pot, { color: P.steel, pos: pq });
     b.add(geo.cylinder(0.2, 0.2, 0.02, 10), { color: YELLOW, pos: [pq[0], 0.32, pq[2]], flat: 0.6 });
-    const pj = JF(0, 0, 1.9);
+    // The marker stands off to the pots' side, out of the line from the road to the brushes.
+    const pj = JF(-1.9, 0, 1.2);
     pois.push({ entry: 'backrun', x: pj[0], z: pj[2], y: 2.2, reach: 4.5, prompt: 'Look at the brushes' });
   }
 
@@ -579,12 +582,13 @@ function buildStudio(ctx: DistrictContext): DistrictBuild {
     // The microphone, on a stand, turned to the wall.
     const MX = EX - 3.2;
     const MZ = 0.6;
-    b.add(geo.cylinder(0.32, 0.36, 0.06, 10), { color: IRON, pos: [MX, 0, MZ] });
+    b.add(geo.cylinder(0.32, 0.36, FLUSH + 0.01, 10), { color: IRON, pos: [MX, 0, MZ] });
     b.add(geo.cylinder(0.035, 0.035, 1.55, 6), { color: P.steel, pos: [MX, 0.06, MZ] });
     strut([MX, 1.6, MZ], [MX + 0.45, 1.75, MZ], 0.03, P.steel, 5);
     b.add(geo.capsule(0.09, 0.2, 8, 3), { color: IRON, pos: [MX + 0.5, 1.62, MZ], rot: [0, 0, -1.2] });
     b.add(geo.sphere(0.12, 8, 6), { color: P.steel, pos: [MX + 0.66, 1.8, MZ] });
-    pois.push({ entry: 'hon', x: MX - 0.9, z: MZ + 0.4, y: 2.4, reach: 4.2, prompt: 'Speak into the microphone' });
+    // The marker sits over the gutter between two panels, to the north of the microphone.
+    pois.push({ entry: 'hon', x: MX + 0.2, z: MZ - 2.1, y: 2.4, reach: 4.2, prompt: 'Speak into the microphone' });
   }
 
   // ------------------------------------------------------------------------------------------
@@ -628,7 +632,7 @@ function buildStudio(ctx: DistrictContext): DistrictBuild {
   const MEM_Y = 3.0;
   if (has('memory-visualizer')) {
     const lawn = geo.extrude(bloomOutline(91, 3.6, 28), 0.06, { cacheKey: 'studio-lawn' });
-    b.add(lawn, { color: P.grass, pos: [MEM_X, 0.03, MEM_Z], rot: [-Math.PI / 2, 0, 0], flat: 0.4 });
+    b.add(lawn, { color: P.grass, pos: [MEM_X, FLUSH - 0.03, MEM_Z], rot: [-Math.PI / 2, 0, 0], flat: 0.4 });
     const drum = geo.prism(12, 0.62, 0.68, 1.1);
     const d = b.add(drum, { color: P.marble, pos: [MEM_X, 0.06, MEM_Z] });
     b.add(geo.cylinder(0.8, 0.8, 0.14, 12), { color: P.marbleShade, pos: [MEM_X, 1.16, MEM_Z] });
@@ -749,7 +753,7 @@ function buildStudio(ctx: DistrictContext): DistrictBuild {
     const SZ = -1.5;
     const g = { x: -0.911, z: 0.413 };
     const ys = Math.atan2(g.x, g.z);
-    b.add(geo.cylinder(1.3, 1.35, 0.06, 16), { color: P.marbleShade, pos: [SX, 0, SZ], flat: 0.3 });
+    b.add(geo.cylinder(1.3, 1.35, FLUSH, 16), { color: P.marbleShade, pos: [SX, 0, SZ], flat: 0.3 });
     const head: V3 = [SX, 1.35, SZ];
     for (let i = 0; i < 3; i++) {
       const a = ys + Math.PI / 3 + (i * Math.PI * 2) / 3;
@@ -785,10 +789,10 @@ function buildStudio(ctx: DistrictContext): DistrictBuild {
 
   // A patch of herringbone brick paving at the bay door, and lawn beside the road in.
   {
-    b.add(geo.box(6.6, 0.04, 2.6), { color: mix(P.brick, P.pave, 0.35), pos: [-8, 0, NF + 1.4], flat: 0.3 });
-    for (let i = 0; i < 5; i++) b.add(geo.box(0.05, 0.045, 2.5), { color: mix(P.brickDeep, P.pave, 0.3), pos: [-10.6 + i * 1.3, 0, NF + 1.4], flat: 0.3, outline: false });
+    b.add(geo.box(6.6, FLUSH, 2.6), { color: mix(P.brick, P.pave, 0.35), pos: [-8, 0, NF + 1.4], flat: 0.3 });
+    for (let i = 0; i < 5; i++) b.add(geo.box(0.05, FLUSH + 0.005, 2.5), { color: mix(P.brickDeep, P.pave, 0.3), pos: [-10.6 + i * 1.3, 0, NF + 1.4], flat: 0.3, outline: false });
     const lawn2 = geo.extrude(bloomOutline(97, 3.2, 24), 0.06, { cacheKey: 'studio-lawn2' });
-    b.add(lawn2, { color: P.grassLight, pos: [6, 0.03, 4.5], rot: [-Math.PI / 2, 0, 0], scale: [1.3, 0.8, 1], flat: 0.4 });
+    b.add(lawn2, { color: P.grassLight, pos: [6, FLUSH - 0.03, 4.5], rot: [-Math.PI / 2, 0, 0], scale: [1.3, 0.8, 1], flat: 0.4 });
     for (let i = 0; i < (low ? 2 : 4); i++) clump([4.2 + i * 1.2, 0.35, 4.8 + (i % 2 ? 0.6 : -0.5)], [0.55, 0.4, 0.5], LEAVES[(i + 2) % 5], undefined, 3);
   }
 

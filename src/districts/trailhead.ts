@@ -80,6 +80,7 @@ function buildTrailhead(ctx: DistrictContext): DistrictBuild {
   // The plaza is paving with a little of the first accent in it. Shadows are that, pushed toward violet.
   const shade = mix(mix(P.pave, site.accents[0], 0.12), P.shadow, 0.3);
   const GROUND = 0.045; // the plaza sits 3 cm proud of the pad, so shadows and inlays go just above that
+  const FLUSH = 0.035; // anything he can walk onto tops out here, a hair over the paving
   const ORANGE = site.accents[1];
   const BLUE = site.accents[2];
 
@@ -103,7 +104,7 @@ function buildTrailhead(ctx: DistrictContext): DistrictBuild {
     const s = h / 7;
     const turn = rng() * 6.28;
     const f = frame(x, z, turn);
-    if (pit) b.add(geo.cylinder(0.95, 0.95, 0.09, 8), { color: P.grassDeep, pos: [x, y, z], flat: 0.5 });
+    if (pit) b.add(geo.cylinder(0.95, 0.95, FLUSH, 8), { color: P.grassDeep, pos: [x, y, z], flat: 0.5 });
     b.add(geo.cylinder(0.2 * s, 0.32 * s, 3.9 * s, 6, true), { color: TRUNK, pos: [x, y, z], sway: 0.2, swayBase: y });
     const leaf = { gradient: { bottom: mix(tint, P.shadow, 0.38), top: mix(tint, '#ffffff', 0.12) }, color: tint, sway: 0.5, swayBase: y };
     const id = b.newId();
@@ -118,7 +119,7 @@ function buildTrailhead(ctx: DistrictContext): DistrictBuild {
   const cypress = (x: number, z: number, h: number): void => {
     const y = ctx.groundAt(x, z);
     const k = h / 7;
-    b.add(geo.cylinder(0.95, 0.95, 0.09, 8), { color: P.grassDeep, pos: [x, y, z], flat: 0.5 });
+    b.add(geo.cylinder(0.95, 0.95, FLUSH, 8), { color: P.grassDeep, pos: [x, y, z], flat: 0.5 });
     b.add(geo.cylinder(0.14 * k, 0.2 * k, 1.0 * k, 6, true), { color: TRUNK, pos: [x, y, z] });
     const flame = geo.lathe([[0.3, 0], [0.82, 0.55], [1.05, 1.9], [0.9, 3.7], [0.5, 5.3], [0, 6.3]], high ? 9 : 7, { cacheKey: 'trailhead-cypress-' + (high ? 9 : 7) });
     b.add(flame, { gradient: { bottom: '#2a6149', top: LEAVES[2] }, color: LEAVES[2], pos: [x, y + 0.7 * k, z], scale: k, sway: 0.3, swayBase: y });
@@ -222,6 +223,41 @@ function buildTrailhead(ctx: DistrictContext): DistrictBuild {
     clump([AX + HALF - 0.25, TOP - 2.7, fz + 0.74], [0.4, 0.9, 0.3], LEAVES[0], undefined, 4);
     // One cypress on the roof, off centre, because somebody planted it.
     b.add(geo.cone(0.55, 2.6, 7), { gradient: { bottom: '#2f6f50', top: LEAVES[2] }, color: LEAVES[2], pos: [AX + 3.4, roofY, AZ - 0.3], sway: 0.25 });
+
+    // On the back half of the roof, a slender column with a bronze figure holding up the sun, so the
+    // arch reads over the trees from far down the avenue. Set back so that from where he starts the
+    // attic hides all of it but a sliver of the column, and the first frame stays the arch and its name.
+    {
+      const SZ = AZ - 1.45;
+      const base = roofY + 0.12;
+      const BRONZE = mix(P.verdigris, P.tealDeep, 0.25);
+      const bronze = { gradient: { bottom: mix(BRONZE, P.shadow, 0.3), top: mix(P.verdigris, '#ffffff', 0.12) }, color: BRONZE };
+      b.add(geo.bevelBox(2.2, 0.5, 1.6, 0.05), { color: P.marbleShade, pos: [AX, roofY - 0.04, SZ] });
+      b.add(geo.bevelBox(1.4, 0.8, 1.3, 0.05), { color: P.marble, pos: [AX, base + 0.34, SZ] });
+      const colY = base + 1.14;
+      const COL = 2.3;
+      b.add(geo.prism(high ? 12 : 8, 0.3, 0.36, COL), { gradient: { bottom: P.marbleShade, top: P.marble }, color: P.marble, pos: [AX, colY, SZ] });
+      b.add(geo.cylinder(0.5, 0.34, 0.24, 10), { color: P.marble, pos: [AX, colY + COL, SZ] });
+      const foot = colY + COL + 0.24;
+      // Robe, shoulders, head.
+      b.add(geo.prism(high ? 10 : 7, 0.36, 0.56, 2.8), { ...bronze, pos: [AX, foot, SZ] });
+      b.add(geo.sphere(1, high ? 10 : 7, high ? 6 : 4), { ...bronze, pos: [AX, foot + 2.84, SZ], scale: [0.5, 0.29, 0.35] });
+      b.add(geo.sphere(0.32, high ? 10 : 7, high ? 7 : 5), { ...bronze, pos: [AX, foot + 3.32, SZ] });
+      // Both arms up, hands under the sun.
+      const sunY = foot + 5.4;
+      for (const side of [-1, 1]) {
+        const arm: V3[] = [[AX + side * 0.4, foot + 2.88, SZ], [AX + side * 0.68, foot + 3.68, SZ + 0.04], [AX + side * 0.5, sunY - 1.0, SZ]];
+        b.add(geo.tube(arm, 0.14, { radial: 6, perSpan: 2 }), { ...bronze });
+      }
+      // The sun: a gilded ball in a ring of rays.
+      b.add(geo.sphere(0.95, high ? 14 : 10, high ? 10 : 7), { gradient: { bottom: ORANGE, top: P.yellow }, color: ORANGE, pos: [AX, sunY, SZ], flat: 0.35 });
+      b.add(geo.torus(1.35, 0.1, high ? 20 : 14, 4), { color: P.brass, pos: [AX, sunY, SZ], rot: [Math.PI / 2, 0, 0], flat: 0.3 });
+      const ray = geo.cone(0.2, 0.68, 5);
+      for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * Math.PI * 2;
+        b.add(ray, { color: P.yellow, pos: [AX + Math.cos(a) * 1.4, sunY + Math.sin(a) * 1.4, SZ], rot: [0, 0, a - Math.PI / 2], flat: 0.4 });
+      }
+    }
   }
 
   // ------------------------------------------------------------------------------------------
@@ -322,7 +358,7 @@ function buildTrailhead(ctx: DistrictContext): DistrictBuild {
   const poi = (id: string, x: number, z: number, prompt: string, y?: number, reach?: number): void => {
     if (entry(id)) pois.push({ entry: id, x, z, prompt, y, reach });
   };
-  // A curved planting bed along the rim: a marble kerb with lawn in it, low enough to step over.
+  // A curved planting bed along the rim: a marble kerb with lawn in it, sunk so it is walked on flush.
   const crescent = (b0: number, b1: number, r0: number, r1: number): void => {
     const n = Math.max(3, Math.ceil(Math.abs(b1 - b0) / (low ? 14 : 8)));
     const ring = (ra: number, rb: number, pinch: number): [number, number][] => {
@@ -331,8 +367,8 @@ function buildTrailhead(ctx: DistrictContext): DistrictBuild {
       for (let k = n; k >= 0; k--) pts.push(polar(b0 - pinch + ((b1 - b0 + pinch * 2) * k) / n, rb));
       return pts;
     };
-    slab(ring(r0 - 0.18, r1 + 0.18, 0.5), 0, 0.13, { color: P.marbleShade });
-    slab(ring(r0, r1, 0), 0, 0.19, { color: P.grass, flat: 0.35 });
+    slab(ring(r0 - 0.18, r1 + 0.18, 0.5), FLUSH - 0.133, 0.13, { color: P.marbleShade });
+    slab(ring(r0, r1, 0), FLUSH - 0.19, 0.19, { color: P.grass, flat: 0.35 });
   };
   // A free standing fluted column on a block. Broken ones stop short and lose the capital.
   const column = (x: number, y: number, z: number, h: number, whole: boolean): void => {
@@ -394,9 +430,9 @@ function buildTrailhead(ctx: DistrictContext): DistrictBuild {
 
     // The street stub. A shade different from the plaza, with a crossing painted on it.
     const street = mix(P.pave, P.paveShade, 0.5);
-    slab([[-4.9, 22.9], [11.3, 21.0], [14.9, 26.0], [9.5, 28.4], [3, 29.6], [-3, 29.5], [-7.0, 29.0]], 0, 0.09, { color: street, flat: 0.2 });
+    slab([[-4.9, 22.9], [11.3, 21.0], [14.9, 26.0], [9.5, 28.4], [3, 29.6], [-3, 29.5], [-7.0, 29.0]], FLUSH - 0.09, 0.09, { color: street, flat: 0.2 });
     for (let i = 0; i < 5; i++) {
-      b.add(geo.box(0.6, 0.014, 2.5), { color: mix(P.asphalt, street, 0.3), pos: [AX + (i - 2) * 1.08, 0.09, 24.45], flat: 1, outline: false });
+      b.add(geo.box(0.6, 0.008, 2.5), { color: mix(P.asphalt, street, 0.3), pos: [AX + (i - 2) * 1.08, FLUSH - 0.003, 24.45], flat: 1, outline: false });
     }
   }
 
@@ -620,6 +656,8 @@ function buildTrailhead(ctx: DistrictContext): DistrictBuild {
       cast(g, [s.x, 0, s.z], rot);
       const size = fit(s.text, 0.36, s.w - 0.42);
       b.label({ text: s.text, size, pos: at(f, 0, s.h * 0.48, 0.25), rot, ink: P.ink, plate: s.tone, id, flat: 0.3, pad: 0.2, jitter: 0.35 });
+      // And on the back, for whoever comes at them across the plaza.
+      b.label({ text: s.text, size, pos: at(f, 0, s.h * 0.48, -0.25), rot: [0, f.yaw + Math.PI, 0], ink: P.ink, plate: s.tone, id, flat: 0.3, pad: 0.2, jitter: 0.35 });
       // Moss at the foot, and a little up one side.
       clump(at(f, -hw + 0.1, 0.22, 0.2), [0.6, 0.32, 0.45], P.moss as string, rot, 3);
       clump(at(f, hw - 0.05, 0.5 + i * 0.1, -0.1), [0.3, 0.6, 0.4], LEAVES[2], rot, 3);
@@ -679,7 +717,7 @@ function buildTrailhead(ctx: DistrictContext): DistrictBuild {
     const bf = frame(P1[0], P1[2], Math.atan2(0.75, 0.66));
     const plateId = b.add(geo.box(1.5, 0.74, 0.07), { color: P.paper, pos: at(bf, 0, 1.0, 0.12), rot: [0, bf.yaw, 0], flat: 0.3 });
     b.label({ text: 'PORTRAITS', size: 0.19, pos: at(bf, 0, 1.52, 0.16), rot: [0, bf.yaw, 0], ink: P.ink, plate: P.paper, id: plateId, flat: 0.3, pad: 0.15, jitter: 0.3 });
-    b.label({ text: '2016 TO 2022', size: 0.13, pos: at(bf, 0, 1.2, 0.16), rot: [0, bf.yaw, 0], ink: P.violet, plate: P.paper, id: plateId, flat: 0.3, pad: 0.15, jitter: 0.3 });
+    b.label({ text: (entry('camera')?.dates ?? '2016 to 2022').toUpperCase(), size: 0.13, pos: at(bf, 0, 1.2, 0.16), rot: [0, bf.yaw, 0], ink: P.violet, plate: P.paper, id: plateId, flat: 0.3, pad: 0.15, jitter: 0.3 });
     poi('camera', -12.4, 8.4, 'Lift the cloth', 2.9);
   }
 
@@ -692,8 +730,9 @@ function buildTrailhead(ctx: DistrictContext): DistrictBuild {
   {
     const rot: V3 = [0, T.yaw, 0];
     const lip = mix(P.marble, P.marbleShade, 0.5);
-    b.add(geo.cylinder(4.35, 4.35, 0.12, low ? 14 : 22), { color: P.marbleShade, pos: [T.x, 0, T.z] });
-    b.add(geo.cylinder(4.15, 4.15, 0.19, low ? 14 : 22), { color: P.grass, pos: [T.x, 0, T.z], flat: 0.35 });
+    // The round of lawn and its kerb are sunk, so he walks onto them flush.
+    b.add(geo.cylinder(4.35, 4.35, 0.12, low ? 14 : 22), { color: P.marbleShade, pos: [T.x, FLUSH - 0.123, T.z] });
+    b.add(geo.cylinder(4.15, 4.15, 0.19, low ? 14 : 22), { color: P.grass, pos: [T.x, FLUSH - 0.19, T.z], flat: 0.35 });
     const steps = b.newId();
     b.add(geo.box(5.0, 0.4, 5.0), { color: P.marbleShade, pos: at(T, 0, 0, 0), rot, id: steps });
     b.add(geo.box(4.3, 0.62, 4.3), { color: P.marble, pos: at(T, 0, 0, 0), rot, id: steps });
@@ -736,7 +775,7 @@ function buildTrailhead(ctx: DistrictContext): DistrictBuild {
     const side: V3 = [0, T.yaw + Math.PI / 2, 0];
     const sf = frame(T.x, T.z, T.yaw + Math.PI / 2);
     b.label({ text: 'ELMS', size: 0.42, pos: at(sf, 0, 2.5, 1.56), rot: side, ink: P.ink, plate: P.marble, id: foot, pad: 0.15, jitter: 0.3 });
-    b.label({ text: '2017', size: 0.3, pos: at(sf, 0, 1.75, 1.56), rot: side, ink: P.violet, plate: P.marble, id: foot, pad: 0.15, jitter: 0.3 });
+    b.label({ text: (entry('elms')?.dates ?? site.years).toUpperCase(), size: 0.3, pos: at(sf, 0, 1.75, 1.56), rot: side, ink: P.violet, plate: P.marble, id: foot, pad: 0.15, jitter: 0.3 });
     // Ivy on the shady side of the brick, moss on the steps.
     const nf = frame(T.x, T.z, T.yaw + Math.PI);
     clump(at(nf, 0.5, SY + 1.6, 1.3), [1.2, 2.6, 0.32], LEAVES[2], [0, nf.yaw, 0], 5);
@@ -777,7 +816,7 @@ function buildTrailhead(ctx: DistrictContext): DistrictBuild {
       const z = face * 0.07;
       b.label({ text: 'THE', size: 0.2, pos: at(f, 0, 2.47, z), rot: r, ink: P.violet, plate: P.paper, id: board, flat: 0.55, pad: 0.1, jitter: 0.3 });
       b.label({ text: 'TRAILHEAD', size: nameSize, pos: at(f, 0, 1.95, z), rot: r, ink: P.ink, plate: P.paper, id: board, flat: 0.55, pad: 0.12, jitter: 0.3 });
-      b.label({ text: face > 0 ? 'WHERE I START  2017' : 'NEW YORK  2017', size: 0.15, pos: at(f, 0, 1.3, z), rot: r, ink: P.violet, plate: P.paper, id: board, flat: 0.55, pad: 0.1, jitter: 0.3 });
+      b.label({ text: `${face > 0 ? 'WHERE I START' : 'NEW YORK'}  ${site.years.toUpperCase()}`, size: 0.15, pos: at(f, 0, 1.3, z), rot: r, ink: P.violet, plate: P.paper, id: board, flat: 0.55, pad: 0.1, jitter: 0.3 });
       // The two lines again, small, under the name.
       b.add(geo.box(2.5, 0.06, 0.02), { color: CORAL, pos: at(f, 0, 1.6, z * 1.1), rot, flat: 1, outline: false });
       b.add(geo.box(2.5, 0.06, 0.02), { color: P.teal, pos: at(f, 0, 1.5, z * 1.1), rot, flat: 1, outline: false });
