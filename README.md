@@ -14,8 +14,6 @@ I do these experiments for fun.
 
 Live: LINK GOES HERE ONCE IT IS HOSTED
 
-The hosted copy is behind a password. Ask me for it at dervindim@gmail.com.
-
 ## What you walk through
 
 The world is a floating island about 470 metres across: a future Queens with Greek and Roman stone in it, grown over with green. One avenue runs uphill from the south, and every job I have held sits on it in date order, from a staffing desk in 2017 to an AI lab now. Two lines are set into the road like lines on a subway map, coral for people work and teal for technology, and they become one line at the top. Five side roads lead off the avenue to my experiments, the ones that failed, and the life outside work.
@@ -213,7 +211,7 @@ The single file holds the whole drawing and opens straight from disk. It cannot 
 
 ### The locked copy, and hosting it
 
-The copy that goes on a public address is locked with a password:
+To put the hosted copy behind a password, build the locked copy:
 
 ```bash
 read -rs LONG_SUNDAY_PASSWORD && export LONG_SUNDAY_PASSWORD
@@ -223,9 +221,9 @@ npm run build:locked   # dist-locked/index.html
 The password comes from the environment only, has to be 12 characters or more, and is never printed or written down. The script gzips the single file build and seals it with AES-256-GCM under a key made from the password with PBKDF2 (600,000 rounds), so view source shows only an unlock page and a block of sealed text. The built version's files are sealed with the same key.
 
 - Vercel: import the repository and add `LONG_SUNDAY_PASSWORD` as an environment variable. [vercel.json](vercel.json) already says what to build and serve.
-- GitHub Pages: add `LONG_SUNDAY_PASSWORD` as a repository secret, set Pages to deploy from GitHub Actions, and run the "Deploy locked copy to Pages" workflow by hand. Pages from a private repository needs a paid plan.
+- GitHub Pages: set Pages to deploy from GitHub Actions and run the "Deploy to Pages" workflow by hand. It publishes the open site. Tick "locked" when you run it to publish the password copy, after adding `LONG_SUNDAY_PASSWORD` as a repository secret.
 
-The lock is exactly as strong as the password, and anyone who has it can pass it on. Once this repository is public, every caption can be read here in plain text, so the lock then guards only the hosted link. The section "The locked copy" in [docs/DEV.md](docs/DEV.md) has the one click link, "Stay unlocked" and the rest of the limits.
+The lock is exactly as strong as the password, and anyone who has it can pass it on. This repository is public, so every caption can be read here in plain text and the lock guards only the hosted link. The section "The locked copy" in [docs/DEV.md](docs/DEV.md) has the one click link, "Stay unlocked" and the rest of the limits.
 
 ## What is in the repository
 

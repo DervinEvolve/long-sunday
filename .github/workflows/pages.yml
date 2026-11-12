@@ -1,16 +1,21 @@
-# Publishes the locked copy to GitHub Pages. It only runs when I start it by hand:
-# Actions, "Deploy locked copy to Pages", Run workflow.
+# Publishes the site to GitHub Pages. It only runs when I start it by hand:
+# Actions, "Deploy to Pages", Run workflow.
 #
-# The build needs the repository secret LONG_SUNDAY_PASSWORD. Without it the build step fails and
-# nothing is deployed. Only dist-locked is ever uploaded, and that folder is only written by
-# scripts/lock.mjs, so an unlocked build cannot get out this way.
+# By default it publishes the open site, the same build as `npm run build`. Tick "locked" to publish
+# the password copy instead; that needs the repository secret LONG_SUNDAY_PASSWORD, and without it
+# the build fails and nothing is deployed.
 #
 # Without a custom domain the site shares <user>.github.io with every other Pages site on the
 # account, and so its browser storage too. docs/DEV.md, "Stay unlocked", says what that means.
-name: Deploy locked copy to Pages
+name: Deploy to Pages
 
 on:
   workflow_dispatch:
+    inputs:
+      locked:
+        description: Publish the password copy instead of the open site
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -32,13 +37,21 @@ jobs:
 
       - run: npm ci
 
+      - name: Build the open site
+        if: ${{ !inputs.locked }}
+        run: |
+          npm run build
+          mkdir -p site && cp -R dist/. site/
+
       - name: Build the locked copy
+        if: ${{ inputs.locked }}
         env:
           LONG_SUNDAY_PASSWORD: ${{ secrets.LONG_SUNDAY_PASSWORD }}
         run: npm run build:locked
 
-      # A second look before anything leaves: the page must be the lock, with no application in the clear.
+      # A second look before a locked copy leaves: the page must be the lock, with no application in the clear.
       - name: Check that the page is locked
+        if: ${{ inputs.locked }}
         run: |
           test -s dist-locked/index.html
           grep -q 'id="ls-box"' dist-locked/index.html
@@ -46,10 +59,11 @@ jobs:
             echo "The page holds application markup in the clear."
             exit 1
           fi
+          mkdir -p site && cp -R dist-locked/. site/
 
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: dist-locked
+          path: site
 
   deploy:
     needs: build

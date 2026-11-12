@@ -347,22 +347,21 @@ both get the same line: "That is not it. Try again."
 
 ### Host it on GitHub Pages
 
-1. Repository, Settings, Secrets and variables, Actions: add a repository secret named
-   `LONG_SUNDAY_PASSWORD`.
-2. Settings, Pages: set the source to "GitHub Actions".
-3. Actions, "Deploy locked copy to Pages", Run workflow.
+1. Settings, Pages: set the source to "GitHub Actions".
+2. Actions, "Deploy to Pages", Run workflow.
 
-The workflow (`.github/workflows/pages.yml`) only runs when started by hand. It builds the locked
-copy and uploads `dist-locked`, nothing else. With the secret missing the build step fails and
-nothing is deployed. Pages from a private repository needs a paid GitHub plan. On the free plan,
-use Vercel.
+The workflow (`.github/workflows/pages.yml`) only runs when started by hand. By default it builds the
+open site with `npm run build` and uploads `dist`. Tick "locked" when you run it to build the
+password copy instead and upload `dist-locked`, nothing else. That needs a repository secret named
+`LONG_SUNDAY_PASSWORD` (Settings, Secrets and variables, Actions); with it missing the build step
+fails and nothing is deployed. The repository is public, so Pages costs nothing.
 
 A project site without a custom domain lives at `<user>.github.io/<repo>/`, the same address as
 every other Pages site on the account. That matters for "Stay unlocked", see below.
 
 ### Host it on Vercel
 
-1. In Vercel, import the private repository. `vercel.json` already says what to build
+1. In Vercel, import the repository. `vercel.json` already says what to build
    (`npm run build:locked`) and what to serve (`dist-locked`), with no framework preset.
 2. Project, Settings, Environment Variables: add `LONG_SUNDAY_PASSWORD` for Production and mark it
    sensitive. Add it for Preview too if branch previews should build. Without it a build fails and
@@ -453,6 +452,6 @@ them, locked or plain.
   still opens with the old password.
 - The unlocked copies made by `npm run build` and `npm run build:single` must not be hosted in
   public if the lock matters.
-- The repository has to stay private for the same reason. A public repository holds every caption
-  in plain text, and the lock would then guard only the hosted link.
+- The repository is public, so every caption can be read there in plain text. The lock guards only
+  the hosted link.
 - Once the page is open, everything in it is open: a visitor can save what they see.
