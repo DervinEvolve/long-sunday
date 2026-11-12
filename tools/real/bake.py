@@ -29,7 +29,7 @@ from common import (BAKE_DIR, BUILD_DIR, CACHE, EXPORT_DIR, chunk_settings, code
 import emit  # noqa: E402
 from cache import build_all  # noqa: E402
 
-BAKE_KEYS = ["samples", "bounces", "lightmap", "denoise", "pageSamples", "blockFloor"]
+BAKE_KEYS = ["samples", "bounces", "lightmap", "denoise", "pageSamples", "blockFloor", "leafLift"]
 
 
 def dilate(rgb, valid, iters):
@@ -102,6 +102,11 @@ def main():
     sky_fresh = os.path.exists(sky_file) and os.path.exists(light_file) and load_json(light_file).get("hash") == sky_hash
     if args.sky_only:
         stale = []
+    if not os.path.exists(os.path.join(CACHE, "light", "agx.png")):
+        # Blender's view transform as a table for the browser (see agx.py). Made once.
+        import agx
+
+        agx.main()
     if not stale and sky_fresh:
         log("every chunk is up to date")
         return
@@ -178,6 +183,20 @@ def main():
                 # A leaf deep inside a crown still gets a little light through its neighbours.
                 # The bake has it black, and black leaves look like holes.
                 m = np.maximum(m, float(cs.get("blockFloor", 0.0)))
+                # Light through leaves: a card inside a crown gets some of what the crown as a
+                # whole receives, the way sun comes through a canopy, so the inside is not black.
+                lift = float(cs.get("leafLift", 0.0))
+                bc = data["block_crown"][data["block_rects"][:, 0] == page] if "block_crown" in data else np.full(len(br), -1)
+                if lift > 0 and (bc >= 0).any():
+                    lum = m @ np.array([0.2126, 0.7152, 0.0722])
+                    ids = bc[bc >= 0]
+                    tot = np.bincount(ids, weights=lum[bc >= 0])
+                    cnt = np.maximum(np.bincount(ids), 1)
+                    cm = (tot / cnt)[ids]
+                    want = lift * cm
+                    have = np.maximum(lum[bc >= 0], 1e-4)
+                    gain = np.maximum(1.0, want / have)[:, None]
+                    m[bc >= 0] = m[bc >= 0] * np.minimum(gain, 4.0)
                 for dy in (0, 1):
                     for dx in (0, 1):
                         rgb[ys + dy, xs + dx] = m

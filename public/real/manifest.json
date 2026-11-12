@@ -1,6 +1,6 @@
 {
  "version": 1,
- "generated": "2026-11-11T22:45:36.489Z",
+ "generated": "2026-11-12T09:04:41.439Z",
  "space": "metres. x east, y up, z south. The same space the ink world is built in.",
  "sun": {
   "direction": [
@@ -10,9 +10,9 @@
   ],
   "elevationDeg": 21,
   "color": [
-   1.2097,
-   0.9678,
-   0.7016
+   1.5074,
+   0.9045,
+   0.4522
   ],
   "irradiance": 5.5,
   "skyIrradiance": 1
@@ -20,14 +20,24 @@
  "look": {
   "toneMapping": "AgX",
   "exposure": 1.25,
-  "lightMapIntensity": 10
+  "lightMapIntensity": 10,
+  "lut": {
+   "file": "env/agx.png",
+   "bytes": 16926,
+   "size": 33,
+   "logMin": -12.47393,
+   "logMax": 4.026069,
+   "layout": "column r + b * size, row g from the top",
+   "output": "srgb"
+  }
  },
  "environment": {
   "file": "env/sky.hdr",
   "bytes": 524337,
   "format": "rgbe",
   "projection": "equirectangular",
-  "background": null
+  "background": null,
+  "sunDiscDeg": 0
  },
  "lettering": {
   "file": "textures/lettering.webp",
@@ -320,16 +330,6 @@
    "metresPerRepeat": 3.5,
    "normalScale": 1
   },
-  "leafcards": {
-   "kind": "cards",
-   "side": "double",
-   "vertexColors": true,
-   "reflect": 0.2,
-   "texture": "leaves",
-   "metresPerRepeat": null,
-   "normalScale": 1,
-   "alphaTest": 0.45
-  },
   "lettering": {
    "kind": "lettering",
    "side": "double",
@@ -363,6 +363,8 @@
    "cells": [
     "leafcore",
     "paint",
+    "board",
+    "roadpaint",
     "cloth",
     "steel",
     "brass",
@@ -384,6 +386,15 @@
    "metresPerRepeat": 6,
    "normalScale": 1
   },
+  "soil": {
+   "kind": "opaque",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.25,
+   "texture": "soil",
+   "metresPerRepeat": 2.5,
+   "normalScale": 1
+  },
   "ashlar": {
    "kind": "opaque",
    "side": "double",
@@ -401,6 +412,16 @@
    "texture": "brick",
    "metresPerRepeat": 1.6,
    "normalScale": 1
+  },
+  "leafcards": {
+   "kind": "cards",
+   "side": "double",
+   "vertexColors": true,
+   "reflect": 0.2,
+   "texture": "leaves",
+   "metresPerRepeat": null,
+   "normalScale": 1,
+   "alphaTest": 0.45
   },
   "bark": {
    "kind": "opaque",
@@ -429,15 +450,6 @@
    "metalness": 0.85,
    "opacity": 0.38
   },
-  "asphalt": {
-   "kind": "opaque",
-   "side": "double",
-   "vertexColors": true,
-   "reflect": 0.4,
-   "texture": "asphalt",
-   "metresPerRepeat": 3,
-   "normalScale": 1
-  },
   "wood": {
    "kind": "opaque",
    "side": "double",
@@ -453,10 +465,10 @@
    "id": "ground",
    "kind": "base",
    "file": "chunks/ground.glb.gz",
-   "bytes": 1340968,
+   "bytes": 1384566,
    "encoding": "gzip",
-   "rawBytes": 1794956,
-   "triangles": 77190,
+   "rawBytes": 1808024,
+   "triangles": 76471,
    "drawCalls": 31,
    "bounds": {
     "box": [
@@ -477,31 +489,31 @@
    "lightmaps": [
     {
      "file": "lightmaps/ground.0.webp",
-     "bytes": 388070,
+     "bytes": 429636,
      "size": 2048,
      "half": "lightmaps/half/ground.0.webp",
-     "halfBytes": 173162
+     "halfBytes": 185406
     },
     {
      "file": "lightmaps/ground.1.webp",
-     "bytes": 310060,
+     "bytes": 341768,
      "size": 2048,
      "half": "lightmaps/half/ground.1.webp",
-     "halfBytes": 140460
+     "halfBytes": 151964
     },
     {
      "file": "lightmaps/ground.2.webp",
-     "bytes": 332456,
+     "bytes": 369442,
      "size": 2048,
      "half": "lightmaps/half/ground.2.webp",
-     "halfBytes": 147578
+     "halfBytes": 161704
     },
     {
      "file": "lightmaps/ground.3.webp",
-     "bytes": 297384,
+     "bytes": 330504,
      "size": 2048,
      "half": "lightmaps/half/ground.3.webp",
-     "halfBytes": 139802
+     "halfBytes": 149150
     }
    ],
    "quality": {
@@ -515,17 +527,17 @@
      32
     ],
     "bounces": 3,
-    "bakeSeconds": 532.8
+    "bakeSeconds": 421.5
    },
    "materials": [
     "concrete",
     "grass",
-    "leafcards",
     "lettering",
     "marble",
     "paving",
     "plain",
-    "rock"
+    "rock",
+    "soil"
    ],
    "primitives": [
     {
@@ -546,28 +558,14 @@
      "name": "ground.0.grass",
      "material": "grass",
      "lightmap": 0,
-     "triangles": 11994,
+     "triangles": 11286,
      "box": [
-      -236.657,
+      -235.264,
       -5.13,
       -245.323,
       5.007,
       31.1,
       5.007
-     ]
-    },
-    {
-     "name": "ground.0.leafcards",
-     "material": "leafcards",
-     "lightmap": 0,
-     "triangles": 320,
-     "box": [
-      -187.455,
-      1,
-      -201.61,
-      -34.869,
-      29.774,
-      -106.041
      ]
     },
     {
@@ -588,7 +586,7 @@
      "name": "ground.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 3761,
+     "triangles": 3737,
      "box": [
       -214.727,
       -5.87,
@@ -616,13 +614,13 @@
      "name": "ground.0.plain",
      "material": "plain",
      "lightmap": 0,
-     "triangles": 331,
+     "triangles": 247,
      "box": [
-      -186.601,
+      -132.282,
       -4.93,
-      -200.866,
+      -56.135,
       -18.547,
-      29.404,
+      19.246,
       -0.889
      ]
     },
@@ -638,6 +636,20 @@
       7.625,
       26.214,
       7.508
+     ]
+    },
+    {
+     "name": "ground.0.soil",
+     "material": "soil",
+     "lightmap": 0,
+     "triangles": 816,
+     "box": [
+      -236.657,
+      -2.129,
+      -245.323,
+      -1.666,
+      26.383,
+      1.655
      ]
     },
     {
@@ -658,28 +670,14 @@
      "name": "ground.1.grass",
      "material": "grass",
      "lightmap": 1,
-     "triangles": 10438,
+     "triangles": 9556,
      "box": [
       -5.007,
       9.993,
-      -244.468,
-      246.18,
+      -241.987,
+      244.218,
       30.009,
-      2.42
-     ]
-    },
-    {
-     "name": "ground.1.leafcards",
-     "material": "leafcards",
-     "lightmap": 1,
-     "triangles": 80,
-     "box": [
-      48.817,
-      22.852,
-      -211.65,
-      58.275,
-      24.892,
-      -203.597
+      3.462
      ]
     },
     {
@@ -700,7 +698,7 @@
      "name": "ground.1.marble",
      "material": "marble",
      "lightmap": 1,
-     "triangles": 4122,
+     "triangles": 4063,
      "box": [
       -4.352,
       11.13,
@@ -714,14 +712,14 @@
      "name": "ground.1.plain",
      "material": "plain",
      "lightmap": 1,
-     "triangles": 903,
+     "triangles": 906,
      "box": [
-      -0.714,
+      3.557,
       12.07,
-      -211.202,
-      131.314,
+      -193.549,
+      131.839,
       33.594,
-      3.462
+      -18.919
      ]
     },
     {
@@ -736,6 +734,20 @@
       249.03,
       26.53,
       7.74
+     ]
+    },
+    {
+     "name": "ground.1.soil",
+     "material": "soil",
+     "lightmap": 1,
+     "triangles": 939,
+     "box": [
+      -1.669,
+      13.285,
+      -244.841,
+      246.18,
+      26.785,
+      1.652
      ]
     },
     {
@@ -756,28 +768,14 @@
      "name": "ground.2.grass",
      "material": "grass",
      "lightmap": 2,
-     "triangles": 9961,
+     "triangles": 9403,
      "box": [
-      -237.519,
+      -235.311,
       1.551,
       -1.669,
       1.669,
       15.893,
-      238.07
-     ]
-    },
-    {
-     "name": "ground.2.leafcards",
-     "material": "leafcards",
-     "lightmap": 2,
-     "triangles": 160,
-     "box": [
-      -86.315,
-      1.351,
-      53.716,
-      -17.413,
-      10.949,
-      179.411
+      236.341
      ]
     },
     {
@@ -798,7 +796,7 @@
      "name": "ground.2.marble",
      "material": "marble",
      "lightmap": 2,
-     "triangles": 4544,
+     "triangles": 4461,
      "box": [
       -175.029,
       1.13,
@@ -826,12 +824,12 @@
      "name": "ground.2.plain",
      "material": "plain",
      "lightmap": 2,
-     "triangles": 1075,
+     "triangles": 1013,
      "box": [
-      -133.437,
+      -133.97,
       2.07,
       -0.436,
-      0.915,
+      -5.928,
       20.376,
       207.766
      ]
@@ -848,6 +846,20 @@
       7.38,
       5.947,
       240.301
+     ]
+    },
+    {
+     "name": "ground.2.soil",
+     "material": "soil",
+     "lightmap": 2,
+     "triangles": 704,
+     "box": [
+      -237.519,
+      1.708,
+      0.867,
+      1.669,
+      5.95,
+      238.07
      ]
     },
     {
@@ -868,28 +880,14 @@
      "name": "ground.3.grass",
      "material": "grass",
      "lightmap": 3,
-     "triangles": 10134,
+     "triangles": 9414,
      "box": [
-      -1.669,
+      -5.168,
       0.764,
-      -1.669,
-      246.225,
+      -2.464,
+      244.652,
       14.602,
-      237.98
-     ]
-    },
-    {
-     "name": "ground.3.leafcards",
-     "material": "leafcards",
-     "lightmap": 3,
-     "triangles": 160,
-     "box": [
-      8.646,
-      2.398,
-      98.732,
-      179.795,
-      5.201,
-      127.08
+      235.311
      ]
     },
     {
@@ -910,7 +908,7 @@
      "name": "ground.3.marble",
      "material": "marble",
      "lightmap": 3,
-     "triangles": 5104,
+     "triangles": 5032,
      "box": [
       -1.462,
       1.053,
@@ -938,12 +936,12 @@
      "name": "ground.3.plain",
      "material": "plain",
      "lightmap": 3,
-     "triangles": 809,
+     "triangles": 787,
      "box": [
-      -5.168,
+      10.044,
       2.07,
-      -2.464,
-      178.897,
+      51.803,
+      120.04,
       13.748,
       177.392
      ]
@@ -960,6 +958,20 @@
       249.88,
       13.491,
       240.083
+     ]
+    },
+    {
+     "name": "ground.3.soil",
+     "material": "soil",
+     "lightmap": 3,
+     "triangles": 813,
+     "box": [
+      -1.664,
+      1.097,
+      -1.669,
+      246.225,
+      13.801,
+      237.98
      ]
     }
    ],
@@ -986,52 +998,54 @@
    "id": "sky",
    "kind": "base",
    "file": "chunks/sky.glb.gz",
-   "bytes": 285000,
+   "bytes": 300011,
    "encoding": "gzip",
-   "rawBytes": 481460,
-   "triangles": 19272,
-   "drawCalls": 5,
+   "rawBytes": 499252,
+   "triangles": 18882,
+   "drawCalls": 7,
    "bounds": {
     "box": [
      -761.657,
      -1020,
      -699.439,
-     821.484,
+     821.698,
      270.675,
      451.977
     ],
     "sphere": [
-     29.91,
+     30.02,
      -374.66,
      -123.73,
-     1172.38
+     1172.46
     ]
    },
    "lightmaps": [
     {
      "file": "lightmaps/sky.0.webp",
-     "bytes": 215412,
+     "bytes": 220938,
      "size": 1024,
      "half": "lightmaps/half/sky.0.webp",
-     "halfBytes": 86208
+     "halfBytes": 88232
     }
    ],
    "quality": {
-    "level": "rough",
+    "level": "good",
     "lightmap": 1024,
-    "samples": 16,
+    "samples": 48,
     "pageSamples": [
-     16
+     48
     ],
-    "bounces": 2,
-    "bakeSeconds": 14.9
+    "bounces": 3,
+    "bakeSeconds": 65.9
    },
    "materials": [
     "ashlar",
     "brick",
+    "grass",
     "leafcards",
     "marble",
-    "plain"
+    "plain",
+    "rock"
    ],
    "primitives": [
     {
@@ -1063,38 +1077,52 @@
      ]
     },
     {
+     "name": "sky.0.grass",
+     "material": "grass",
+     "lightmap": 0,
+     "triangles": 1052,
+     "box": [
+      -760.917,
+      -21.144,
+      -694.959,
+      821.698,
+      227.8,
+      451.179
+     ]
+    },
+    {
      "name": "sky.0.leafcards",
      "material": "leafcards",
      "lightmap": 0,
-     "triangles": 1690,
+     "triangles": 1300,
      "box": [
-      -754.031,
-      -21.838,
-      -638.576,
-      813.236,
-      251.14,
-      448.145
+      -747.356,
+      -18.105,
+      -635.149,
+      808.058,
+      249.54,
+      446.28
      ]
     },
     {
      "name": "sky.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 3432,
+     "triangles": 2436,
      "box": [
       -690.966,
-      26.08,
-      -699.03,
-      777.381,
-      251.219,
-      424.599
+      35.1,
+      -680.2,
+      776.355,
+      246.548,
+      407.044
      ]
     },
     {
      "name": "sky.0.plain",
      "material": "plain",
      "lightmap": 0,
-     "triangles": 9698,
+     "triangles": 7856,
      "box": [
       -761.657,
       -149.449,
@@ -1102,6 +1130,20 @@
       821.484,
       265.62,
       451.691
+     ]
+    },
+    {
+     "name": "sky.0.rock",
+     "material": "rock",
+     "lightmap": 0,
+     "triangles": 1786,
+     "box": [
+      -733.822,
+      -78,
+      -699.03,
+      805.936,
+      251.219,
+      451.179
      ]
     }
    ],
@@ -1129,55 +1171,55 @@
    "id": "city",
    "kind": "base",
    "file": "chunks/city.glb.gz",
-   "bytes": 3823651,
+   "bytes": 2828445,
    "encoding": "gzip",
-   "rawBytes": 5431468,
-   "triangles": 223245,
-   "drawCalls": 32,
+   "rawBytes": 4069960,
+   "triangles": 162366,
+   "drawCalls": 36,
    "bounds": {
     "box": [
-     -235.863,
-     -3.709,
+     -234.067,
+     -2.686,
      -405.618,
-     237.042,
+     235.866,
      55.632,
-     237.776
+     236.467
     ],
     "sphere": [
-     0.59,
-     25.96,
-     -83.92,
-     400.35
+     0.9,
+     26.47,
+     -84.58,
+     398.91
     ]
    },
    "lightmaps": [
     {
      "file": "lightmaps/city.0.webp",
-     "bytes": 460208,
+     "bytes": 329006,
      "size": 2048,
      "half": "lightmaps/half/city.0.webp",
-     "halfBytes": 187854
+     "halfBytes": 139170
     },
     {
      "file": "lightmaps/city.1.webp",
-     "bytes": 523564,
+     "bytes": 353720,
      "size": 2048,
      "half": "lightmaps/half/city.1.webp",
-     "halfBytes": 220784
+     "halfBytes": 155766
     },
     {
      "file": "lightmaps/city.2.webp",
-     "bytes": 585572,
+     "bytes": 407466,
      "size": 2048,
      "half": "lightmaps/half/city.2.webp",
-     "halfBytes": 246514
+     "halfBytes": 183506
     },
     {
      "file": "lightmaps/city.3.webp",
-     "bytes": 531710,
+     "bytes": 346188,
      "size": 2048,
      "half": "lightmaps/half/city.3.webp",
-     "halfBytes": 221564
+     "halfBytes": 154548
     }
    ],
    "quality": {
@@ -1191,7 +1233,7 @@
      24
     ],
     "bounces": 3,
-    "bakeSeconds": 310.9
+    "bakeSeconds": 603.6
    },
    "materials": [
     "ashlar",
@@ -1199,6 +1241,7 @@
     "brick",
     "cladding",
     "concrete",
+    "grass",
     "leafcards",
     "marble",
     "plain"
@@ -1208,14 +1251,14 @@
      "name": "city.0.ashlar",
      "material": "ashlar",
      "lightmap": 0,
-     "triangles": 10573,
+     "triangles": 8837,
      "box": [
-      -225.757,
+      -225.713,
       -0.574,
-      -405.243,
-      21.157,
+      -405.218,
+      2.89,
       46.7,
-      17.534
+      0.709
      ]
     },
     {
@@ -1275,24 +1318,38 @@
      ]
     },
     {
+     "name": "city.0.grass",
+     "material": "grass",
+     "lightmap": 0,
+     "triangles": 168,
+     "box": [
+      -214.755,
+      18.551,
+      -218.617,
+      0.416,
+      49.068,
+      -41.068
+     ]
+    },
+    {
      "name": "city.0.leafcards",
      "material": "leafcards",
      "lightmap": 0,
-     "triangles": 19970,
+     "triangles": 17630,
      "box": [
-      -231.625,
-      -3.709,
-      -239.785,
-      1.279,
-      51.226,
-      1.111
+      -229.905,
+      -1.931,
+      -239.059,
+      0.306,
+      50.316,
+      1.091
      ]
     },
     {
      "name": "city.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 17472,
+     "triangles": 15968,
      "box": [
       -226.057,
       -2.686,
@@ -1306,27 +1363,27 @@
      "name": "city.0.plain",
      "material": "plain",
      "lightmap": 0,
-     "triangles": 17200,
+     "triangles": 5608,
      "box": [
-      -229.427,
-      -2.412,
-      -404.533,
-      19.916,
+      -226.213,
+      -0.715,
+      -405.258,
+      21.172,
       55.632,
-      16.835
+      17.56
      ]
     },
     {
      "name": "city.1.ashlar",
      "material": "ashlar",
      "lightmap": 1,
-     "triangles": 3035,
+     "triangles": 1705,
      "box": [
       -2.51,
       11.828,
-      -213.807,
+      -207.966,
       210.5,
-      49.184,
+      43.519,
       1.785
      ]
     },
@@ -1387,30 +1444,44 @@
      ]
     },
     {
+     "name": "city.1.grass",
+     "material": "grass",
+     "lightmap": 1,
+     "triangles": 94,
+     "box": [
+      3.095,
+      27.536,
+      -207.788,
+      203.834,
+      44.369,
+      3.913
+     ]
+    },
+    {
      "name": "city.1.leafcards",
      "material": "leafcards",
      "lightmap": 1,
-     "triangles": 15788,
+     "triangles": 13590,
      "box": [
-      -1.052,
-      8.465,
-      -229.519,
-      236.439,
-      46.14,
-      1.475
+      -0.44,
+      10.127,
+      -227.68,
+      234.957,
+      45.301,
+      1.197
      ]
     },
     {
      "name": "city.1.marble",
      "material": "marble",
      "lightmap": 1,
-     "triangles": 12284,
+     "triangles": 11478,
      "box": [
       -2.269,
       10.84,
       -216.935,
       232.307,
-      47.698,
+      49.186,
       7.839
      ]
     },
@@ -1418,28 +1489,28 @@
      "name": "city.1.plain",
      "material": "plain",
      "lightmap": 1,
-     "triangles": 12380,
+     "triangles": 3961,
      "box": [
-      -0.589,
-      10.16,
-      -227.684,
-      234.683,
+      -0.166,
+      11.666,
+      -216.144,
+      231.391,
       52.998,
-      3.913
+      0.692
      ]
     },
     {
      "name": "city.2.ashlar",
      "material": "ashlar",
      "lightmap": 2,
-     "triangles": 3562,
+     "triangles": 1670,
      "box": [
       -215.992,
       2.271,
       -1.846,
       -1.776,
-      29.995,
-      212.998
+      23.744,
+      212.926
      ]
     },
     {
@@ -1499,30 +1570,44 @@
      ]
     },
     {
+     "name": "city.2.grass",
+     "material": "grass",
+     "lightmap": 2,
+     "triangles": 166,
+     "box": [
+      -209.48,
+      17.703,
+      5.229,
+      1.196,
+      30.064,
+      218.182
+     ]
+    },
+    {
      "name": "city.2.leafcards",
      "material": "leafcards",
      "lightmap": 2,
-     "triangles": 21784,
+     "triangles": 18706,
      "box": [
-      -235.863,
-      -1.396,
-      -1.25,
-      1.291,
-      32.252,
-      237.776
+      -234.067,
+      1.502,
+      -1.083,
+      1.142,
+      31.413,
+      236.467
      ]
     },
     {
      "name": "city.2.marble",
      "material": "marble",
      "lightmap": 2,
-     "triangles": 15518,
+     "triangles": 14102,
      "box": [
       -216.588,
       0.791,
       -1.769,
       1.814,
-      28.618,
+      29.997,
       221.457
      ]
     },
@@ -1530,27 +1615,27 @@
      "name": "city.2.plain",
      "material": "plain",
      "lightmap": 2,
-     "triangles": 17314,
+     "triangles": 5910,
      "box": [
-      -233.781,
-      1.117,
-      -0.423,
-      3.195,
+      -231.475,
+      2.132,
+      0.2,
+      0.205,
       35.064,
-      236.306
+      221.161
      ]
     },
     {
      "name": "city.3.ashlar",
      "material": "ashlar",
      "lightmap": 3,
-     "triangles": 3274,
+     "triangles": 1996,
      "box": [
       -0.062,
       2.732,
       -2.157,
-      234.888,
-      42.576,
+      213.617,
+      36,
       188.577
      ]
     },
@@ -1611,30 +1696,44 @@
      ]
     },
     {
+     "name": "city.3.grass",
+     "material": "grass",
+     "lightmap": 3,
+     "triangles": 124,
+     "box": [
+      -0.965,
+      14.278,
+      0.343,
+      197.305,
+      41.59,
+      193.502
+     ]
+    },
+    {
      "name": "city.3.leafcards",
      "material": "leafcards",
      "lightmap": 3,
-     "triangles": 15792,
+     "triangles": 13904,
      "box": [
-      -1.28,
-      -1.62,
-      -1.41,
-      237.042,
-      34.048,
-      233.545
+      -1.066,
+      1.137,
+      -1.165,
+      235.866,
+      33.04,
+      231.796
      ]
     },
     {
      "name": "city.3.marble",
      "material": "marble",
      "lightmap": 3,
-     "triangles": 15234,
+     "triangles": 13872,
      "box": [
       -3.081,
       -0.062,
       -6.061,
       235.262,
-      41.09,
+      42.578,
       194.102
      ]
     },
@@ -1642,14 +1741,14 @@
      "name": "city.3.plain",
      "material": "plain",
      "lightmap": 3,
-     "triangles": 12955,
+     "triangles": 3767,
      "box": [
-      -2.65,
-      0.136,
-      -0.707,
-      235.695,
-      41.59,
-      231.948
+      -0.151,
+      2.04,
+      -0.567,
+      234.476,
+      36.7,
+      211.167
      ]
     }
    ],
@@ -1682,34 +1781,34 @@
    "id": "trailhead",
    "kind": "district",
    "file": "chunks/trailhead.glb.gz",
-   "bytes": 556073,
+   "bytes": 488481,
    "encoding": "gzip",
-   "rawBytes": 823868,
-   "triangles": 35281,
+   "rawBytes": 755812,
+   "triangles": 34983,
    "drawCalls": 12,
    "bounds": {
     "box": [
      -17.179,
-     0.917,
-     153.188,
-     37.012,
+     1.845,
+     153.961,
+     36.5,
      38.029,
-     208.873
+     207.6
     ],
     "sphere": [
-     9.92,
-     19.47,
-     181.03,
-     43.05
+     9.66,
+     19.94,
+     180.78,
+     42.04
     ]
    },
    "lightmaps": [
     {
      "file": "lightmaps/trailhead.0.webp",
-     "bytes": 441304,
+     "bytes": 368270,
      "size": 2048,
      "half": "lightmaps/half/trailhead.0.webp",
-     "halfBytes": 182430
+     "halfBytes": 158582
     }
    ],
    "quality": {
@@ -1720,7 +1819,7 @@
      48
     ],
     "bounces": 4,
-    "bakeSeconds": 400.3
+    "bakeSeconds": 567.1
    },
    "materials": [
     "ashlar",
@@ -1741,13 +1840,13 @@
      "name": "trailhead.0.ashlar",
      "material": "ashlar",
      "lightmap": 0,
-     "triangles": 1472,
+     "triangles": 1468,
      "box": [
       6.25,
       2,
       165.391,
       29.609,
-      14.09,
+      11,
       187.29
      ]
     },
@@ -1755,14 +1854,14 @@
      "name": "trailhead.0.bark",
      "material": "bark",
      "lightmap": 0,
-     "triangles": 161,
+     "triangles": 103,
      "box": [
-      -8.107,
-      1.861,
+      -0.261,
+      2,
       156.828,
       32.893,
       17.56,
-      198.385
+      195.302
      ]
     },
     {
@@ -1825,13 +1924,13 @@
      "name": "trailhead.0.grass",
      "material": "grass",
      "lightmap": 0,
-     "triangles": 364,
+     "triangles": 400,
      "box": [
-      -13.492,
+      -16.146,
       1.845,
       154.532,
       33.55,
-      2.28,
+      16.32,
       207.15
      ]
     },
@@ -1839,14 +1938,14 @@
      "name": "trailhead.0.leafcards",
      "material": "leafcards",
      "lightmap": 0,
-     "triangles": 6516,
+     "triangles": 15120,
      "box": [
-      -13.829,
-      0.917,
-      153.188,
-      37.012,
-      17.856,
-      208.873
+      -13.51,
+      1.934,
+      154.603,
+      34.742,
+      17.183,
+      207.273
      ]
     },
     {
@@ -1867,14 +1966,14 @@
      "name": "trailhead.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 10080,
+     "triangles": 8540,
      "box": [
-      -13.988,
+      -13.985,
       2,
-      164.006,
-      30.994,
-      18.76,
-      206.901
+      164.009,
+      30.991,
+      18.52,
+      206.899
      ]
     },
     {
@@ -1895,14 +1994,14 @@
      "name": "trailhead.0.plain",
      "material": "plain",
      "lightmap": 0,
-     "triangles": 14615,
+     "triangles": 7279,
      "box": [
       -16.898,
-      1.861,
+      2,
       153.961,
       35.789,
       38.029,
-      207.096
+      206.613
      ]
     }
    ],
@@ -1920,34 +2019,34 @@
    "id": "switchboard",
    "kind": "district",
    "file": "chunks/switchboard.glb.gz",
-   "bytes": 258486,
+   "bytes": 311658,
    "encoding": "gzip",
-   "rawBytes": 454432,
-   "triangles": 25237,
-   "drawCalls": 12,
+   "rawBytes": 546560,
+   "triangles": 30419,
+   "drawCalls": 11,
    "bounds": {
     "box": [
-     -86.815,
+     -86.683,
      3.5,
      93.4,
-     -35.646,
+     -37.806,
      24.87,
-     145.125
+     143.111
     ],
     "sphere": [
-     -61.23,
+     -62.24,
      14.19,
-     119.26,
-     37.92
+     118.26,
+     36.46
     ]
    },
    "lightmaps": [
     {
      "file": "lightmaps/switchboard.0.webp",
-     "bytes": 182136,
+     "bytes": 173622,
      "size": 1024,
      "half": "lightmaps/half/switchboard.0.webp",
-     "halfBytes": 72432
+     "halfBytes": 67398
     }
    ],
    "quality": {
@@ -1958,11 +2057,10 @@
      48
     ],
     "bounces": 3,
-    "bakeSeconds": 46.5
+    "bakeSeconds": 51.7
    },
    "materials": [
     "ashlar",
-    "asphalt",
     "bark",
     "brick",
     "concrete",
@@ -1979,41 +2077,27 @@
      "name": "switchboard.0.ashlar",
      "material": "ashlar",
      "lightmap": 0,
-     "triangles": 320,
+     "triangles": 228,
      "box": [
-      -73.2,
+      -69.95,
       5.5,
       101.6,
-      -42.1,
-      18.1,
-      130.85
-     ]
-    },
-    {
-     "name": "switchboard.0.asphalt",
-     "material": "asphalt",
-     "lightmap": 0,
-     "triangles": 48,
-     "box": [
-      -69.18,
-      5.039,
-      112.42,
-      -59.42,
-      5.039,
-      127.78
+      -54.05,
+      16.25,
+      102.6
      ]
     },
     {
      "name": "switchboard.0.bark",
      "material": "bark",
      "lightmap": 0,
-     "triangles": 75,
+     "triangles": 48,
      "box": [
       -78.077,
       5,
-      97.6,
+      103.971,
       -39.539,
-      15.916,
+      9.011,
       141.674
      ]
     },
@@ -2063,13 +2147,13 @@
      "name": "switchboard.0.grass",
      "material": "grass",
      "lightmap": 0,
-     "triangles": 216,
+     "triangles": 228,
      "box": [
       -86.391,
       4.915,
-      102.45,
+      94.3,
       -38.85,
-      5.26,
+      19.68,
       142.307
      ]
     },
@@ -2077,14 +2161,14 @@
      "name": "switchboard.0.leafcards",
      "material": "leafcards",
      "lightmap": 0,
-     "triangles": 2826,
+     "triangles": 11054,
      "box": [
-      -86.815,
-      3.524,
-      94.127,
-      -35.646,
-      21.344,
-      145.125
+      -86.103,
+      4.881,
+      94.782,
+      -37.806,
+      20.474,
+      143.111
      ]
     },
     {
@@ -2105,7 +2189,7 @@
      "name": "switchboard.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 3349,
+     "triangles": 3411,
      "box": [
       -83.62,
       3.5,
@@ -2133,14 +2217,14 @@
      "name": "switchboard.0.plain",
      "material": "plain",
      "lightmap": 0,
-     "triangles": 17322,
+     "triangles": 14369,
      "box": [
-      -86.098,
-      4.566,
-      94.3,
-      -37.982,
+      -84.271,
+      5,
+      94.85,
+      -43.6,
       24.87,
-      142.86
+      139.35
      ]
     }
    ],
@@ -2159,34 +2243,34 @@
    "id": "postcards",
    "kind": "district",
    "file": "chunks/postcards.glb.gz",
-   "bytes": 291878,
+   "bytes": 335837,
    "encoding": "gzip",
-   "rawBytes": 453232,
-   "triangles": 21611,
+   "rawBytes": 521672,
+   "triangles": 25116,
    "drawCalls": 10,
    "bounds": {
     "box": [
-     94.201,
-     2.066,
-     124.481,
-     139.653,
-     12.889,
-     175.825
+     96.152,
+     3,
+     126.353,
+     139.582,
+     11.075,
+     174.002
     ],
     "sphere": [
-     116.93,
-     7.48,
-     150.15,
-     34.71
+     117.87,
+     7.04,
+     150.18,
+     32.49
     ]
    },
    "lightmaps": [
     {
      "file": "lightmaps/postcards.0.webp",
-     "bytes": 155740,
+     "bytes": 143572,
      "size": 1024,
      "half": "lightmaps/half/postcards.0.webp",
-     "halfBytes": 65788
+     "halfBytes": 59076
     }
    ],
    "quality": {
@@ -2197,7 +2281,7 @@
      48
     ],
     "bounces": 3,
-    "bakeSeconds": 37.4
+    "bakeSeconds": 185
    },
    "materials": [
     "ashlar",
@@ -2216,14 +2300,14 @@
      "name": "postcards.0.ashlar",
      "material": "ashlar",
      "lightmap": 0,
-     "triangles": 444,
+     "triangles": 352,
      "box": [
-      103.347,
+      103.445,
       3,
-      153.755,
-      106.124,
-      8.05,
-      158.445
+      153.901,
+      106.026,
+      7.05,
+      158.299
      ]
     },
     {
@@ -2272,14 +2356,14 @@
      "name": "postcards.0.leafcards",
      "material": "leafcards",
      "lightmap": 0,
-     "triangles": 2794,
+     "triangles": 9830,
      "box": [
-      94.201,
-      2.066,
-      124.481,
-      139.653,
-      12.889,
-      175.825
+      96.152,
+      3.033,
+      126.353,
+      139.582,
+      11.075,
+      173.794
      ]
     },
     {
@@ -2300,7 +2384,7 @@
      "name": "postcards.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 7045,
+     "triangles": 5416,
      "box": [
       103.152,
       3,
@@ -2328,14 +2412,14 @@
      "name": "postcards.0.plain",
      "material": "plain",
      "lightmap": 0,
-     "triangles": 9542,
+     "triangles": 7732,
      "box": [
-      96.359,
-      2.974,
-      126.563,
-      139.632,
-      10.699,
-      173.599
+      101.311,
+      3,
+      128.498,
+      139.509,
+      8.39,
+      173.557
      ]
     },
     {
@@ -2368,34 +2452,34 @@
    "id": "commons",
    "kind": "district",
    "file": "chunks/commons.glb.gz",
-   "bytes": 357523,
+   "bytes": 406547,
    "encoding": "gzip",
-   "rawBytes": 570132,
-   "triangles": 30160,
+   "rawBytes": 649792,
+   "triangles": 33964,
    "drawCalls": 12,
    "bounds": {
     "box": [
-     16.305,
-     7.567,
-     36.353,
-     69.891,
+     17.826,
+     8.744,
+     38.282,
+     68.417,
      39.55,
-     93.133
+     91.792
     ],
     "sphere": [
-     43.1,
-     23.56,
-     64.74,
-     42.19
+     43.12,
+     24.15,
+     65.04,
+     39.91
     ]
    },
    "lightmaps": [
     {
      "file": "lightmaps/commons.0.webp",
-     "bytes": 214054,
+     "bytes": 190018,
      "size": 1024,
      "half": "lightmaps/half/commons.0.webp",
-     "halfBytes": 84770
+     "halfBytes": 75634
     }
    ],
    "quality": {
@@ -2406,7 +2490,7 @@
      48
     ],
     "bounces": 3,
-    "bakeSeconds": 52.1
+    "bakeSeconds": 251.6
    },
    "materials": [
     "ashlar",
@@ -2427,9 +2511,9 @@
      "name": "commons.0.ashlar",
      "material": "ashlar",
      "lightmap": 0,
-     "triangles": 2108,
+     "triangles": 2012,
      "box": [
-      28.537,
+      44.407,
       9,
       52.164,
       61.836,
@@ -2441,7 +2525,7 @@
      "name": "commons.0.bark",
      "material": "bark",
      "lightmap": 0,
-     "triangles": 126,
+     "triangles": 120,
      "box": [
       20.239,
       9,
@@ -2511,14 +2595,14 @@
      "name": "commons.0.leafcards",
      "material": "leafcards",
      "lightmap": 0,
-     "triangles": 4416,
+     "triangles": 11840,
      "box": [
-      16.305,
-      7.567,
-      36.353,
-      69.891,
-      20.267,
-      93.133
+      17.826,
+      8.744,
+      38.282,
+      68.417,
+      19.641,
+      91.792
      ]
     },
     {
@@ -2539,7 +2623,7 @@
      "name": "commons.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 3522,
+     "triangles": 3612,
      "box": [
       17.939,
       9,
@@ -2567,14 +2651,14 @@
      "name": "commons.0.plain",
      "material": "plain",
      "lightmap": 0,
-     "triangles": 18512,
+     "triangles": 14904,
      "box": [
-      17.779,
-      8.981,
-      38.591,
-      68.177,
+      17.887,
+      8.997,
+      41.619,
+      65.315,
       39.55,
-      91.503
+      88.541
      ]
     },
     {
@@ -2607,45 +2691,45 @@
    "id": "studio",
    "kind": "district",
    "file": "chunks/studio.glb.gz",
-   "bytes": 472046,
+   "bytes": 456229,
    "encoding": "gzip",
-   "rawBytes": 823616,
-   "triangles": 38895,
+   "rawBytes": 710984,
+   "triangles": 38861,
    "drawCalls": 11,
    "bounds": {
     "box": [
-     108.759,
+     108.9,
      5.8,
-     21.678,
-     160.576,
+     21.7,
+     160.55,
      29.8,
-     70.299
+     68.018
     ],
     "sphere": [
-     134.67,
+     134.73,
      17.8,
-     45.99,
-     37.5
+     44.86,
+     36.71
     ]
    },
    "lightmaps": [
     {
      "file": "lightmaps/studio.0.webp",
-     "bytes": 239116,
-     "size": 1024,
+     "bytes": 330520,
+     "size": 2048,
      "half": "lightmaps/half/studio.0.webp",
-     "halfBytes": 90254
+     "halfBytes": 141122
     }
    ],
    "quality": {
-    "level": "good",
-    "lightmap": 1024,
+    "level": "hero",
+    "lightmap": 2048,
     "samples": 48,
     "pageSamples": [
      48
     ],
-    "bounces": 3,
-    "bakeSeconds": 48.1
+    "bounces": 4,
+    "bakeSeconds": 1134.8
    },
    "materials": [
     "ashlar",
@@ -2665,13 +2749,13 @@
      "name": "studio.0.ashlar",
      "material": "ashlar",
      "lightmap": 0,
-     "triangles": 472,
+     "triangles": 276,
      "box": [
-      126,
-      7,
-      26,
-      160.25,
-      22.3,
+      153.12,
+      7.45,
+      52.52,
+      154.08,
+      13.05,
       60.28
      ]
     },
@@ -2735,13 +2819,13 @@
      "name": "studio.0.grass",
      "material": "grass",
      "lightmap": 0,
-     "triangles": 320,
+     "triangles": 344,
      "box": [
       122.096,
       6.975,
-      30.2,
-      152.904,
-      7.86,
+      22.3,
+      156.4,
+      21.61,
       65.95
      ]
     },
@@ -2749,14 +2833,14 @@
      "name": "studio.0.leafcards",
      "material": "leafcards",
      "lightmap": 0,
-     "triangles": 5040,
+     "triangles": 17690,
      "box": [
-      118.897,
-      6.643,
-      21.678,
-      160.531,
-      28.749,
-      70.299
+      108.9,
+      6.953,
+      22.4,
+      160.45,
+      28.417,
+      68.018
      ]
     },
     {
@@ -2777,7 +2861,7 @@
      "name": "studio.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 4756,
+     "triangles": 4570,
      "box": [
       108.938,
       5.8,
@@ -2791,28 +2875,28 @@
      "name": "studio.0.paving",
      "material": "paving",
      "lightmap": 0,
-     "triangles": 282,
+     "triangles": 204,
      "box": [
       122.15,
       7,
-      26,
-      160.55,
+      29.9,
+      148.1,
       7.84,
-      57.5
+      45.1
      ]
     },
     {
      "name": "studio.0.plain",
      "material": "plain",
      "lightmap": 0,
-     "triangles": 26562,
+     "triangles": 14314,
      "box": [
-      108.759,
-      6.916,
+      109.126,
+      6.985,
       21.98,
-      160.576,
+      160.55,
       29.8,
-      67.817
+      61.009
      ]
     }
    ],
@@ -2831,34 +2915,34 @@
    "id": "terraces",
    "kind": "district",
    "file": "chunks/terraces.glb.gz",
-   "bytes": 607206,
+   "bytes": 493705,
    "encoding": "gzip",
-   "rawBytes": 901848,
-   "triangles": 40410,
+   "rawBytes": 770672,
+   "triangles": 36945,
    "drawCalls": 10,
    "bounds": {
     "box": [
-     -81.974,
-     15.718,
+     -80.094,
+     15.75,
      -22.843,
-     -22.75,
+     -24.5,
      40.08,
-     37.012
+     34.973
     ],
     "sphere": [
-     -52.36,
-     27.9,
-     7.08,
-     43.83
+     -52.3,
+     27.91,
+     6.06,
+     41.91
     ]
    },
    "lightmaps": [
     {
      "file": "lightmaps/terraces.0.webp",
-     "bytes": 252070,
+     "bytes": 191540,
      "size": 1024,
      "half": "lightmaps/half/terraces.0.webp",
-     "halfBytes": 93592
+     "halfBytes": 75544
     }
    ],
    "quality": {
@@ -2869,7 +2953,7 @@
      48
     ],
     "bounces": 3,
-    "bakeSeconds": 51.6
+    "bakeSeconds": 279.8
    },
    "materials": [
     "ashlar",
@@ -2888,21 +2972,21 @@
      "name": "terraces.0.ashlar",
      "material": "ashlar",
      "lightmap": 0,
-     "triangles": 642,
+     "triangles": 44,
      "box": [
-      -56.1,
-      15.75,
+      -53.6,
+      29.6,
       -22.5,
-      -29.331,
+      -46.4,
       32.75,
-      29.1
+      -20.3
      ]
     },
     {
      "name": "terraces.0.bark",
      "material": "bark",
      "lightmap": 0,
-     "triangles": 286,
+     "triangles": 276,
      "box": [
       -77.297,
       16,
@@ -2930,14 +3014,14 @@
      "name": "terraces.0.concrete",
      "material": "concrete",
      "lightmap": 0,
-     "triangles": 132,
+     "triangles": 324,
      "box": [
       -61.25,
-      20.9,
+      19.94,
       -22.75,
       -38.75,
       29.6,
-      -6.75
+      29.1
      ]
     },
     {
@@ -2958,14 +3042,14 @@
      "name": "terraces.0.leafcards",
      "material": "leafcards",
      "lightmap": 0,
-     "triangles": 5690,
+     "triangles": 14290,
      "box": [
-      -81.974,
-      15.718,
-      -21.466,
-      -22.75,
-      34.335,
-      37.012
+      -80.094,
+      15.983,
+      -19.728,
+      -24.716,
+      36.792,
+      34.973
      ]
     },
     {
@@ -2986,14 +3070,14 @@
      "name": "terraces.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 17409,
+     "triangles": 11826,
      "box": [
       -74.647,
       16,
       -22.843,
       -29.315,
       37.767,
-      28.764
+      28.761
      ]
     },
     {
@@ -3014,14 +3098,14 @@
      "name": "terraces.0.plain",
      "material": "plain",
      "lightmap": 0,
-     "triangles": 14049,
+     "triangles": 7983,
      "box": [
-      -79.87,
-      15.934,
+      -74.641,
+      15.75,
       -22.77,
-      -24.724,
+      -26.95,
       40.08,
-      34.779
+      29.12
      ]
     }
    ],
@@ -3039,34 +3123,34 @@
    "id": "greenhouse",
    "kind": "district",
    "file": "chunks/greenhouse.glb.gz",
-   "bytes": 638260,
+   "bytes": 480634,
    "encoding": "gzip",
-   "rawBytes": 953404,
-   "triangles": 45106,
+   "rawBytes": 749856,
+   "triangles": 35277,
    "drawCalls": 12,
    "bounds": {
     "box": [
      -177.59,
      2.773,
      32.201,
-     -122.366,
-     27.753,
-     86.836
+     -123.41,
+     25.742,
+     86.62
     ],
     "sphere": [
-     -149.98,
-     15.26,
-     59.52,
-     40.8
+     -150.5,
+     14.26,
+     59.41,
+     40.08
     ]
    },
    "lightmaps": [
     {
      "file": "lightmaps/greenhouse.0.webp",
-     "bytes": 132878,
+     "bytes": 120722,
      "size": 1024,
      "half": "lightmaps/half/greenhouse.0.webp",
-     "halfBytes": 55130
+     "halfBytes": 49072
     }
    ],
    "quality": {
@@ -3077,7 +3161,7 @@
      48
     ],
     "bounces": 3,
-    "bakeSeconds": 52.9
+    "bakeSeconds": 260.6
    },
    "materials": [
     "ashlar",
@@ -3098,27 +3182,27 @@
      "name": "greenhouse.0.ashlar",
      "material": "ashlar",
      "lightmap": 0,
-     "triangles": 298,
+     "triangles": 460,
      "box": [
       -168.412,
-      4,
-      41.81,
-      -129.594,
-      11.686,
-      69.235
+      4.65,
+      41.811,
+      -154.878,
+      10.25,
+      55.745
      ]
     },
     {
      "name": "greenhouse.0.bark",
      "material": "bark",
      "lightmap": 0,
-     "triangles": 82,
+     "triangles": 48,
      "box": [
-      -172.183,
+      -168.778,
       4,
       41.467,
       -127.018,
-      9.021,
+      8.736,
       82.577
      ]
     },
@@ -3168,28 +3252,28 @@
      "name": "greenhouse.0.grass",
      "material": "grass",
      "lightmap": 0,
-     "triangles": 180,
+     "triangles": 204,
      "box": [
-      -169.398,
+      -176.53,
       4,
-      40.828,
-      -126.42,
-      4.035,
-      83.15
+      33.261,
+      -125.215,
+      15.36,
+      85.172
      ]
     },
     {
      "name": "greenhouse.0.leafcards",
      "material": "leafcards",
      "lightmap": 0,
-     "triangles": 12656,
+     "triangles": 16064,
      "box": [
-      -175.022,
-      3.059,
-      34.944,
-      -122.366,
-      27.753,
-      86.836
+      -173.97,
+      3.504,
+      36.086,
+      -124.252,
+      25.742,
+      85.341
      ]
     },
     {
@@ -3210,42 +3294,42 @@
      "name": "greenhouse.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 4598,
+     "triangles": 2208,
      "box": [
-      -177.361,
+      -177.378,
       2.773,
-      32.43,
-      -123.419,
+      32.413,
+      -123.41,
       12.38,
-      86.611
+      86.62
      ]
     },
     {
      "name": "greenhouse.0.paving",
      "material": "paving",
      "lightmap": 0,
-     "triangles": 72,
+     "triangles": 52,
      "box": [
       -160.652,
       4,
       49.482,
-      -136.804,
+      -141.093,
       4.04,
-      73.287
+      68.951
      ]
     },
     {
      "name": "greenhouse.0.plain",
      "material": "plain",
      "lightmap": 0,
-     "triangles": 22820,
+     "triangles": 11841,
      "box": [
-      -176.53,
-      3.894,
-      33.261,
-      -124.158,
-      25.463,
-      85.862
+      -173.564,
+      3.947,
+      36.787,
+      -124.659,
+      22.305,
+      85.373
      ]
     },
     {
@@ -3276,45 +3360,45 @@
    "id": "maskgarden",
    "kind": "district",
    "file": "chunks/maskgarden.glb.gz",
-   "bytes": 555831,
+   "bytes": 528419,
    "encoding": "gzip",
-   "rawBytes": 877540,
-   "triangles": 39993,
+   "rawBytes": 850704,
+   "triangles": 42099,
    "drawCalls": 12,
    "bounds": {
     "box": [
-     39.047,
-     10.61,
+     39.911,
+     11.3,
      -79.908,
      97.603,
      30.76,
-     -20.171
+     -21.021
     ],
     "sphere": [
-     68.32,
-     20.69,
-     -50.04,
-     43.02
+     68.76,
+     21.03,
+     -50.46,
+     42.35
     ]
    },
    "lightmaps": [
     {
      "file": "lightmaps/maskgarden.0.webp",
-     "bytes": 241980,
-     "size": 1024,
+     "bytes": 489956,
+     "size": 2048,
      "half": "lightmaps/half/maskgarden.0.webp",
-     "halfBytes": 98306
+     "halfBytes": 195052
     }
    ],
    "quality": {
-    "level": "good",
-    "lightmap": 1024,
+    "level": "hero",
+    "lightmap": 2048,
     "samples": 48,
     "pageSamples": [
      48
     ],
-    "bounces": 3,
-    "bakeSeconds": 45.8
+    "bounces": 4,
+    "bakeSeconds": 988.1
    },
    "materials": [
     "ashlar",
@@ -3335,26 +3419,26 @@
      "name": "maskgarden.0.ashlar",
      "material": "ashlar",
      "lightmap": 0,
-     "triangles": 234,
+     "triangles": 100,
      "box": [
-      58.064,
+      62.981,
       12.5,
-      -73.117,
-      89.057,
-      24.8,
-      -24.244
+      -67.368,
+      64.86,
+      17.286,
+      -66.26
      ]
     },
     {
      "name": "maskgarden.0.bark",
      "material": "bark",
      "lightmap": 0,
-     "triangles": 174,
+     "triangles": 127,
      "box": [
       43.155,
       12,
-      -74.433,
-      91.148,
+      -68.26,
+      88.474,
       25.84,
       -24.189
      ]
@@ -3405,13 +3489,13 @@
      "name": "maskgarden.0.grass",
      "material": "grass",
      "lightmap": 0,
-     "triangles": 642,
+     "triangles": 678,
      "box": [
       41.702,
       12,
-      -72.735,
-      91.054,
-      12.12,
+      -72.937,
+      96.232,
+      26.28,
       -22.411
      ]
     },
@@ -3419,14 +3503,14 @@
      "name": "maskgarden.0.leafcards",
      "material": "leafcards",
      "lightmap": 0,
-     "triangles": 6220,
+     "triangles": 17256,
      "box": [
-      39.047,
-      10.61,
-      -75.821,
-      94.511,
-      27.859,
-      -20.171
+      40.432,
+      12.003,
+      -74.478,
+      93.865,
+      27.127,
+      -21.216
      ]
     },
     {
@@ -3447,7 +3531,7 @@
      "name": "maskgarden.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 6331,
+     "triangles": 5543,
      "box": [
       39.911,
       12,
@@ -3475,14 +3559,14 @@
      "name": "maskgarden.0.plain",
      "material": "plain",
      "lightmap": 0,
-     "triangles": 24126,
+     "triangles": 16129,
      "box": [
-      40.376,
-      11.937,
+      41.331,
+      11.958,
       -79.335,
       97.057,
       30.76,
-      -21.166
+      -21.16
      ]
     },
     {
@@ -3518,15 +3602,15 @@
    "id": "boneyard",
    "kind": "district",
    "file": "chunks/boneyard.glb.gz",
-   "bytes": 696692,
+   "bytes": 557235,
    "encoding": "gzip",
-   "rawBytes": 970340,
-   "triangles": 49506,
+   "rawBytes": 818168,
+   "triangles": 45236,
    "drawCalls": 8,
    "bounds": {
     "box": [
      -182.118,
-     -7.426,
+     -6.218,
      -108.12,
      -109.88,
      8.039,
@@ -3534,18 +3618,18 @@
     ],
     "sphere": [
      -146,
-     0.31,
+     0.91,
      -72,
-     51.66
+     51.58
     ]
    },
    "lightmaps": [
     {
      "file": "lightmaps/boneyard.0.webp",
-     "bytes": 180438,
+     "bytes": 161352,
      "size": 1024,
      "half": "lightmaps/half/boneyard.0.webp",
-     "halfBytes": 73450
+     "halfBytes": 66400
     }
    ],
    "quality": {
@@ -3556,7 +3640,7 @@
      48
     ],
     "bounces": 3,
-    "bakeSeconds": 56.9
+    "bakeSeconds": 301.9
    },
    "materials": [
     "ashlar",
@@ -3573,9 +3657,9 @@
      "name": "boneyard.0.ashlar",
      "material": "ashlar",
      "lightmap": 0,
-     "triangles": 9860,
+     "triangles": 8586,
      "box": [
-      -176.638,
+      -176.302,
       -5.4,
       -102.638,
       -115.362,
@@ -3587,9 +3671,9 @@
      "name": "boneyard.0.bark",
      "material": "bark",
      "lightmap": 0,
-     "triangles": 146,
+     "triangles": 144,
      "box": [
-      -175.205,
+      -173.407,
       -5.2,
       -103.088,
       -114.211,
@@ -3615,13 +3699,13 @@
      "name": "boneyard.0.grass",
      "material": "grass",
      "lightmap": 0,
-     "triangles": 341,
+     "triangles": 401,
      "box": [
       -168.897,
       -5.17,
       -92.237,
       -127.888,
-      -4.97,
+      -2.913,
       -52.41
      ]
     },
@@ -3629,14 +3713,14 @@
      "name": "boneyard.0.leafcards",
      "material": "leafcards",
      "lightmap": 0,
-     "triangles": 6620,
+     "triangles": 14368,
      "box": [
-      -177.033,
-      -7.426,
-      -106.775,
-      -109.895,
-      7.025,
-      -37.634
+      -176.281,
+      -6.218,
+      -104.773,
+      -111.582,
+      6.584,
+      -39.212
      ]
     },
     {
@@ -3657,10 +3741,10 @@
      "name": "boneyard.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 12012,
+     "triangles": 7888,
      "box": [
-      -176.454,
-      -5.369,
+      -176.64,
+      -5.4,
       -102.793,
       -115.207,
       8.039,
@@ -3671,13 +3755,13 @@
      "name": "boneyard.0.plain",
      "material": "plain",
      "lightmap": 0,
-     "triangles": 19839,
+     "triangles": 13161,
      "box": [
       -182.118,
-      -6.579,
+      -5.845,
       -108.12,
       -109.88,
-      6.643,
+      6,
       -35.88
      ]
     }
@@ -3697,45 +3781,45 @@
    "id": "observatory",
    "kind": "district",
    "file": "chunks/observatory.glb.gz",
-   "bytes": 429418,
+   "bytes": 455483,
    "encoding": "gzip",
-   "rawBytes": 632716,
-   "triangles": 29650,
+   "rawBytes": 686008,
+   "triangles": 33140,
    "drawCalls": 11,
    "bounds": {
     "box": [
-     -39.676,
-     28.756,
-     -175.257,
-     40.341,
+     -37.531,
+     29.891,
+     -173.378,
+     38.317,
      41.9,
      -106.403
     ],
     "sphere": [
-     0.33,
-     35.33,
-     -140.83,
-     53.19
+     0.39,
+     35.9,
+     -139.89,
+     50.95
     ]
    },
    "lightmaps": [
     {
      "file": "lightmaps/observatory.0.webp",
-     "bytes": 192204,
-     "size": 1024,
+     "bytes": 383068,
+     "size": 2048,
      "half": "lightmaps/half/observatory.0.webp",
-     "halfBytes": 79036
+     "halfBytes": 162826
     }
    ],
    "quality": {
-    "level": "good",
-    "lightmap": 1024,
+    "level": "hero",
+    "lightmap": 2048,
     "samples": 48,
     "pageSamples": [
      48
     ],
-    "bounces": 3,
-    "bakeSeconds": 54.3
+    "bounces": 4,
+    "bakeSeconds": 1217.5
    },
    "materials": [
     "ashlar",
@@ -3755,25 +3839,25 @@
      "name": "observatory.0.ashlar",
      "material": "ashlar",
      "lightmap": 0,
-     "triangles": 1182,
+     "triangles": 960,
      "box": [
       -10.613,
       30.55,
       -153.831,
-      18.979,
-      38.35,
-      -133.171
+      4.888,
+      36.55,
+      -134.832
      ]
     },
     {
      "name": "observatory.0.bark",
      "material": "bark",
      "lightmap": 0,
-     "triangles": 61,
+     "triangles": 48,
      "box": [
       -18.601,
       30.1,
-      -147.54,
+      -133.694,
       28.862,
       34.223,
       -109.829
@@ -3825,14 +3909,14 @@
      "name": "observatory.0.leafcards",
      "material": "leafcards",
      "lightmap": 0,
-     "triangles": 5800,
+     "triangles": 14798,
      "box": [
-      -39.676,
-      28.756,
-      -175.257,
-      40.341,
-      40.477,
-      -106.715
+      -37.531,
+      29.945,
+      -173.378,
+      38.317,
+      38.984,
+      -108.376
      ]
     },
     {
@@ -3853,27 +3937,27 @@
      "name": "observatory.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 8308,
+     "triangles": 7512,
      "box": [
-      -20.731,
+      -20.728,
       30,
       -164.908,
-      19.283,
+      19.048,
       41.65,
-      -122.984
+      -123.086
      ]
     },
     {
      "name": "observatory.0.paving",
      "material": "paving",
      "lightmap": 0,
-     "triangles": 802,
+     "triangles": 708,
      "box": [
       -32.417,
       30,
       -170.491,
       31.698,
-      31.11,
+      31.02,
       -106.403
      ]
     },
@@ -3881,14 +3965,14 @@
      "name": "observatory.0.plain",
      "material": "plain",
      "lightmap": 0,
-     "triangles": 12737,
+     "triangles": 8354,
      "box": [
-      -37.361,
+      -36.768,
       29.891,
-      -173.185,
-      38.163,
+      -172.414,
+      37.608,
       41.9,
-      -108.663
+      -114.406
      ]
     },
     {
@@ -3923,10 +4007,10 @@
    "id": "skyharbor",
    "kind": "district",
    "file": "chunks/skyharbor.glb.gz",
-   "bytes": 406257,
+   "bytes": 410166,
    "encoding": "gzip",
-   "rawBytes": 626124,
-   "triangles": 28575,
+   "rawBytes": 660372,
+   "triangles": 31770,
    "drawCalls": 11,
    "bounds": {
     "box": [
@@ -3934,23 +4018,23 @@
      9.509,
      -178.412,
      198.149,
-     28.795,
-     -81.204
+     27.971,
+     -82.706
     ],
     "sphere": [
      157.32,
-     19.15,
-     -129.81,
-     64.2
+     18.74,
+     -130.56,
+     63.58
     ]
    },
    "lightmaps": [
     {
      "file": "lightmaps/skyharbor.0.webp",
-     "bytes": 179708,
+     "bytes": 176192,
      "size": 1024,
      "half": "lightmaps/half/skyharbor.0.webp",
-     "halfBytes": 74726
+     "halfBytes": 72024
     }
    ],
    "quality": {
@@ -3961,7 +4045,7 @@
      48
     ],
     "bounces": 3,
-    "bakeSeconds": 44.7
+    "bakeSeconds": 238.6
    },
    "materials": [
     "ashlar",
@@ -3981,14 +4065,14 @@
      "name": "skyharbor.0.ashlar",
      "material": "ashlar",
      "lightmap": 0,
-     "triangles": 3624,
+     "triangles": 3174,
      "box": [
-      142.15,
+      160.882,
       13.2,
-      -174.677,
-      197.915,
-      26.407,
-      -98.873
+      -174.58,
+      197.762,
+      19.4,
+      -133.864
      ]
     },
     {
@@ -4051,26 +4135,26 @@
      "name": "skyharbor.0.leafcards",
      "material": "leafcards",
      "lightmap": 0,
-     "triangles": 3240,
+     "triangles": 10752,
      "box": [
-      117.041,
-      18.969,
-      -167.933,
-      196.457,
-      28.795,
-      -81.204
+      118.615,
+      18.556,
+      -167.993,
+      195.986,
+      27.272,
+      -82.89
      ]
     },
     {
      "name": "skyharbor.0.lettering",
      "material": "lettering",
      "lightmap": 0,
-     "triangles": 378,
+     "triangles": 376,
      "box": [
       134.579,
       13.2,
       -166.151,
-      190.589,
+      190.57,
       24.552,
       -98.273
      ]
@@ -4079,13 +4163,13 @@
      "name": "skyharbor.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 6092,
+     "triangles": 5780,
      "box": [
       134.395,
       20,
       -174.84,
       198.051,
-      24.61,
+      26.414,
       -98.163
      ]
     },
@@ -4107,14 +4191,14 @@
      "name": "skyharbor.0.plain",
      "material": "plain",
      "lightmap": 0,
-     "triangles": 13871,
+     "triangles": 10318,
      "box": [
-      118.781,
+      131.25,
       9.509,
       -178.412,
       198.138,
       27.971,
-      -83.12
+      -94.708
      ]
     },
     {

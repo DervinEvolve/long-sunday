@@ -42,6 +42,8 @@ export interface SharedUniforms {
   uShine: THREE.IUniform<THREE.Vector4>;
   /** How much the texture library's own occlusion (joints, cracks, the gaps between blades) takes off the baked light in shade. */
   uAo: THREE.IUniform<number>;
+  /** What the sun's light on a thing that moves is multiplied by: half of the low sun's colour taken back out. */
+  uSunKeep: THREE.IUniform<THREE.Vector3>;
 }
 
 /** How much sun and sky reach one thing that moves. The figure has its own, measured under his feet. */
@@ -76,7 +78,8 @@ export function sharedUniforms(inkMaterial: THREE.Material): SharedUniforms {
     uSunDir: { value: new THREE.Vector3(0, 1, 0) },
     uSunE: { value: new THREE.Vector3(0, 0, 0) },
     uShine: { value: new THREE.Vector4(1, 1, 2, 1) },
-    uAo: { value: 0.6 },
+    uAo: { value: 0.4 },
+    uSunKeep: { value: new THREE.Vector3(1, 1, 1) },
   };
 }
 
@@ -85,6 +88,9 @@ export function sharedUniforms(inkMaterial: THREE.Material): SharedUniforms {
 // ---------------------------------------------------------------------------------------------
 
 const HAZE_PARS = /* glsl */ `
+#ifndef LS_HAZE_K
+#define LS_HAZE_K 1.0
+#endif
 uniform vec3 uHaze;
 uniform vec2 uHazeSun;
 uniform vec3 uHazeToward;
@@ -95,7 +101,7 @@ uniform vec3 uHazeAway;
 const HAZE = /* glsl */ `
 {
   float lsD = length( vViewPosition );
-  float lsF = smoothstep( uHaze.x, uHaze.y, lsD ) * uHaze.z;
+  float lsF = smoothstep( uHaze.x, uHaze.y, lsD ) * uHaze.z * LS_HAZE_K;
   vec3 lsDir = ( vec4( - vViewPosition, 0.0 ) * viewMatrix ).xyz;
   float lsS = max( dot( normalize( lsDir.xz + vec2( 1e-5 ) ), uHazeSun ), 0.0 );
   gl_FragColor.rgb = mix( gl_FragColor.rgb, mix( uHazeAway, uHazeToward, lsS * lsS * lsS ), lsF );
@@ -267,7 +273,7 @@ function patch(material: THREE.MeshStandardMaterial, kind: Kind, u: SharedUnifor
     su.uSway = u.uSway;
     let vs = shader.vertexShader;
     let fs = shader.fragmentShader;
-    fs = fs.replace('#include <fog_fragment>', kind === 'standin' ? HAZE : HAZE + BAKED_PROBE);
+    fs = fs.replace('#include <fog_fragment>', kind === 'standin' ? STANDIN_PUNCH + HAZE : HAZE + BAKED_PROBE);
     if (kind === 'standin') {
       const ex = exposure ?? openAir();
       su.uAtlas = u.uAtlas;
@@ -275,6 +281,11 @@ function patch(material: THREE.MeshStandardMaterial, kind: Kind, u: SharedUnifor
       su.uGlow = u.uGlow;
       su.uSunVis = ex.uSunVis;
       su.uAmb = ex.uAmb;
+      su.uSunDir = u.uSunDir;
+      su.uSunE = u.uSunE;
+      su.uSkyUp = u.uSkyUp;
+      su.uSkyDown = u.uSkyDown;
+      su.uSunKeep = u.uSunKeep;
       vs = vs.replace('#include <common>', '#include <common>\n' + STANDIN_VERT_PARS).replace('#include <project_vertex>', STANDIN_PROJECT);
       fs = fs
         .replace('#include <common>', '#include <common>\n' + HAZE_PARS + STANDIN_FRAG_PARS)
@@ -325,17 +336,27 @@ export interface BakedInputs {
 }
 
 /** File paths of the shared textures a material needs, for this size of set. */
-export function texturesOf(manifest: Manifest, name: string, half: boolean): { file: string; srgb: boolean; repeat: boolean; nearest: boolean }[] {
+/** What a shared texture is for. Decides the flat picture that stands in for it when its file cannot be had. */
+export type TextureRole = 'color' | 'normal' | 'orm' | 'swatch' | 'atlas';
+export interface TextureWant {
+  file: string;
+  srgb: boolean;
+  repeat: boolean;
+  nearest: boolean;
+  role: TextureRole;
+}
+
+export function texturesOf(manifest: Manifest, name: string, half: boolean): TextureWant[] {
   const m = manifest.materials[name] as ManifestMaterial | undefined;
   if (!m) return [];
-  const out: { file: string; srgb: boolean; repeat: boolean; nearest: boolean }[] = [];
+  const out: TextureWant[] = [];
   const pick = (f: { file: string; half?: string }): string => (half && f.half ? f.half : f.file);
-  if (m.kind === 'plain' && m.swatch) out.push({ file: m.swatch, srgb: false, repeat: false, nearest: true });
-  if (m.kind === 'lettering') out.push({ file: pick(manifest.lettering), srgb: false, repeat: false, nearest: false });
+  if (m.kind === 'plain' && m.swatch) out.push({ file: m.swatch, srgb: false, repeat: false, nearest: true, role: 'swatch' });
+  if (m.kind === 'lettering') out.push({ file: pick(manifest.lettering), srgb: false, repeat: false, nearest: false, role: 'atlas' });
   const set = m.texture ? manifest.textures[m.texture] : null;
-  if (set?.color) out.push({ file: pick(set.color), srgb: true, repeat: true, nearest: false });
-  if (set?.normal) out.push({ file: pick(set.normal), srgb: false, repeat: true, nearest: false });
-  if (set?.orm) out.push({ file: pick(set.orm), srgb: false, repeat: true, nearest: false });
+  if (set?.color) out.push({ file: pick(set.color), srgb: true, repeat: true, nearest: false, role: 'color' });
+  if (set?.normal) out.push({ file: pick(set.normal), srgb: false, repeat: true, nearest: false, role: 'normal' });
+  if (set?.orm) out.push({ file: pick(set.orm), srgb: false, repeat: true, nearest: false, role: 'orm' });
   return out;
 }
 
@@ -453,11 +474,18 @@ vLsUv = uv;
 `;
 
 const STANDIN_FRAG_PARS = /* glsl */ `
+// How much the albedo of this fragment was pulled down from the drawn colour. Glow is measured against the drawn colour.
+float lsAlbK = LS_ALBEDO;
 uniform sampler2D uAtlas;
 uniform float uAtlasSize;
 uniform float uGlow;
 uniform vec4 uSunVis;
 uniform float uAmb;
+uniform vec3 uSunDir;
+uniform vec3 uSunE;
+uniform vec3 uSkyUp;
+uniform vec3 uSkyDown;
+uniform vec3 uSunKeep;
 varying vec3 vLsColor;
 varying vec4 vLsParams;
 varying vec3 vLsInk;
@@ -485,7 +513,22 @@ const STANDIN_COLOR = /* glsl */ `
   }
   // Lettering, read from the ink look's own atlas. Sampled for every fragment so the derivatives are defined.
   float lsA = texture2D( uAtlas, vLsUv ).r;
-  vec3 lsBase = vLsColor * LS_ALBEDO;
+  vec3 lsPaint = vLsColor;
+#ifdef LS_PUNCH
+  // A strong poster colour is a dark pigment. Bright and pure at once does not exist in paint: under
+  // the filmic curve it comes out pale, an orange jacket goes peach. Pale colours keep the paint
+  // pull of 0.8, pure ones go down to 0.5. And a soft colour (the sage of the hero mask, the
+  // whale's lilac) gets a little more of its own colour, so warm low light does not wash it out.
+  {
+    float lsHi = max( vLsColor.r, max( vLsColor.g, vLsColor.b ) );
+    float lsLo = min( vLsColor.r, min( vLsColor.g, vLsColor.b ) );
+    float lsSat = ( lsHi - lsLo ) / max( lsHi, 1e-4 );
+    float lsLum = dot( vLsColor, vec3( 0.2126, 0.7152, 0.0722 ) );
+    lsPaint = max( vec3( lsLum ) + ( vLsColor - lsLum ) * mix( 1.5, 1.0, lsSat * lsSat ), 0.0 );
+    lsAlbK = mix( LS_ALBEDO, 0.5, lsSat );
+  }
+#endif
+  vec3 lsBase = lsPaint * lsAlbK;
   float lsMode = vLsParams.w;
   if ( lsMode > 0.25 ) {
     float lsSharp = clamp( ( lsA - 0.5 ) / clamp( fwidth( lsA ), 0.02, 1.0 ) + 0.5, 0.0, 1.0 );
@@ -506,7 +549,18 @@ const STANDIN_COLOR = /* glsl */ `
 // paint: signs, inlays, the drawn shadows on the ground. Those take the light like anything else.
 const STANDIN_EMISSIVE = /* glsl */ `
 #ifndef LS_NO_GLOW
-totalEmissiveRadiance += diffuseColor.rgb * uGlow * smoothstep( 0.62, 1.0, vLsParams.x );
+totalEmissiveRadiance += diffuseColor.rgb * ( uGlow * LS_ALBEDO / lsAlbK ) * smoothstep( 0.62, 1.0, vLsParams.x );
+#endif
+`;
+
+// Things that move are the drawing's own colours, and they have to stay those colours. The output's
+// AgX curve starts by mixing a share of each channel into the others (its inset), which turns a
+// strong colour pale before the curve even bends it. For these things alone I mix that share back
+// out first: the inverse of the inset, taken in the curve's own Rec. 2020 space and brought back to
+// linear sRGB. Greys pass through it unchanged.
+const STANDIN_PUNCH = /* glsl */ `
+#ifdef LS_PUNCH
+gl_FragColor.rgb = max( mat3( 1.2542, - 0.1282, - 0.0984, - 0.2560, 1.2898, - 0.1639, 0.0020, - 0.1618, 1.2622 ) * gl_FragColor.rgb, 0.0 );
 #endif
 `;
 
@@ -519,7 +573,34 @@ const STANDIN_EXPOSURE = /* glsl */ `
   reflectedLight.directDiffuse *= lsVis;
   reflectedLight.directSpecular *= lsVis;
   reflectedLight.indirectDiffuse *= uAmb;
+#ifdef LS_PUNCH
+  // A painted thing, cloth, a balloon: the low sun's sheen off a rough face is most of what made
+  // them read as plastic and turned their colour pale. Keep a little of it. And the low sun is
+  // orange: on the drawing's own colours it turned the whale pink and the mask olive. Half of its
+  // colour comes back out, the way an eye adjusts to it.
+  reflectedLight.directDiffuse *= uSunKeep;
+  reflectedLight.directSpecular *= 0.3;
+  reflectedLight.indirectSpecular *= 0.6;
+#endif
 }
+#ifdef LS_CLOUD
+{
+  // A cloud is not a lump with a lit side and a dark side. Light goes into it and comes out
+  // everywhere: the sun side is bright, the far side is the sky's blue grey, never black, and with
+  // the sun behind it the rim glows.
+  vec3 lsN = normalize( vNormal );
+  vec3 lsL = normalize( ( viewMatrix * vec4( uSunDir, 0.0 ) ).xyz );
+  vec3 lsV = normalize( vViewPosition );
+  float lsWrap = dot( lsN, lsL ) * 0.5 + 0.5;
+  float lsBack = pow( max( dot( - lsV, lsL ), 0.0 ), 5.0 );
+  float lsUpW = ( vec4( lsN, 0.0 ) * viewMatrix ).y * 0.5 + 0.5;
+  vec3 lsAlb = diffuseColor.rgb * RECIPROCAL_PI;
+  reflectedLight.directDiffuse = lsAlb * uSunE * ( 0.08 + 0.5 * lsWrap * lsWrap + 0.6 * lsBack );
+  reflectedLight.indirectDiffuse = lsAlb * mix( uSkyDown, uSkyUp, lsUpW ) * 1.15;
+  reflectedLight.directSpecular = vec3( 0.0 );
+  reflectedLight.indirectSpecular = vec3( 0.0 );
+}
+#endif
 `;
 
 export interface StandIns {
@@ -545,7 +626,11 @@ export function standIns(u: SharedUniforms, sky: THREE.Texture, coverage: boolea
   const make = (name: string, exposure?: Exposure, stand: StandKind = 'solid', glow = true): THREE.MeshStandardMaterial => {
     const m = new THREE.MeshStandardMaterial({ name, side: THREE.DoubleSide, roughness: 0.72, metalness: 0, envMap: sky, envMapIntensity: 0.3 });
     // Poster colours are brighter than paint. The pipeline pulls plain colours down by the same amount.
-    addDefines(m, stand === 'cloud' ? { LS_ALBEDO: '0.95', LS_CLOUD: '' } : glow ? { LS_ALBEDO: '0.8' } : { LS_ALBEDO: '0.8', LS_NO_GLOW: '' });
+    // What moves keeps its colour (LS_PUNCH) and takes half the haze: the hero mask, the whale and
+    // the wheels are landmarks, and they stand far off. Geometry only waiting for its bake is drawn
+    // the way the bake will draw it.
+    const live = { LS_ALBEDO: '0.8', LS_PUNCH: '', LS_HAZE_K: '0.5' };
+    addDefines(m, stand === 'cloud' ? { LS_ALBEDO: '0.95', LS_CLOUD: '' } : glow ? live : { LS_ALBEDO: '0.8', LS_NO_GLOW: '' });
     if (stand === 'cloud') {
       m.roughness = 1;
       m.envMapIntensity = 0;

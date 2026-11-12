@@ -10,6 +10,7 @@
 //   ...?show=light | class | flat                     lightmap only, material classes, no textures
 //   ...?reflect=0.5                                   scale every material's reflection of the sky
 //   ...?info=1                                        draw calls and triangles on screen
+//   ...?lut=0                                         three's own AgX instead of Blender's table
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
@@ -32,6 +33,44 @@ const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.3, 60
 const manifest = await (await fetch(BASE + 'manifest.json')).json();
 renderer.toneMapping = manifest.look.toneMapping === 'AgX' ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = Number(params.get('exposure') ?? manifest.look.exposure);
+
+// Blender's AgX, from the table in the manifest, in a pass of its own after the scene. three's own
+// AgX is a fitted curve that lifts shade by a fifth to a third against the one the bake was made for.
+let post = null;
+if (manifest.look.lut && params.get('lut') !== '0') {
+  const L = manifest.look.lut;
+  const lut = await new THREE.TextureLoader().loadAsync(BASE + L.file);
+  lut.flipY = false;
+  lut.colorSpace = THREE.NoColorSpace;
+  lut.generateMipmaps = false;
+  lut.minFilter = lut.magFilter = THREE.LinearFilter;
+  lut.needsUpdate = true;
+  const target = new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: 4 });
+  const material = new THREE.ShaderMaterial({
+    uniforms: { src: { value: target.texture }, lut: { value: lut }, exposure: { value: renderer.toneMappingExposure } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: `
+      uniform sampler2D src; uniform sampler2D lut; uniform float exposure; varying vec2 vUv;
+      const float N = ${L.size.toFixed(1)}; const float LO = ${L.logMin}; const float HI = ${L.logMax};
+      void main() {
+        vec3 c = texture2D(src, vUv).rgb * exposure;
+        vec3 u = clamp((log2(max(c, vec3(1e-10))) - LO) / (HI - LO), 0.0, 1.0) * (N - 1.0);
+        float b0 = floor(u.b);
+        float b1 = min(b0 + 1.0, N - 1.0);
+        vec2 a = vec2((u.r + 0.5 + b0 * N) / (N * N), (u.g + 0.5) / N);
+        vec2 b = vec2((u.r + 0.5 + b1 * N) / (N * N), (u.g + 0.5) / N);
+        gl_FragColor = vec4(mix(texture2D(lut, a).rgb, texture2D(lut, b).rgb, u.b - b0), 1.0);
+      }`,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+  quad.frustumCulled = false;
+  const postScene = new THREE.Scene();
+  postScene.add(quad);
+  renderer.toneMapping = THREE.NoToneMapping;
+  post = { target, scene: postScene, camera: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) };
+}
 
 const loader = new THREE.TextureLoader();
 const textureCache = new Map();
@@ -181,7 +220,16 @@ const note = document.getElementById('note');
 const live = params.get('orbit') === '1' || params.get('info') === '1';
 function draw() {
   if (controls) controls.update();
-  renderer.render(scene, camera);
+  if (post) {
+    renderer.setRenderTarget(post.target);
+    renderer.render(scene, camera);
+    const calls = renderer.info.render.calls;
+    const triangles = renderer.info.render.triangles;
+    renderer.setRenderTarget(null);
+    renderer.render(post.scene, post.camera);
+    renderer.info.render.calls = calls;
+    renderer.info.render.triangles = triangles;
+  } else renderer.render(scene, camera);
   if (params.get('info') === '1') {
     note.hidden = false;
     note.textContent = `calls ${renderer.info.render.calls}   tris ${renderer.info.render.triangles}\n${loaded.join(' ')}`;
@@ -194,11 +242,28 @@ function frame() {
 }
 addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight, false);
+  if (post) post.target.setSize(innerWidth, innerHeight);
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   if (!live) draw();
 });
 if (params.get('dbg') === '1') Object.assign(window, { __scene: scene, __draw: draw, __three: THREE });
+// For pictures from many cameras in one load: [x, y, z, tx, ty, tz] and a fov, or a view name.
+window.__look = (to, fov) => {
+  if (typeof to === 'string') {
+    const p = manifest.cameras[to];
+    camera.fov = p.fov;
+    camera.position.fromArray(p.position);
+    camera.quaternion.fromArray(p.quaternion);
+  } else {
+    camera.fov = fov ?? 46;
+    camera.position.set(to[0], to[1], to[2]);
+    camera.lookAt(to[3], to[4], to[5]);
+  }
+  camera.updateProjectionMatrix();
+  draw();
+  return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
+};
 frame();
 // Textures arrive after the first frame: draw again and say ready once everything asked for has come in.
 const settle = () => {

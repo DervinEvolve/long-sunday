@@ -60,8 +60,9 @@ export const BUDGET = { calls: 150, triangles: 400000 };
  *  the whole budget. The full detail level of a tier applies from the next load. */
 const TRI_BUDGET: Record<QualityTier, number> = { low: 260000, medium: 320000, high: 400000 };
 const TIER_RANK: Record<QualityTier, number> = { low: 0, medium: 1, high: 2 };
-/** The real look's picture has its own ceiling. Its base set alone (ground, city, far sky) is 320,000
- *  triangles and 68 draw calls, the same on every tier, so the tiers differ in how many districts ride on top. */
+/** The real look's picture has its own ceiling. Its base set alone (ground, city, far sky) is about
+ *  258,000 triangles and 74 draw calls on the golden hour bake, the same on every tier, so the tiers
+ *  differ in how many districts ride on top. */
 export const REAL_BUDGET = { calls: 250, triangles: 700000 };
 const REAL_TRI_BUDGET: Record<QualityTier, number> = { low: 480000, medium: 600000, high: 700000 };
 /** Seconds the change-over between the two looks takes. A straight cut with reduced motion. */
@@ -881,12 +882,8 @@ export function createWorld(opts: WorldOpts): World {
 
   function frame(dt: number): void {
     // Under an overlay the picture hardly matters: draw every other frame. A change-over keeps its pace.
-    if (paused && (pausedTick++ & 1) === 1) {
-      lookOwed += dt;
-      return;
-    }
-    stepLook(dt + lookOwed);
-    lookOwed = 0;
+    if (paused && (pausedTick++ & 1) === 1) return;
+    stepLook();
     const step = still ? 0 : dt;
     const drift = calm ? step * CALM_RATE : step;
     simT += step;
@@ -929,8 +926,12 @@ export function createWorld(opts: WorldOpts): World {
       ink.setSky(skyHex(skyRGB, skyNow));
     }
     if (scatterUpdate) scatterUpdate(drift, ambT);
-    if (realOn) real!.render(scene, cam, simT, lookMix, lookAim === 1);
-    else ink.render(scene, cam, simT);
+    if (realOn) {
+      real!.setSky(skyRGB);
+      real!.render(scene, cam, simT, lookMix, lookAim === 1);
+    } else ink.render(scene, cam, simT);
+    // The change-over's clock starts once its first frame is on screen. That frame can be a slow one.
+    if (lookWall === 0) lookWall = performance.now();
   }
 
   // A tap on the marker of the thing in reach does what the interact key does.
@@ -960,7 +961,10 @@ export function createWorld(opts: WorldOpts): World {
   /** Share of the picture that is the real look, and where that is heading (0 or 1). */
   let lookMix = 0;
   let lookAim = 0;
-  let lookOwed = 0;
+  /** Wall clock (ms) of the change-over's last step. The change-over runs on this, not on the frame
+   *  step, which is capped: on a slow device it would stretch to seconds. -1 when none is running,
+   *  0 while its first frame is being drawn. */
+  let lookWall = -1;
   /** Bumped by every new request. A load that finds a newer number steps aside. */
   let lookSeq = 0;
   let waiting: { resolve: () => void; reject: (err: Error) => void }[] = [];
@@ -1001,6 +1005,7 @@ export function createWorld(opts: WorldOpts): World {
 
   /** The change-over has run its course: the wanted look fills the screen. */
   function landLook(): void {
+    lookWall = -1;
     if (lookAim === 0 && real) {
       real.setActive(false);
       releaseAt = performance.now() / 1000 + REAL_KEEP[quality.tier];
@@ -1012,7 +1017,7 @@ export function createWorld(opts: WorldOpts): World {
     settleLook();
   }
 
-  function stepLook(dt: number): void {
+  function stepLook(): void {
     if (real && !real.active() && lookWanted === 'ink') {
       const now = performance.now() / 1000;
       // Back in the drawing with the real look's files still held (a load that was called off lands
@@ -1025,7 +1030,16 @@ export function createWorld(opts: WorldOpts): World {
         releaseAt = Infinity;
       }
     }
-    if (lookMix === lookAim) return;
+    if (lookMix === lookAim) {
+      lookWall = -1;
+      return;
+    }
+    let dt = 0;
+    if (lookWall > 0) {
+      const now = performance.now();
+      dt = (now - lookWall) / 1000;
+      lookWall = now;
+    } else lookWall = 0;
     const move = calm ? 1 : dt / LOOK_SECONDS;
     let next = lookAim > lookMix ? Math.min(1, lookMix + move) : Math.max(0, lookMix - move);
     // A test can stop the change-over part way to look at it.

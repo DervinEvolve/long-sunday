@@ -241,7 +241,7 @@ wanted.add(rel(atlasHalf));
 const lightDir = path.join(CACHE, 'light');
 const lightInfo = existsSync(path.join(lightDir, 'light.json')) ? JSON.parse(readFileSync(path.join(lightDir, 'light.json'), 'utf8')) : null;
 const environment = {};
-for (const [key, file] of [['file', 'sky.hdr'], ['background', 'sky.webp'], ['swatch', 'swatch.png']]) {
+for (const [key, file] of [['file', 'sky.hdr'], ['background', 'sky.webp'], ['swatch', 'swatch.png'], ['lut', 'agx.png']]) {
   const src = path.join(lightDir, file);
   if (!existsSync(src)) continue;
   const dir = key === 'swatch' ? 'textures' : 'env';
@@ -295,9 +295,26 @@ const manifest = {
     irradiance: cfg.sun.ratio,
     skyIrradiance: 1,
   },
-  look: { toneMapping: cfg.look?.toneMapping ?? 'AgX', exposure: cfg.look?.exposure ?? 1, lightMapIntensity: scale },
+  look: {
+    toneMapping: cfg.look?.toneMapping ?? 'AgX',
+    exposure: cfg.look?.exposure ?? 1,
+    lightMapIntensity: scale,
+    // Blender's AgX as a table (tools/real/agx.py says how to read it). three.js's own AgX is a
+    // fitted curve and shows shade 20 to 35% brighter than the bake was judged under.
+    lut: environment.lut
+      ? { file: environment.lut.file, bytes: environment.lut.bytes, size: 33, logMin: -12.47393, logMax: 4.026069, layout: 'column r + b * size, row g from the top', output: 'srgb' }
+      : null,
+  },
   environment: environment.file
-    ? { file: environment.file.file, bytes: environment.file.bytes, format: 'rgbe', projection: 'equirectangular', background: environment.background ?? null }
+    ? {
+        file: environment.file.file,
+        bytes: environment.file.bytes,
+        format: 'rgbe',
+        projection: 'equirectangular',
+        background: environment.background ?? null,
+        // 0 when the file holds the sky alone, with no sun drawn in.
+        sunDiscDeg: cfg.sun.envDiscDeg ?? 0,
+      }
     : null,
   lettering: { file: rel(atlasOut), bytes: size(atlasOut), half: rel(atlasHalf), halfBytes: size(atlasHalf) },
   textures,
@@ -366,4 +383,9 @@ for (const [label, full, halfSize, limit] of lines)
   console.log(`${label.padEnd(30)} ${mb(full).padStart(9)}  ${(halfSize === null ? '' : `(half set ${mb(halfSize)})`).padEnd(19)}  limit ${limit} MB  ${full <= limit * MB ? 'ok' : 'OVER'}`);
 const tris = chunks.reduce((n, c) => n + c.triangles, 0);
 const calls = chunks.reduce((n, c) => n + c.drawCalls, 0);
-console.log(`all chunks at once: ${tris} triangles, ${calls} draw calls. pack took ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+const TRIS = cfg.budget?.allTriangles ?? 680000;
+console.log(`all chunks at once: ${tris} triangles, ${calls} draw calls  limit ${TRIS} triangles  ${tris <= TRIS ? 'ok' : 'OVER'}`);
+const DIST = cfg.budget?.districtCalls ?? 12;
+const fat = districts.filter((c) => c.drawCalls > DIST);
+console.log(`draw calls per district: at most ${Math.max(...districts.map((c) => c.drawCalls))}  limit ${DIST}  ${fat.length ? 'OVER (' + fat.map((c) => c.id).join(', ') + ')' : 'ok'}`);
+console.log(`pack took ${((Date.now() - t0) / 1000).toFixed(1)} s`);

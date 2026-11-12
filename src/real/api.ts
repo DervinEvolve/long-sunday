@@ -4,6 +4,7 @@
 import type * as THREE from 'three';
 import type { DistrictId, QualityTier } from '../types';
 import type { Ink } from '../engine/ink';
+import type { SkyColorsRGB } from '../engine/sky';
 
 export interface RealCost {
   calls: number;
@@ -68,6 +69,8 @@ export interface RealLook {
   /** Everything that is not a district: the base set or its stand-ins, the figure, the sky, the passes. */
   reserve(): RealCost;
   setFog(near: number, far: number): void;
+  /** The drawn sky over where the visitor stands (each district has its own). Once a frame while active. */
+  setSky(colors: SkyColorsRGB): void;
   setSize(width: number, height: number, pixelRatio: number): void;
   setTier(tier: QualityTier): void;
   /** The ink scene gained or lost meshes (a district was raised, the collider view toggled). */
@@ -124,11 +127,21 @@ export interface ManifestChunk {
   drop: string[];
 }
 
+/** Blender's AgX view transform as a table: size cubed cells laid out as columns r + b * size, rows
+ *  g from the top, indexed by log2 of the exposed colour between logMin and logMax. sRGB out. */
+export interface ManifestLut {
+  file: string;
+  bytes: number;
+  size: number;
+  logMin: number;
+  logMax: number;
+}
+
 export interface Manifest {
   version: number;
   sun: { direction: number[]; elevationDeg: number; color: number[]; irradiance: number; skyIrradiance: number };
-  look: { toneMapping: string; exposure: number; lightMapIntensity: number };
-  environment: { file: string; bytes: number };
+  look: { toneMapping: string; exposure: number; lightMapIntensity: number; lut?: ManifestLut };
+  environment: { file: string; bytes: number; sunDiscDeg?: number };
   lettering: ManifestFile;
   textures: Record<string, { color?: ManifestFile; normal?: ManifestFile; orm?: ManifestFile }>;
   materials: Record<string, ManifestMaterial>;

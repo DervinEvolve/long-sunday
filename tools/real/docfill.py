@@ -66,7 +66,16 @@ def material_table(t):
         if m.get("bevel"):
             notes.append(f"bevel {round(m['bevel'] * 100, 1)} cm")
         if kind == "foliage":
-            notes.append(f"core plus about {m.get('cards')} leaf cards per m2")
+            inside = f", inside {m['fit']} of the drawn lump" if m.get("fit") else ""
+            if float(m.get("core", 0.8)) > 0:
+                notes.append(f"a dark core at {m.get('core')} of the lump, about {m.get('cards')} leaf cards per m2{inside}")
+            else:
+                notes.append(f"leaf cards only, about {m.get('cards')} per m2{inside}")
+        if m.get("tintMode") == "hue":
+            lo, hi = m.get("hueSat", [0.05, 0.2])
+            notes.append(f"keeps the drawn hue from saturation {lo} up, fully at {hi}")
+        if m.get("varyColor"):
+            notes.append("lighter and drier patches")
         if m.get("fallback"):
             notes.append(f"folds into {m['fallback']}")
         if kind == "drop":

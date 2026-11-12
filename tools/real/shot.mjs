@@ -9,7 +9,7 @@ const opt = args(process.argv.slice(2));
 const port = Number(opt.port ?? process.env.REAL_PORT ?? settings().port);
 const [width, height] = String(opt.size ?? '1280x720').split('x').map(Number);
 const q = new URLSearchParams();
-for (const k of ['view', 'cam', 'fov', 'chunks', 'show', 'exposure', 'reflect']) if (opt[k] !== undefined) q.set(k, String(opt[k]));
+for (const k of ['view', 'cam', 'fov', 'chunks', 'show', 'exposure', 'reflect', 'lut']) if (opt[k] !== undefined) q.set(k, String(opt[k]));
 if (opt.half) q.set('half', '1');
 const server = await devServer(port);
 const { chromium } = loadPlaywright();

@@ -223,23 +223,34 @@ What I hold myself to:
   `setLook('real')`. Asking `lookAvailable()` fetches nothing.
 - The switch is in place. Same spot, same camera, the walk goes on. The first switch loads the
   manifest, the sky, the base set (ground, city, far sky) and the district nearest the visitor, then
-  the picture crosses over in 0.6 seconds, spreading out from where he stands. With reduced motion it
-  is a cut. The other districts stream in by distance after that.
+  the picture crosses over in 0.6 seconds, spreading out from where he stands. The 0.6 seconds are
+  on the wall clock, not the frame step (which is capped at a tenth of a second), so a slow device
+  does not stretch it. With reduced motion it is a cut. The other districts stream in by distance
+  after that.
 - There is never a hole. Until a district's baked files arrive it is drawn from the ink geometry with
   a stand-in material that reads the same vertex attributes. Everything that moves is always drawn
-  that way: the figure, the markers, the train, the whale, flags, clouds. A mesh the manifest does
+  that way: the figure, the markers, the train, the whale, flags. A mesh the manifest does
   not name at all is newer than the bake, and it is drawn the same way. A change inside a mesh the
   bake already covers does not show until the pipeline bakes that district again.
 - `setLook` can be called at any time, twice, or during a load. The last call wins and every promise
   settles when it lands, so after a promise resolves ask `look()` which look that was. When the files
   cannot be loaded the world stays in the drawing and the promise rejects with a sentence that can be
   shown as it is. The base set has to load. A district that fails keeps its stand-in and is tried
-  again twice.
+  again twice. A shared texture that fails (a 404, a bad picture) does not stop anything: the
+  surfaces that use it are drawn flat, the console says so once, and the file is asked for again by
+  the next chunk that needs it after 20 seconds.
 - During the 0.6 seconds of a change-over both looks are drawn, so those frames cost about the two
   added together.
 - Going back to the drawing keeps the real look's files on the graphics card for a short while (10
   seconds on low, 25 on medium, 45 on high), so flipping back and forth is instant. Then they are
-  freed and the card holds what it held before.
+  freed and the card holds what it held before: the same textures and shader programs, and the same
+  geometry once the drawing has drawn its own meshes (the real look draws further, so it can send
+  some of the drawing's meshes to the card a little early).
+- Each district keeps its own sky. The drawing gives the Switchboard an amber sky, the Mask Garden a
+  red one, Sky Harbor teal, the Studio pink, Postcards peach. The built look takes the same blend of
+  palettes the drawing uses where the visitor stands and leans the open sky toward it, after the
+  tone curve, most at the horizon and least round the sun. The haze takes the horizon's colour too.
+  The drawn clouds stay in the drawing: the built sky is clear.
 
 ### Tiers
 
@@ -267,8 +278,8 @@ in the settings holds in both.
 The real look has its own ceiling: 250 draw calls and 700,000 triangles on high (`REAL_BUDGET` in
 `src/engine/world.ts`). The culling is the same code as for the drawing. It asks the real look what a
 district costs right now: the baked chunk plus that district's moving parts when the chunk is in, the
-ink geometry when it is not. The base set is 320,000 triangles and 68 draw calls and is always there.
-`stats()` and `costs()` report what is on screen in either look.
+ink geometry when it is not. The base set is 258,000 triangles and 74 draw calls on the golden hour
+bake and is always there. `stats()` and `costs()` report what is on screen in either look.
 
 ### Looking at it
 
@@ -282,13 +293,18 @@ __world.holdLook(0.5)     // stop the next change-over half way, null lets it fi
 __world.dropReal()        // back in the drawing: free the real look's files now, without the wait
 __world.realBudget.triangles = 500000
 __world.realTune('uShine', [1, 1, 2, 1])   // mirrored sky, sun glint, closed-in power, horizon
-__world.realTune('uAo', 0.6)               // how much the joints shade
+__world.realTune('uAo', 0.4)               // how much the joints shade
+__world.realTune('uTint', [0.75, 0.35, 0.4])  // district sky: share at the horizon, overhead, brightness kept
+__world.realTune('uExposure', 1.3)         // exposure of the output pass (manifest 1.25 times my trim 1.04)
+__world.realTune('clouds', 1)              // bring the drawn clouds back, to look at them
 ```
 
 `scripts/shot.mjs` takes its picture as soon as the world is ready, so for the real look open the
 page with `?look=real` and wait for `__world.realInfo().loading.length === 0` before the shot.
 Under software GL the first switch takes about half a minute and every district is in after two to
-four. I have not timed it on a graphics card.
+six minutes. I have not timed it on a graphics card. A Playwright screenshot waits on the compositor,
+which is slow there; `.shots/real/pr-lib.mjs` reads the canvas inside the frame that drew it
+instead, which is several times quicker.
 
 ## The locked copy
 

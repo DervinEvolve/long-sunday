@@ -270,7 +270,49 @@ def setup_light(scene, cfg, sun_three, sky_strength=1.0):
     t = s.get("tint", [1.0, 1.0, 1.0])
     warm.inputs["Color2"].default_value = (t[0], t[1], t[2], 1.0)
     nt.links.new(mul.outputs[0], warm.inputs["Color1"])
-    nt.links.new(warm.outputs[0], bg.inputs["Color"])
+    sky_out = warm.outputs[0]
+    ht = s.get("horizonTint")
+    if ht:
+        # Late in the day: the low sky goes gold, most of all on the sun's side, and the high sky
+        # stays blue, so sunlit faces are warm and faces in shade, lit by the high sky, are cool.
+        az = nt.nodes.new("ShaderNodeVectorMath")
+        az.operation = "DOT_PRODUCT"
+        flat_sun = np.array([d[0], d[1], 0.0])
+        flat_sun /= max(np.linalg.norm(flat_sun), 1e-6)
+        az.inputs[1].default_value = (float(flat_sun[0]), float(flat_sun[1]), 0.0)
+        nt.links.new(tc.outputs["Generated"], az.inputs[0])
+        side = nt.nodes.new("ShaderNodeMapRange")
+        side.clamp = True
+        side.inputs["From Min"].default_value = -1.0
+        side.inputs["From Max"].default_value = 1.0
+        side.inputs["To Min"].default_value = float(s.get("horizonAway", 0.35))
+        side.inputs["To Max"].default_value = 1.0
+        nt.links.new(az.outputs["Value"], side.inputs["Value"])
+        low = nt.nodes.new("ShaderNodeMapRange")
+        low.clamp = True
+        low.interpolation_type = "SMOOTHSTEP"
+        low.inputs["From Min"].default_value = float(s.get("horizonWidth", 0.4))
+        low.inputs["From Max"].default_value = 0.0
+        low.inputs["To Min"].default_value = 0.0
+        low.inputs["To Max"].default_value = 1.0
+        nt.links.new(up.outputs[0], low.inputs["Value"])
+        wgt = nt.nodes.new("ShaderNodeMath")
+        wgt.operation = "MULTIPLY"
+        nt.links.new(low.outputs[0], wgt.inputs[0])
+        nt.links.new(side.outputs[0], wgt.inputs[1])
+        zt = s.get("zenithTint", [1.0, 1.0, 1.0])
+        tone = nt.nodes.new("ShaderNodeMixRGB")
+        tone.blend_type = "MIX"
+        tone.inputs["Color1"].default_value = (zt[0], zt[1], zt[2], 1.0)
+        tone.inputs["Color2"].default_value = (ht[0], ht[1], ht[2], 1.0)
+        nt.links.new(wgt.outputs[0], tone.inputs["Fac"])
+        tint2 = nt.nodes.new("ShaderNodeMixRGB")
+        tint2.blend_type = "MULTIPLY"
+        tint2.inputs["Fac"].default_value = 1.0
+        nt.links.new(sky_out, tint2.inputs["Color1"])
+        nt.links.new(tone.outputs[0], tint2.inputs["Color2"])
+        sky_out = tint2.outputs[0]
+    nt.links.new(sky_out, bg.inputs["Color"])
     bg.inputs["Strength"].default_value = sky_strength
     nt.links.new(bg.outputs[0], out.inputs["Surface"])
 
@@ -454,7 +496,7 @@ def calibrate(scene, light, cfg):
 
 def environment(scene, light, cfg, info, sun_three, width=512):
     """The calibrated sky as an equirectangular image the way three.js reads one, with a soft sun
-    drawn in so reflections have something to catch. Returns (height, width, 3) linear, top row up."""
+    drawn in when envDiscDeg is above 0. Returns (height, width, 3) linear, top row up."""
     faces = sky_cube(scene, res=256, samples=1, hide="all")
     height = width // 2
     d3 = equirect_dirs_three(width, height)
@@ -462,6 +504,9 @@ def environment(scene, light, cfg, info, sun_three, width=512):
     sun = np.asarray(sun_three, dtype=np.float64)
     sun = sun / np.linalg.norm(sun)
     radius = math.radians(float(cfg["sun"].get("envDiscDeg", 4.0)))
+    if radius <= 0:
+        # No sun in the file: the browser draws its own disc and its own glint.
+        return rgb
     cosang = d3 @ sun
     ang = np.arccos(np.clip(cosang, -1, 1))
     # A disc with a soft rim, holding the sun's whole irradiance.

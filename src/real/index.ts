@@ -18,8 +18,8 @@ import type { DistrictId, QualityTier } from '../types';
 import type { Manifest, ManifestChunk, RealCost, RealDebug, RealHost, RealLook } from './api';
 import { asset, assetJson, dropTexture, gunzip, loadSky, loadTexture, requestCount, textureBytes, type SkyData } from './assets';
 import { readChunk } from './glb';
-import { bakedMaterial, sharedUniforms, standIns, texturesOf, type BakedInputs, type SharedUniforms, type StandIns } from './materials';
-import { createPost, type Post } from './post';
+import { bakedMaterial, sharedUniforms, standIns, texturesOf, type BakedInputs, type SharedUniforms, type StandIns, type TextureRole, type TextureWant } from './materials';
+import { createPost, type Lut, type Post } from './post';
 
 const MB = 1024 * 1024;
 /** How much the baked chunks may hold on the graphics card, geometry and lightmaps together. The
@@ -33,6 +33,19 @@ const ANISOTROPY: Record<QualityTier, number> = { low: 2, medium: 4, high: 8 };
 const SHADOW_REACH = 9;
 /** Most of the haze a far thing can take. The ink look goes to 0.9. A photograph keeps more of the far side. */
 const HAZE_MOST = 0.62;
+/** On top of the manifest's exposure, to hold the Trailhead to the Cycles pictures (they have no lens
+ *  falloff and no haze). See "What I measured" in docs/REAL.md. */
+const EXPOSURE_TRIM = 1.04;
+/** How far open sky leans toward the district's drawn sky, after the tone curve: at the horizon,
+ *  overhead. The haze takes the horizon share too, so the skyline melts into the same colour. */
+const TINT_LOW = 0.75;
+const TINT_HIGH = 0.35;
+/** How much of the photographed sky's own brightness the leaning keeps (1 all of it, 0 the drawn colour's). */
+const TINT_KEEP = 0.4;
+/** Whether the drawn clouds come into the built look. Lit softly through they still read as cut-outs
+ *  pinned on a photograph (.shots/real/pr-b-sheet-clouds.png), and the Cycles pictures have none. So
+ *  the built sky is clear. realTune('clouds', 1) brings them back to look at. */
+const CLOUDS = false;
 /** Layer for ink meshes the real picture must not show. */
 const INK_ONLY = 1;
 /** Layer the light maps of the ground are drawn through: the baked ground and districts, and the lights. */
@@ -80,6 +93,8 @@ interface InkMesh {
   /** District or base group it lives under, '' for the figure and the markers. */
   home: string;
   drop: boolean;
+  /** One of the drawn clouds. */
+  cloud: boolean;
   /** The drawn blob under the figure. Here it is the soft dark where his feet meet the ground. */
   blob: boolean;
   casts: boolean;
@@ -118,14 +133,30 @@ export function createReal(host: RealHost): RealLook {
   let mirror: THREE.WebGLRenderTarget | null = null;
   let u: SharedUniforms | null = null;
   let post: Post | null = null;
+  let curve: Lut | null = null;
   let stands: StandIns | null = null;
   let sun: THREE.DirectionalLight | null = null;
   let hemi: THREE.HemisphereLight | null = null;
   const sunDir = new THREE.Vector3(-0.62, 0.36, 0.7).normalize();
+  /** The haze colours as the baked sky gives them, before the district's own sky leans on them. */
+  const hazeAway0 = new THREE.Vector3(1, 1, 1);
+  const hazeToward0 = new THREE.Vector3(1, 1, 1);
+  const tintHorizon = new THREE.Vector3(1, 1, 1);
+  const skyTop = new THREE.Vector3();
+  const skyMid = new THREE.Vector3();
+  const skyHorizon = new THREE.Vector3();
+  let tintKey = '';
+  /** Whether the drawn clouds are drawn in this look at all. */
+  let cloudsShown = CLOUDS;
 
   const chunks = new Map<string, Chunk>();
   const textures = new Map<string, THREE.Texture>();
   const texturesComing = new Map<string, Promise<THREE.Texture>>();
+  /** Files already reported missing, so the console says it once. */
+  const warned = new Set<string>();
+  /** Files that failed, and when they may be asked for again. */
+  const flatUntil = new Map<string, number>();
+  const retired: THREE.Texture[] = [];
   let inkMeshes: InkMesh[] = [];
   const drawnList: InkMesh[] = [];
 
@@ -158,23 +189,65 @@ export function createReal(host: RealHost): RealLook {
   // -------------------------------------------------------------------------------------------
   // Shared textures
   // -------------------------------------------------------------------------------------------
-  function texture(file: string, opts: { srgb: boolean; repeat: boolean; nearest: boolean }): Promise<THREE.Texture> {
+  function texture(file: string, want: TextureWant): Promise<THREE.Texture> {
+    // A file that failed is asked for again by the next chunk that needs it, once 20 seconds have
+    // passed. Before that the flat stand-in serves, so a dozen chunks do not ask a dozen times.
+    const again = flatUntil.get(file);
+    if (again !== undefined && clock >= again) {
+      flatUntil.delete(file);
+      texturesComing.delete(file);
+    }
     let p = texturesComing.get(file);
     if (!p) {
       const gen = generation;
       const aniso = Math.min(ANISOTROPY[tier], renderer.capabilities.getMaxAnisotropy());
-      p = loadTexture(file, { ...opts, anisotropy: aniso }).then((t) => {
+      const keep = (t: THREE.Texture): THREE.Texture => {
         if (gen !== generation) {
           dropTexture(t);
           throw new Error('released');
         }
+        // A file asked for again replaces its flat stand-in. Chunks made before still use that one,
+        // so it is freed with everything else when the look is let go.
+        const was = textures.get(file);
+        if (was && was !== t) retired.push(was);
         textures.set(file, t);
         upload(t);
         return t;
+      };
+      const coming: Promise<THREE.Texture> = loadTexture(file, { ...want, anisotropy: aniso }).then(keep, (err: unknown) => {
+        if (gen !== generation) throw new Error('released');
+        // One missing picture must not cost the whole look. The surfaces that use it go flat.
+        if (!warned.has(file)) {
+          warned.add(file);
+          console.warn(`[real] ${file} did not load. Those surfaces are drawn flat.`, err);
+        }
+        flatUntil.set(file, clock + 20);
+        return keep(flatTexture(want));
       });
+      p = coming;
       texturesComing.set(file, p);
     }
     return p;
+  }
+
+  /** One texel that stands in for a picture of this kind: mid grey, a flat normal, open and fairly
+   *  rough with no metal, no letters. */
+  function flatTexture(want: TextureWant): THREE.Texture {
+    const texel: Record<TextureRole, [number, number, number, number]> = {
+      color: [176, 172, 166, 255],
+      normal: [128, 128, 255, 255],
+      orm: [255, 200, 0, 255],
+      swatch: [255, 160, 0, 255],
+      atlas: [0, 0, 0, 255],
+    };
+    const t = new THREE.DataTexture(new Uint8Array(texel[want.role]), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType);
+    t.name = 'flat-' + want.role;
+    t.colorSpace = want.srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    if (want.repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.minFilter = t.magFilter = THREE.NearestFilter;
+    t.generateMipmaps = false;
+    t.needsUpdate = true;
+    return t;
   }
 
   /** Send a texture to the card now, between frames, so the first frame that shows it does not stall. */
@@ -383,6 +456,7 @@ export function createReal(host: RealHost): RealLook {
           chunk: live ? '' : home,
           home,
           drop: dropSet.has(path),
+          cloud: path.startsWith('sky/clouds'),
           blob,
           // Things near the ground that move throw a shadow. Markers glow, clouds and birds are far above.
           casts: live && !blob && path !== 'poi-markers' && home !== 'sky' && !path.startsWith('debug'),
@@ -413,7 +487,7 @@ export function createReal(host: RealHost): RealLook {
   function place(e: InkMesh): void {
     const c = e.chunk ? chunks.get(e.chunk) : undefined;
     const covered = c !== undefined && c.state === 'ready';
-    const hidden = e.drop || covered;
+    const hidden = e.drop || covered || (e.cloud && !cloudsShown);
     e.drawn = !hidden;
     if (hidden) {
       e.mesh.layers.set(INK_ONLY);
@@ -444,6 +518,21 @@ export function createReal(host: RealHost): RealLook {
     drawnList.length = 0;
   }
 
+  /** An sRGB palette colour as a linear hue whose brightness is 1. */
+  function hueOf(c: THREE.Color, out: THREE.Vector3): void {
+    const lin = (v: number): number => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+    out.set(lin(c.r), lin(c.g), lin(c.b));
+    const l = 0.2126 * out.x + 0.7152 * out.y + 0.0722 * out.z;
+    if (l > 1e-4) out.multiplyScalar(1 / l);
+    else out.set(1, 1, 1);
+  }
+
+  /** The haze keeps its brightness and takes the horizon's hue by the horizon's share. */
+  function leanHaze(base: THREE.Vector3, out: THREE.Vector3): void {
+    const l = 0.2126 * base.x + 0.7152 * base.y + 0.0722 * base.z;
+    out.copy(base).lerp(new THREE.Vector3().copy(tintHorizon).multiplyScalar(l), TINT_LOW);
+  }
+
   // -------------------------------------------------------------------------------------------
   // Light for what moves
   // -------------------------------------------------------------------------------------------
@@ -458,6 +547,14 @@ export function createReal(host: RealHost): RealLook {
     sun.color.setRGB(m.sun.color[0], m.sun.color[1], m.sun.color[2]);
     u!.uSunDir.value.copy(sunDir);
     u!.uSunE.value.set(m.sun.color[0], m.sun.color[1], m.sun.color[2]).multiplyScalar(m.sun.irradiance);
+    {
+      const c = new THREE.Vector3().fromArray(m.sun.color);
+      const l = 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
+      if (l > 0) c.multiplyScalar(1 / l);
+      else c.set(1, 1, 1);
+      // Half of the sun's hue taken back out of the light on things that move. See STANDIN_EXPOSURE.
+      u!.uSunKeep.value.set(1 / (1 + (c.x - 1) * 0.5), 1 / (1 + (c.y - 1) * 0.5), 1 / (1 + (c.z - 1) * 0.5));
+    }
     sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.03;
     sun.shadow.radius = 2.5;
@@ -481,8 +578,11 @@ export function createReal(host: RealHost): RealLook {
       const l = 0.2126 * v.x + 0.7152 * v.y + 0.0722 * v.z;
       return l > most ? v.clone().multiplyScalar(most / l) : v.clone();
     };
-    u!.uHazeAway.value.copy(tame(s.away, 1.1));
-    u!.uHazeToward.value.copy(tame(s.toward, 2.6));
+    hazeAway0.copy(tame(s.away, 1.1));
+    hazeToward0.copy(tame(s.toward, 2.6));
+    u!.uHazeAway.value.copy(hazeAway0);
+    u!.uHazeToward.value.copy(hazeToward0);
+    tintKey = '';
     const flat = Math.hypot(sunDir.x, sunDir.z) || 1;
     u!.uHazeSun.value.set(sunDir.x / flat, sunDir.z / flat);
     lightRight.crossVectors(new THREE.Vector3(0, 1, 0), sunDir).normalize();
@@ -701,7 +801,7 @@ export function createReal(host: RealHost): RealLook {
     for (const e of inkMeshes) {
       const c = e.chunk ? chunks.get(e.chunk) : undefined;
       const covered = c !== undefined && c.state === 'ready';
-      if (e.drop || covered) continue;
+      if (e.drop || covered || (e.cloud && !cloudsShown)) continue;
       const home = chunks.get(e.home);
       if (home && home.district) {
         // A district's own moving parts are part of what that district costs.
@@ -843,11 +943,31 @@ export function createReal(host: RealHost): RealLook {
     }
     const reflected = mirror.texture;
     tick(m.environment.bytes);
+    // The tone curve the bake was judged under, when it ships one. Without it three's fitted AgX stands in.
+    const L = m.look.lut;
+    if (L && !curve) {
+      try {
+        const t = await loadTexture(L.file, { srgb: false });
+        t.generateMipmaps = false;
+        t.minFilter = t.magFilter = THREE.LinearFilter;
+        t.anisotropy = 1;
+        t.needsUpdate = true;
+        if (dead()) {
+          dropTexture(t);
+          throw new Error('released');
+        }
+        curve = { texture: t, size: L.size, logMin: L.logMin, logMax: L.logMax };
+        upload(t);
+      } catch (err) {
+        if (dead()) throw err;
+        console.warn(`[real] ${L.file} did not load. The fitted AgX curve stands in.`, err);
+      }
+    }
     if (!stands) stands = standIns(u, reflected, SAMPLES[tier] > 0);
     if (!sun) makeLights(m, sky);
     applyShadowTier();
     if (!post) {
-      post = createPost(sky.texture, sunDir, new THREE.Vector3().fromArray(m.sun.color), m.look.exposure);
+      post = createPost(sky.texture, sunDir, new THREE.Vector3().fromArray(m.sun.color), m.look.exposure * EXPOSURE_TRIM, curve);
       post.setSamples(SAMPLES[tier]);
       post.setBloom(tier === 'high');
       post.setSize(sizeW, sizeH, sizePr);
@@ -986,6 +1106,17 @@ export function createReal(host: RealHost): RealLook {
       fogFar = far;
       if (u) u.uHaze.value.set(near, far, HAZE_MOST);
     },
+    setSky(c) {
+      if (!post || !u) return;
+      // The palette is written as sRGB hex. Each stop becomes a hue of unit brightness in linear light.
+      const key = c.top.getHexString() + c.mid.getHexString() + c.horizon.getHexString();
+      if (key === tintKey) return;
+      tintKey = key;
+      hueOf(c.horizon, tintHorizon);
+      post.setTint(skyTop.set(c.top.r, c.top.g, c.top.b), skyMid.set(c.mid.r, c.mid.g, c.mid.b), skyHorizon.set(c.horizon.r, c.horizon.g, c.horizon.b), TINT_LOW, TINT_HIGH, TINT_KEEP);
+      leanHaze(hazeAway0, u.uHazeAway.value);
+      leanHaze(hazeToward0, u.uHazeToward.value);
+    },
     setSize(width, height, pixelRatio) {
       sizeW = width;
       sizeH = height;
@@ -1022,11 +1153,12 @@ export function createReal(host: RealHost): RealLook {
       if (!post || !on || ink.lost()) return;
       const mask = camera.layers.mask;
       if (mix < 1) {
-        // A change-over frame: the ink page first, exactly as the ink look draws it, into a target.
+        // A change-over frame: the ink page first, exactly as the ink look draws it, on the canvas.
+        // The output pass lays the real frame over it.
         for (let i = 0; i < drawnList.length; i++) drawnList[i].mesh.material = drawnList[i].ink;
         root.visible = false;
         camera.layers.mask = mask | (1 << INK_ONLY);
-        ink.render(sceneNow, camera, time, post.inkTarget());
+        ink.render(sceneNow, camera, time);
         camera.layers.mask = mask;
         root.visible = true;
         for (let i = 0; i < drawnList.length; i++) drawnList[i].mesh.material = drawnList[i].stand;
@@ -1049,6 +1181,9 @@ export function createReal(host: RealHost): RealLook {
       for (const t of textures.values()) dropTexture(t);
       textures.clear();
       texturesComing.clear();
+      flatUntil.clear();
+      for (const t of retired) dropTexture(t);
+      retired.length = 0;
       if (post) {
         root.remove(post.sky);
         post.dispose();
@@ -1069,6 +1204,8 @@ export function createReal(host: RealHost): RealLook {
       stands = null;
       sky?.texture.dispose();
       sky = null;
+      if (curve) dropTexture(curve.texture);
+      curve = null;
       mirror?.dispose();
       mirror = null;
       inkMeshes = [];
@@ -1077,6 +1214,16 @@ export function createReal(host: RealHost): RealLook {
       costsDirty = true;
     },
     tune(name, value) {
+      if (post && post.tune(name, value)) return;
+      if (name === 'clouds') {
+        cloudsShown = value !== 0;
+        if (on) {
+          for (const e of inkMeshes) if (e.cloud) place(e);
+          listDrawn();
+        }
+        costsDirty = true;
+        return;
+      }
       const target = (u as unknown as Record<string, THREE.IUniform | undefined> | null)?.[name];
       if (!target) return;
       if (typeof value === 'number') target.value = value;

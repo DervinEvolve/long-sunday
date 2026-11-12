@@ -2,7 +2,7 @@
 
     surfaces sorted into materials (materials.json)
     fake drawn shadows dropped
-    tree crowns and hedges rebuilt as a dark core with leaf cards round it
+    tree crowns rebuilt as leaf cards inside the drawn lump, hedges as a small dark core inside cards
     first uv set at true scale, second uv set packed for the lightmap
 
 Everything stays in the ink world's own space: x east, y up, z south, metres.
@@ -129,6 +129,33 @@ def features(S, unit, nunits, ground_y):
         np.minimum.at(cmin, unit, C[vi, :3].astype(np.float64))
         np.maximum.at(cmax, unit, C[vi, :3].astype(np.float64))
     size = np.where(np.isfinite(mx - mn), mx - mn, 0)
+    # Box sizes along the part's own axes as well as the world's: a sheet of paper turned 30 degrees
+    # is still 10 cm thick. The axes come from the spread of its corners, weighted by area.
+    wc = np.repeat(w, 3) / 3.0
+    uc = np.repeat(unit, 3)
+    pc = P[F.reshape(-1)]
+    tw = np.maximum(np.bincount(uc, weights=wc, minlength=nunits), 1e-12)
+    mu = np.stack([np.bincount(uc, weights=wc * pc[:, k], minlength=nunits) for k in range(3)], axis=1) / tw[:, None]
+    dp = pc - mu[uc]
+    cov = np.zeros((nunits, 3, 3))
+    for i in range(3):
+        for j in range(i, 3):
+            v = np.bincount(uc, weights=wc * dp[:, i] * dp[:, j], minlength=nunits) / tw
+            cov[:, i, j] = v
+            cov[:, j, i] = v
+    _ev, axes = np.linalg.eigh(cov + np.eye(3)[None] * 1e-12)
+    ext = np.zeros((nunits, 3))
+    for k in range(3):
+        proj = np.einsum("ij,ij->i", dp, axes[uc][:, :, k])
+        hi_ = np.full(nunits, -np.inf)
+        lo_ = np.full(nunits, np.inf)
+        np.maximum.at(hi_, uc, proj)
+        np.minimum.at(lo_, uc, proj)
+        ext[:, k] = np.where(np.isfinite(hi_ - lo_), hi_ - lo_, 0)
+    ext.sort(axis=1)
+    f["depth"] = ext[:, 0]
+    f["breadth"] = ext[:, 1]
+    f["length"] = ext[:, 2]
     f["dx"], f["dy"], f["dz"] = size[:, 0], size[:, 1], size[:, 2]
     f["size"] = np.linalg.norm(size, axis=1)
     f["wide"] = np.maximum(size[:, 0], size[:, 2])
@@ -190,13 +217,16 @@ def rule_mask(when, f, chunk, unit_mesh_name):
     return m
 
 
-def face_components(P, F, part):
+def face_components(P, F, part, sway=None):
     """The export keeps adds that share an outline id as one part. Here each piece that hangs
     together (shares corner positions) inside a part becomes a piece of its own."""
     if len(F) == 0:
         return np.zeros(0, dtype=np.int64)
     q = np.round(P * 2000).astype(np.int64)
-    key = np.concatenate([q, part[:, None]], axis=1)
+    # The export starts a new part wherever the sway changes, so a swaying shrub arrives as dozens
+    # of parts of one to four triangles. Swaying corners weld across parts.
+    group = part if sway is None else np.where(sway > 0, -1, part)
+    key = np.concatenate([q, group[:, None]], axis=1)
     _, vid = np.unique(key, axis=0, return_inverse=True)
     vid = vid.reshape(-1)
     fv = vid[F]
@@ -254,9 +284,19 @@ def tint_for(mat, src_rgb):
         return np.clip(lin * float(mat.get("albedo", 0.82)), 0, 1)
     ref = srgb_to_linear(hex_to_rgb(mat.get("ref", "#ffffff")) / 255.0)
     ratio = lin / np.maximum(ref[None, :], 1e-4)
-    if mode == "luma":
+    if mode in ("luma", "hue"):
         y = (lin @ np.array([0.2126, 0.7152, 0.0722])) / max(float(ref @ np.array([0.2126, 0.7152, 0.0722])), 1e-4)
-        ratio = np.repeat(y[:, None], 3, axis=1)
+        luma = np.repeat(y[:, None], 3, axis=1)
+        if mode == "luma":
+            ratio = luma
+        else:
+            # Pale grey paint takes the stone's own colour; a drawn colour with real saturation
+            # keeps its hue, so a violet block stays violet under the texture.
+            mx_ = src_rgb.max(axis=1)
+            sat = np.where(mx_ > 0, (mx_ - src_rgb.min(axis=1)) / np.maximum(mx_, 1e-6), 0)
+            lo_s, hi_s = mat.get("hueSat", [0.05, 0.2])
+            k = np.clip((sat - lo_s) / max(hi_s - lo_s, 1e-6), 0, 1)[:, None]
+            ratio = luma * (1 - k) + ratio * k
     lo, hi = mat.get("tintClamp", [0.35, 1.0])
     t = 1 + (np.clip(ratio, lo, hi) - 1) * amount
     return np.clip(t * float(mat.get("gain", 1.0)), 0, 1)
@@ -287,28 +327,55 @@ def value_noise(xz, scale, seed):
 
 
 def make_foliage(S, face_mat, mat_names, table, face_part, area, ng, rng, budget_tris):
-    """For every part sorted into a leafy material: shrink the lump into a dark core and stand
-    leaf cards on it. Returns extra corner arrays for the cards and the list of core faces."""
+    """For every part sorted into a leafy material: leaf cards inside the drawn lump, and the lump
+    either shrunk into a dark core or dropped. Returns extra corner arrays for the cards, the core
+    faces, the moved positions and the faces to drop."""
     mats = table["materials"]
     leafy = [i for i, n in enumerate(mat_names) if mats[n].get("kind") == "foliage"]
-    out = {"P": [], "N": [], "UV": [], "rgb": [], "mat": [], "part": []}
+    out = {"P": [], "N": [], "UV": [], "rgb": [], "mat": [], "part": [], "crown": []}
     core_faces = np.zeros(len(face_mat), dtype=bool)
+    drop_faces = np.zeros(len(face_mat), dtype=bool)
+    crowns = 0
     P, F, C = S["P"], S["F"], S["C"]
     if not leafy:
-        return out, core_faces, P
+        return out, core_faces, P, drop_faces
     P = P.copy()
     sel = np.isin(face_mat, leafy)
     core_faces = sel
     parts = np.unique(face_part[sel])
     total_area = float(area[sel].sum())
-    # Keep inside the triangle budget: fewer cards per square metre when there is a lot of leaf.
-    want = sum(mats[mat_names[i]].get("cards", 1.0) * float(area[sel & (face_mat == i)].sum()) for i in leafy)
-    scale = min(1.0, budget_tris / max(1.0, want * 2))
     order = np.argsort(face_part[sel], kind="stable")
     sel_idx = np.nonzero(sel)[0][order]
     starts = np.searchsorted(face_part[sel_idx], parts)
     ends = np.append(starts[1:], len(sel_idx))
     up = np.array([0.0, 1.0, 0.0])
+
+    def crown_shape(pi):
+        fi = sel_idx[starts[pi] : ends[pi]]
+        m = mats[mat_names[int(face_mat[fi[0]])]]
+        vi = np.unique(F[fi])
+        lo, hi = P[vi].min(axis=0), P[vi].max(axis=0)
+        radius = float(np.linalg.norm(hi - lo)) / 2
+        half = np.maximum((hi - lo) / 2, max(float((hi - lo).max()) * 0.12, 0.05))
+        size = float(np.clip(radius * m.get("cardSize", 0.5), m.get("cardSizeMin", 0.3), m.get("cardSizeMax", 1.3)))
+        if float(m.get("fit", 0)) > 0:
+            # A card no bigger than the crown it is in, or the fitting below cuts it to a sprig.
+            size = float(np.clip(min(size, float(half.mean()) * float(m.get("cardFit", 0.8))), m.get("cardSizeMin", 0.3) * 0.5, m.get("cardSizeMax", 1.3)))
+        n = float(area[fi].sum()) * m.get("cards", 1.0)
+        if m.get("cover"):
+            # Enough leaf to read as a mass: the cards together cover the crown's middle shell
+            # about `cover` times over (a spray is a little over half leaf, and the fitting trims a
+            # card to about two thirds). Small shrubs and ivy need more than their area gives them.
+            shell = 4 * math.pi * float((half * 0.55).mean()) ** 2
+            n = max(n, float(m["cover"]) * shell / (0.55 * (0.67 * size) ** 2))
+        return n, size, half
+
+    shapes = [crown_shape(pi) for pi in range(len(parts))]
+    # Keep inside the triangle budget: fewer cards everywhere when there is a lot of leaf.
+    want = sum(n for n, _s, _h in shapes)
+    scale = min(1.0, budget_tris / max(1.0, want * 2))
+    if os.environ.get("LS_DEBUG_LEAVES"):
+        log(f"leaves: {len(parts)} crowns want {want:.0f} cards, budget {budget_tris // 2}, scale {scale:.2f}")
     for pi in range(len(parts)):
         fi = sel_idx[starts[pi] : ends[pi]]
         mi = int(face_mat[fi[0]])
@@ -317,12 +384,14 @@ def make_foliage(S, face_mat, mat_names, table, face_part, area, ng, rng, budget
         lo, hi = P[vi].min(axis=0), P[vi].max(axis=0)
         centre = (lo + hi) / 2
         radius = float(np.linalg.norm(hi - lo)) / 2
+        half = np.maximum((hi - lo) / 2, max(float((hi - lo).max()) * 0.12, 0.05))
         a = area[fi]
         A = float(a.sum())
         if A < 1e-6:
             continue
-        n_cards = int(np.clip(round(A * m.get("cards", 1.0) * scale), m.get("cardsMin", 4), m.get("cardsMax", 40)))
-        size = float(np.clip(radius * m.get("cardSize", 0.5), m.get("cardSizeMin", 0.3), m.get("cardSizeMax", 1.3)))
+        n_want, size, _half = shapes[pi]
+        n_cards = int(np.clip(round(n_want * scale), m.get("cardsMin", 4), m.get("cardsMax", 40)))
+        fit = float(m.get("fit", 0))
         pick = rng.choice(len(fi), size=n_cards, p=a / A)
         tri = F[fi[pick]]
         r1 = np.sqrt(rng.random(n_cards))
@@ -334,6 +403,17 @@ def make_foliage(S, face_mat, mat_names, table, face_part, area, ng, rng, budget
         outward = pts - centre[None, :]
         flip = (nrm * outward).sum(axis=1) < 0
         nrm[flip] *= -1
+        if fit > 0:
+            # Leaves stay inside the drawn crown: a card's centre sits on a shell inside the lump
+            # (as a share of the lump's own half size), and the card is cut down until its corners
+            # are inside `fit` of the lump. So a crown is never bigger than the drawing.
+            q = outward / half[None, :]
+            dq = q / np.maximum(np.linalg.norm(q, axis=1, keepdims=True), 1e-9)
+            s_lo, s_hi = m.get("shell", [0.45, 0.8])
+            t_ = s_lo + (s_hi - s_lo) * np.sqrt(rng.random(n_cards))
+            pts = centre[None, :] + dq * t_[:, None] * half[None, :]
+            nrm = dq / half[None, :]
+            nrm /= np.maximum(np.linalg.norm(nrm, axis=1, keepdims=True), 1e-9)
         rnd = rng.normal(size=(n_cards, 3))
         rnd /= np.maximum(np.linalg.norm(rnd, axis=1, keepdims=True), 1e-9)
         mdir = nrm * 0.55 + rnd * 0.8
@@ -348,8 +428,33 @@ def make_foliage(S, face_mat, mat_names, table, face_part, area, ng, rng, budget
         cr, sr = np.cos(roll)[:, None], np.sin(roll)[:, None]
         t, b = t * cr + b * sr, b * cr - t * sr
         s = size * (0.75 + 0.5 * rng.random(n_cards))[:, None]
-        c0 = pts + nrm * (s * 0.18)
-        quad = np.stack([c0 - t * s / 2 - b * s / 2, c0 + t * s / 2 - b * s / 2, c0 + t * s / 2 + b * s / 2, c0 - t * s / 2 + b * s / 2], axis=1)
+        c0 = pts + nrm * (s * 0.18) if fit <= 0 else pts
+
+        def corners(s):
+            return np.stack([c0 - t * s / 2 - b * s / 2, c0 + t * s / 2 - b * s / 2, c0 + t * s / 2 + b * s / 2, c0 - t * s / 2 + b * s / 2], axis=1)
+
+        quad = corners(s)
+        if fit > 0:
+            # First a card that pokes out moves in toward the middle, as far as the inner edge of
+            # the shell allows; only then is it cut down. A narrow crown (a cypress) keeps cards of
+            # a useful size that way, filling its middle, where it would otherwise get slivers.
+            reach = np.linalg.norm((quad - centre[None, None, :]) / half[None, None, :], axis=2).max(axis=1)
+            over = reach > fit
+            if over.any():
+                tc = np.linalg.norm((c0 - centre[None, :]) / half[None, :], axis=1)
+                inner = float(m.get("shell", [0.45, 0.8])[0]) * 0.5
+                t_new = np.maximum(inner, tc - (reach - fit))
+                c0 = np.where(over[:, None], centre[None, :] + (c0 - centre[None, :]) * (t_new / np.maximum(tc, 1e-6))[:, None], c0)
+                quad = corners(s)
+            tc = np.linalg.norm((c0 - centre[None, :]) / half[None, :], axis=1)
+            for _ in range(3):
+                reach = np.linalg.norm((quad - centre[None, None, :]) / half[None, None, :], axis=2).max(axis=1)
+                over = reach > fit
+                if not over.any():
+                    break
+                k = np.clip((fit - tc) / np.maximum(reach - tc, 1e-6), 0.25, 1.0)
+                s = np.where(over[:, None], s * k[:, None], s)
+                quad = corners(s)
         qn = quad - centre[None, None, :]
         qn /= np.maximum(np.linalg.norm(qn, axis=2, keepdims=True), 1e-9)
         qn = qn * 0.75 + up[None, None, :] * 0.25
@@ -380,10 +485,16 @@ def make_foliage(S, face_mat, mat_names, table, face_part, area, ng, rng, budget
             out["rgb"].append(np.repeat(col[:, None, :], 3, axis=1))
             out["mat"].append(np.full(n_cards, cm))
             out["part"].append(np.full(n_cards, -1))
-        # The lump itself becomes the dark inside of the crown.
+            out["crown"].append(np.full(n_cards, crowns))
+        crowns += 1
+        # The lump itself becomes the dark inside of the crown. With "core": 0 it goes: seen from
+        # above or between the leaves, a faceted lump gives the drawing away.
         shrink = float(m.get("core", 0.8))
-        P[vi] = centre[None, :] + (P[vi] - centre[None, :]) * shrink
-    return out, core_faces, P
+        if shrink <= 0:
+            drop_faces[fi] = True
+        else:
+            P[vi] = centre[None, :] + (P[vi] - centre[None, :]) * shrink
+    return out, core_faces, P, drop_faces
 
 
 # ---------------------------------------------------------------------------------------------
@@ -562,7 +673,7 @@ def build_chunk(chunk, table, cs, ground_y, seed=1):
     mats = table["materials"]
     S = load_chunk(chunk)
     rng = np.random.default_rng(seed + sum(ord(c) for c in chunk))
-    S["piece"] = face_components(S["P"], S["F"], S["part"])
+    S["piece"] = face_components(S["P"], S["F"], S["part"], S["D"][:, 3])
     face_mat, mat_names, feat, unit, rule_hits, area, ng = classify(S, table, chunk, ground_y)
     F = S["F"]
     face_part = S["piece"]
@@ -653,7 +764,7 @@ def build_chunk(chunk, table, cs, ground_y, seed=1):
                 budget = max(0, budget - (len(bevelled[0]) - int(chosen.sum())))
 
     # Leaves, while faces still index the shared vertices.
-    cards, core_faces, P = make_foliage(S, face_mat, mat_names, table, face_part, area, ng, rng, int(budget * cs.get("leafShare", 0.8)))
+    cards, core_faces, P, core_drop = make_foliage(S, face_mat, mat_names, table, face_part, area, ng, rng, int(budget * cs.get("leafShare", 0.8)))
     for i, n in enumerate(list(mat_names)):
         core = mats[n].get("coreMaterial")
         if core and mats[n].get("kind") == "foliage":
@@ -668,6 +779,7 @@ def build_chunk(chunk, table, cs, ground_y, seed=1):
         top = S["P"][F][:, :, 1].max(axis=1)
         keep &= ~((ng[:, 1] < -0.95) & (top < ground_y + 0.04))
     keep &= ~bevel_sel
+    keep &= ~core_drop
     # Corners.
     Fk = F[keep]
     P3 = P[Fk]
@@ -679,6 +791,7 @@ def build_chunk(chunk, table, cs, ground_y, seed=1):
     fpart = face_part[keep]
     fixed = np.zeros(len(Fk), dtype=np.int64)  # texels a side for charts of a fixed size
     quad_of = np.full(len(Fk), -1, dtype=np.int64)
+    crown = np.full(len(Fk), -1, dtype=np.int64)  # which crown a leaf card belongs to
 
     is_letter = kind[fmat] == "lettering"
     # Letters: each glyph quad is its own little chart, coloured with the ink colour.
@@ -702,6 +815,7 @@ def build_chunk(chunk, table, cs, ground_y, seed=1):
         fpart = np.concatenate([fpart, bPiece])
         fixed = np.concatenate([fixed, np.zeros(n, dtype=np.int64)])
         quad_of = np.concatenate([quad_of, np.full(n, -1, dtype=np.int64)])
+        crown = np.concatenate([crown, np.full(n, -1, dtype=np.int64)])
         is_letter = np.concatenate([is_letter, np.zeros(n, dtype=bool)])
     if cards["P"]:
         cP = np.concatenate(cards["P"])
@@ -722,6 +836,7 @@ def build_chunk(chunk, table, cs, ground_y, seed=1):
         fpart = np.concatenate([fpart, np.full(len(cP), -1)])
         fixed = np.concatenate([fixed, np.full(len(cP), 2)])
         quad_of = np.concatenate([quad_of, cquad])
+        crown = np.concatenate([crown, np.concatenate(cards["crown"])])
         is_letter = np.concatenate([is_letter, np.zeros(len(cP), dtype=bool)])
         kind = np.array([mats[n].get("kind", "opaque") for n in mat_names])
     nf = len(P3)
@@ -760,6 +875,12 @@ def build_chunk(chunk, table, cs, ground_y, seed=1):
             xz = P3[sel][:, :, [0, 2]].reshape(-1, 2)
             nz = 0.6 * value_noise(xz, float(m.get("varyScale", 14.0)), 7) + 0.4 * value_noise(xz, float(m.get("varyScale", 14.0)) * 3.7, 19)
             t = t * (1 - vary + vary * nz.reshape(-1, 3, 1) * 1.0)
+            dry = m.get("varyColor")
+            if dry:
+                # Patches of a second tone at a larger scale: a lawn has dry and lush stretches.
+                n2 = value_noise(xz, float(m.get("varyColorScale", 30.0)), 31).reshape(-1, 3, 1)
+                k = np.clip((n2 - 0.45) / 0.3, 0, 1) * float(m.get("varyColorAmount", 0.6))
+                t = t * (1 - k + k * np.array(dry, dtype=np.float64)[None, None, :])
         tint[sel] = np.clip(t, 0, 1)
 
     # ---- first uv set: true scale, world aligned -----------------------------------------------
@@ -886,6 +1007,9 @@ def build_chunk(chunk, table, cs, ground_y, seed=1):
     uv1_rt = np.stack([tu_rt / size, tv_rt / size], axis=2)
     block = cfixed > 0
     block_rects = np.stack([page_of_chart, cx, cy], axis=1)[block]
+    ccrown = np.full(nc, -1, dtype=np.int64)
+    np.maximum.at(ccrown, chart, crown)
+    block_crown = ccrown[block]
     face_page = page_of_chart[chart]
 
     # Charts whose light is set by hand afterwards (lamps glow).
@@ -903,6 +1027,7 @@ def build_chunk(chunk, table, cs, ground_y, seed=1):
         "uv1": uv1.astype(np.float32),
         "uv1_rt": uv1_rt.astype(np.float32),
         "block_rects": block_rects.astype(np.int32),
+        "block_crown": block_crown.astype(np.int32),
         "chart_rects": chart_rects.astype(np.int32),
         "tint": tint.astype(np.float32),
         "mat": fmat.astype(np.int32),

@@ -5,6 +5,11 @@
 //
 // The scene is drawn in linear light into a half float target with a depth buffer of its own. The
 // canvas has neither depth nor antialiasing, because the ink look needs neither.
+//
+// During a change-over the ink page is drawn to the canvas first, exactly as the ink look draws it,
+// and this pass lays the developed frame over it with a coverage of its own. The ink page never goes
+// into a target of mine: that would make three.js build a second copy of the ink program (it writes
+// a target in another colour space than the screen), and that copy would stay for the rest of the visit.
 import * as THREE from 'three';
 
 const TRI_VERT = /* glsl */ `
@@ -48,7 +53,8 @@ void main() {
   float disc = smoothstep( 0.0125, 0.0095, ang );
   float halo = exp( - ang * 26.0 ) * 0.9 + exp( - ang * 7.0 ) * 0.12;
   sky += uSunColor * ( disc * 90.0 + halo * 9.0 );
-  gl_FragColor = vec4( sky, 1.0 );
+  // Alpha 0 marks open sky for the output pass. Everything drawn over it writes 1.
+  gl_FragColor = vec4( sky, 0.0 );
 }
 `;
 
@@ -108,7 +114,6 @@ void main() {
 const OUT_FRAG = /* glsl */ `
 uniform sampler2D tReal;
 uniform sampler2D tBloom;
-uniform sampler2D tInk;
 uniform sampler2D tDepth;
 uniform float uExposure;
 uniform float uBloom;
@@ -120,6 +125,18 @@ uniform float uVignette;
 uniform float uGrain;
 uniform float uSeed;
 uniform float uPx;
+uniform vec3 uTintTop;
+uniform vec3 uTintMid;
+uniform vec3 uTintHorizon;
+uniform vec3 uTint;       // at the horizon, overhead, how much of the photograph's brightness is kept
+uniform vec3 uRight;
+uniform vec3 uUp;
+uniform vec3 uFwd;
+uniform vec3 uSunDir;
+#ifdef LS_LUT
+uniform sampler2D tLut;
+uniform vec3 uLut;        // size, log2 low end, log2 high end
+#endif
 varying vec2 vUv;
 
 // The AgX curve as three.js ships it (after Filament and Blender), with my own exposure in front.
@@ -173,34 +190,71 @@ float hash( vec2 p ) {
 }
 
 void main() {
-  vec3 hdr = texture2D( tReal, vUv ).rgb;
+  vec4 frame = texture2D( tReal, vUv );
+  vec3 hdr = frame.rgb;
 #ifdef LS_BLOOM
   hdr += texture2D( tBloom, vUv ).rgb * uBloom;
 #endif
   // A lens lets a little less light through toward its corners.
   vec2 q = vUv - 0.5;
   hdr *= 1.0 - uVignette * dot( q, q ) * 2.0;
+#ifdef LS_LUT
+  // Blender's own AgX, from the table the bake shipped. The bake was judged under it; three's fitted
+  // curve is up to 14 levels brighter in shade.
+  vec3 col;
+  {
+    float n = uLut.x;
+    vec3 c = hdr * uExposure;
+    vec3 t = clamp( ( log2( max( c, vec3( 1e-10 ) ) ) - uLut.y ) / ( uLut.z - uLut.y ), 0.0, 1.0 ) * ( n - 1.0 );
+    float b0 = floor( t.b );
+    float b1 = min( b0 + 1.0, n - 1.0 );
+    vec2 pa = vec2( ( t.r + 0.5 + b0 * n ) / ( n * n ), ( t.g + 0.5 ) / n );
+    vec2 pb = vec2( ( t.r + 0.5 + b1 * n ) / ( n * n ), ( t.g + 0.5 ) / n );
+    col = mix( texture2D( tLut, pa ).rgb, texture2D( tLut, pb ).rgb, t.b - b0 );
+  }
+#else
   vec3 col = toSrgb( agx( hdr * uExposure ) );
+#endif
+  // Each district has its own sky in the drawing: amber over the Switchboard, red over the Mask
+  // Garden, teal over Sky Harbor, pink over the Studio, peach over Postcards. The baked sky is one
+  // sky. Where the frame is open sky (alpha 0), its developed colour leans toward the drawn gradient
+  // over where he stands: most at the horizon, less overhead, not at all round the sun. Done here,
+  // after the curve, because the curve would turn any strong sky colour to cream.
+  {
+    float open = 1.0 - clamp( frame.a, 0.0, 1.0 );
+    if ( open > 0.0 && uTint.x + uTint.y > 0.0 ) {
+      vec3 d = normalize( uFwd + uRight * ( vUv.x * 2.0 - 1.0 ) + uUp * ( vUv.y * 2.0 - 1.0 ) );
+      float y = d.y;
+      vec3 hue = mix( uTintHorizon, uTintMid, smoothstep( 0.03, 0.38, y ) );
+      hue = mix( hue, uTintTop, smoothstep( 0.42, 0.95, y ) );
+      float w = mix( uTint.x, uTint.y, smoothstep( 0.0, 0.6, abs( y ) ) );
+      w *= 1.0 - smoothstep( 0.93, 0.995, dot( d, uSunDir ) );
+      const vec3 Y = vec3( 0.2126, 0.7152, 0.0722 );
+      vec3 t = clamp( hue * mix( 1.0, dot( col, Y ) / max( dot( hue, Y ), 1e-3 ), uTint.z ), 0.0, 1.0 );
+      col = mix( col, t, w * open );
+    }
+  }
   col += ( hash( floor( gl_FragCoord.xy / uPx ) + uSeed * 17.0 ) - 0.5 ) * uGrain;
 
+  float cover = 1.0;
   if ( uJoin > 0.5 ) {
   // The change-over. The arriving look spreads out from where the visitor stands: near things turn
   // first, the far skyline next, the sky last. Depth is on a log scale so the front moves evenly.
-  vec3 ink = texture2D( tInk, vUv ).rgb;
+  // The ink page is already on the canvas under this pass. What goes on top is this frame, as much
+  // of it as the front has uncovered, and the seam.
   float d = texture2D( tDepth, vUv ).r;
   float z = d >= 1.0 ? 1.0e5 : uCam.x * uCam.y / ( uCam.y - d * ( uCam.y - uCam.x ) );
   float t = clamp( log( max( z, 1.5 ) / 1.5 ) / log( 800.0 ), 0.0, 1.0 );
   // The front is not a ruler either: it runs a little ahead here and a little behind there.
   t += ( hash( floor( gl_FragCoord.xy / ( uPx * 3.0 ) ) ) - 0.5 ) * 0.035;
   float w = smoothstep( 0.0, 0.14, uMix * 1.18 - t - 0.02 );
-  vec3 from = mix( col, ink, uToReal );
-  vec3 to = mix( ink, col, uToReal );
-  vec3 joined = mix( from, to, w );
+  cover = uToReal > 0.5 ? w : 1.0 - w;
   // A thin seam of light rides the front.
-  joined += vec3( 1.0, 0.86, 0.62 ) * ( w * ( 1.0 - w ) ) * 0.55;
-  col = joined;
+  col = col * cover + vec3( 1.0, 0.86, 0.62 ) * ( w * ( 1.0 - w ) ) * 0.55;
   }
-  gl_FragColor = vec4( col, 1.0 );
+  // Blended as premultiplied: this frame times its cover, plus what is under it times the rest.
+  // Out of a change-over the cover is 1 and what is under counts for nothing.
+  gl_FragColor = vec4( col, cover );
 }
 `;
 
@@ -209,21 +263,33 @@ export interface Post {
   target: THREE.WebGLRenderTarget;
   /** Goes into the scene, drawn first. */
   sky: THREE.Mesh;
-  /** Where the ink page goes during a change-over. Made on first use. */
-  inkTarget(): THREE.WebGLRenderTarget;
   setSize(width: number, height: number, pixelRatio: number): void;
   setSamples(samples: number): void;
   setBloom(on: boolean): void;
+  /** The drawn sky's three stops as authored (sRGB, 0..1), how far open sky leans toward them at the
+   *  horizon and overhead, and how much of the photograph's own brightness it keeps. */
+  setTint(top: THREE.Vector3, mid: THREE.Vector3, horizon: THREE.Vector3, low: number, high: number, keep: number): void;
+  /** Set a uniform of the sky or the output pass by name. For tuning. */
+  tune(name: string, value: number | readonly number[]): boolean;
   bloom(): boolean;
   samples(): number;
-  /** Bloom if it is on, then the output pass to the screen. `mix` below 1 joins the ink page in. */
+  /** Bloom if it is on, then the output pass to the screen. `mix` below 1 lays the frame over the ink
+   *  page already on the canvas; `inkDepth` is that page's depth, which the front follows. */
   present(renderer: THREE.WebGLRenderer, mix: number, toReal: boolean, inkDepth: THREE.Texture | null, camera: THREE.PerspectiveCamera, time: number, still: boolean): void;
   dispose(): void;
 }
 
 const BLOOM_LEVELS = 5;
 
-export function createPost(skyTexture: THREE.Texture, sunDir: THREE.Vector3, sunColor: THREE.Vector3, exposure: number): Post {
+/** The tone curve as a table (Blender's AgX), when the bake ships one. */
+export interface Lut {
+  texture: THREE.Texture;
+  size: number;
+  logMin: number;
+  logMax: number;
+}
+
+export function createPost(skyTexture: THREE.Texture, sunDir: THREE.Vector3, sunColor: THREE.Vector3, exposure: number, lut: Lut | null): Post {
   let w = 1;
   let h = 1;
   let pr = 1;
@@ -242,7 +308,6 @@ export function createPost(skyTexture: THREE.Texture, sunDir: THREE.Vector3, sun
       samples,
     });
   let target = makeTarget();
-  let inkRT: THREE.WebGLRenderTarget | null = null;
   const chain: THREE.WebGLRenderTarget[] = [];
 
   const triGeo = new THREE.BufferGeometry();
@@ -291,7 +356,6 @@ export function createPost(skyTexture: THREE.Texture, sunDir: THREE.Vector3, sun
     // A sampler with nothing on it makes three.js bind a blank texture of its own, which then stays
     // on the card for good. The frame itself is always there to stand in.
     tBloom: { value: target.texture },
-    tInk: { value: target.texture },
     tDepth: { value: target.texture },
     uExposure: { value: exposure },
     uBloom: { value: 0.07 },
@@ -299,11 +363,30 @@ export function createPost(skyTexture: THREE.Texture, sunDir: THREE.Vector3, sun
     uMix: { value: 1 },
     uToReal: { value: 1 },
     uCam: { value: new THREE.Vector2(0.3, 3000) },
-    uVignette: { value: 0.16 },
+    uVignette: { value: 0.1 },
     uGrain: { value: 0.012 },
     uSeed: { value: 1 },
     uPx: { value: 1 },
+    uTintTop: { value: new THREE.Vector3(1, 1, 1) },
+    uTintMid: { value: new THREE.Vector3(1, 1, 1) },
+    uTintHorizon: { value: new THREE.Vector3(1, 1, 1) },
+    uTint: { value: new THREE.Vector3(0, 0, 0.5) },
+    uRight: { value: new THREE.Vector3(1, 0, 0) },
+    uUp: { value: new THREE.Vector3(0, 1, 0) },
+    uFwd: { value: new THREE.Vector3(0, 0, -1) },
+    uSunDir: { value: sunDir.clone().normalize() },
   });
+  out.blending = THREE.CustomBlending;
+  out.blendEquation = THREE.AddEquation;
+  out.blendSrc = THREE.OneFactor;
+  out.blendDst = THREE.OneMinusSrcAlphaFactor;
+  out.blendSrcAlpha = THREE.OneFactor;
+  out.blendDstAlpha = THREE.OneMinusSrcAlphaFactor;
+  if (lut) {
+    out.defines = { ...(out.defines ?? {}), LS_LUT: '' };
+    out.uniforms.tLut = { value: lut.texture };
+    out.uniforms.uLut = { value: new THREE.Vector3(lut.size, lut.logMin, lut.logMax) };
+  }
   const quad = new THREE.Mesh(triGeo, out);
   quad.frustumCulled = false;
 
@@ -350,21 +433,6 @@ export function createPost(skyTexture: THREE.Texture, sunDir: THREE.Vector3, sun
       return target;
     },
     sky,
-    inkTarget() {
-      if (!inkRT) {
-        inkRT = new THREE.WebGLRenderTarget(w, h, {
-          type: THREE.UnsignedByteType,
-          format: THREE.RGBAFormat,
-          minFilter: THREE.NearestFilter,
-          magFilter: THREE.NearestFilter,
-          generateMipmaps: false,
-          depthBuffer: false,
-          stencilBuffer: false,
-          colorSpace: THREE.NoColorSpace,
-        });
-      }
-      return inkRT;
-    },
     setSize(width, height, pixelRatio) {
       const nw = Math.max(1, Math.floor(width * pixelRatio));
       const nh = Math.max(1, Math.floor(height * pixelRatio));
@@ -374,7 +442,6 @@ export function createPost(skyTexture: THREE.Texture, sunDir: THREE.Vector3, sun
       w = nw;
       h = nh;
       target.setSize(w, h);
-      if (inkRT) inkRT.setSize(w, h);
       sizeChain();
     },
     setSamples(n) {
@@ -388,6 +455,20 @@ export function createPost(skyTexture: THREE.Texture, sunDir: THREE.Vector3, sun
       if (on === bloomOn) return;
       bloomOn = on;
       sizeChain();
+    },
+    tune(name, value) {
+      const target = skyMat.uniforms[name] ?? out.uniforms[name];
+      if (!target) return false;
+      if (typeof value === 'number') target.value = value;
+      else (target.value as { fromArray(a: readonly number[]): void }).fromArray(value);
+      return true;
+    },
+    setTint(top, mid, horizon, low, high, keep) {
+      const ou = out.uniforms;
+      (ou.uTintTop.value as THREE.Vector3).copy(top);
+      (ou.uTintMid.value as THREE.Vector3).copy(mid);
+      (ou.uTintHorizon.value as THREE.Vector3).copy(horizon);
+      (ou.uTint.value as THREE.Vector3).set(low, high, keep);
     },
     bloom: () => bloomOn,
     samples: () => samples,
@@ -419,21 +500,29 @@ export function createPost(skyTexture: THREE.Texture, sunDir: THREE.Vector3, sun
         out.uniforms.tBloom.value = chain[0].texture;
       }
       setDefine('LS_BLOOM', bloom);
-      const joining = mix < 1 && inkRT !== null && inkDepth !== null;
+      const joining = mix < 1 && inkDepth !== null;
       out.uniforms.uJoin.value = joining ? 1 : 0;
-      out.uniforms.tInk.value = joining ? inkRT!.texture : target.texture;
       out.uniforms.tDepth.value = joining ? inkDepth : target.texture;
       if (!bloom) out.uniforms.tBloom.value = target.texture;
       out.uniforms.uMix.value = toReal ? mix : 1 - mix;
       out.uniforms.uToReal.value = toReal ? 1 : 0;
       (out.uniforms.uCam.value as THREE.Vector2).set(camera.near, camera.far);
+      {
+        const t = Math.tan((camera.fov * Math.PI) / 360) / camera.zoom;
+        const e = camera.matrixWorld.elements;
+        (out.uniforms.uRight.value as THREE.Vector3).set(e[0], e[1], e[2]).multiplyScalar(t * camera.aspect);
+        (out.uniforms.uUp.value as THREE.Vector3).set(e[4], e[5], e[6]).multiplyScalar(t);
+        (out.uniforms.uFwd.value as THREE.Vector3).set(-e[8], -e[9], -e[10]);
+      }
       out.uniforms.uSeed.value = still ? 1 : 1 + (Math.floor(time * 24) % 61);
+      // The canvas holds the ink page during a change-over. Clearing it would lose that.
+      const auto = renderer.autoClear;
+      renderer.autoClear = !joining;
       draw(renderer, out, null);
+      renderer.autoClear = auto;
     },
     dispose() {
       target.dispose();
-      inkRT?.dispose();
-      inkRT = null;
       for (const t of chain) t.dispose();
       chain.length = 0;
       triGeo.dispose();

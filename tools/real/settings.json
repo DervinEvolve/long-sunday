@@ -22,24 +22,36 @@
     "ratio": 5.5,
     "color": [
       1.0,
-      0.8,
-      0.58
+      0.6,
+      0.3
     ],
     "angleDeg": 1.2,
     "elevationMinDeg": 0,
-    "envDiscDeg": 4.0
+    "envDiscDeg": 0
   },
   "sky": {
     "airDensity": 1.0,
-    "dustDensity": 0.8,
+    "dustDensity": 1.0,
     "ozoneDensity": 1.0,
     "altitude": 300,
     "below": 0.7,
     "tint": [
-      1.05,
       1.0,
-      0.9
-    ]
+      1.0,
+      1.0
+    ],
+    "zenithTint": [
+      0.9,
+      0.98,
+      1.12
+    ],
+    "horizonTint": [
+      1.55,
+      1.02,
+      0.55
+    ],
+    "horizonWidth": 0.5,
+    "horizonAway": 0.4
   },
   "defaults": {
     "triangles": 80000,
@@ -56,7 +68,8 @@
     "tinyPart": 0.3,
     "dropBottoms": true,
     "materialsMax": 12,
-    "blockFloor": 0.14
+    "blockFloor": 0.14,
+    "leafLift": 0.45
   },
   "levels": {
     "rough": {
@@ -102,7 +115,7 @@
         2,
         2
       ],
-      "triangles": 235000,
+      "triangles": 215000,
       "dropBottoms": false,
       "materialsMax": 12,
       "pageBox": [
@@ -119,12 +132,46 @@
       }
     },
     "sky": {
-      "quality": "rough",
+      "quality": "good",
       "triangles": 17000,
       "dropBottoms": false
     },
     "trailhead": {
-      "quality": "hero"
+      "quality": "hero",
+      "triangles": 48000
+    },
+    "studio": {
+      "quality": "hero",
+      "triangles": 57000
+    },
+    "observatory": {
+      "quality": "hero",
+      "triangles": 45000
+    },
+    "maskgarden": {
+      "quality": "hero",
+      "triangles": 57000
+    },
+    "switchboard": {
+      "triangles": 45000
+    },
+    "postcards": {
+      "triangles": 41000
+    },
+    "commons": {
+      "triangles": 48000
+    },
+    "terraces": {
+      "triangles": 51000
+    },
+    "greenhouse": {
+      "triangles": 52000
+    },
+    "boneyard": {
+      "triangles": 58000
+    },
+    "skyharbor": {
+      "triangles": 45000
     }
   },
   "look": {
@@ -174,5 +221,9 @@
     "trailhead": 3.0,
     "reach": 1.05
   },
-  "bakeVersion": 2
+  "bakeVersion": 3,
+  "budget": {
+    "allTriangles": 680000,
+    "districtCalls": 12
+  }
 }
