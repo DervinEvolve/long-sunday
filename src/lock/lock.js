@@ -88,7 +88,8 @@
   // Inside, the first byte says whether the rest is gzipped. See src/lock/asset.d.ts.
   function assetReader(key) {
     return async (path) => {
-      const url = new URL(path, document.baseURI);
+      // The locked build keeps each file at its own path plus .sealed (see scripts/lock.mjs).
+      const url = new URL(`${path}.sealed`, document.baseURI);
       if (url.origin !== location.origin) throw new Error(`Long Sunday: ${path} is not beside the page.`);
       let res;
       try {

@@ -193,8 +193,8 @@ dropped past a distance that depends on the tier: 250 m on low, 330 m on medium,
 haze closes in to match so they arrive pale. If far districts start popping in and out while turning,
 the tour table will show which ones are too heavy.
 
-Measured with all eleven districts built, 1280 by 720, high tier: 47 to 78 draw calls and 157,000 to
-369,000 triangles from the arrival points, 84 calls and 396,000 triangles from the overview. The
+Measured with all eleven districts built, 1280 by 720, high tier: 43 to 75 draw calls and 161,000 to
+350,000 triangles from the arrival points, 79 calls and 376,000 triangles from the overview. The
 heaviest districts on their own are Sky Harbor (9 calls, 38,400 triangles) and the Mask Garden (7 calls,
 36,800). The overview sits close to the triangle limit, so anything added to the ground, sky or city
 has to come out of somewhere else.
@@ -278,7 +278,7 @@ in the settings holds in both.
 The real look has its own ceiling: 250 draw calls and 700,000 triangles on high (`REAL_BUDGET` in
 `src/engine/world.ts`). The culling is the same code as for the drawing. It asks the real look what a
 district costs right now: the baked chunk plus that district's moving parts when the chunk is in, the
-ink geometry when it is not. The base set is 258,000 triangles and 74 draw calls on the golden hour
+ink geometry when it is not. The base set is 268,000 triangles and 74 draw calls on the golden hour
 bake and is always there. `stats()` and `costs()` report what is on screen in either look.
 
 ### Looking at it
@@ -415,7 +415,9 @@ storage, so only use Stay unlocked there if this is the only one, or use Vercel 
 ### Side files (`real/`)
 
 Files the world fetches while it runs go in `public/real/`. `build:locked` seals every file under
-`public/real/` with the same key into `dist-locked/real/`, at the same paths. Nothing else is read:
+`public/real/` with the same key into `dist-locked/real/`, at the same paths with `.sealed` added
+(`real/chunks/studio.glb.gz` becomes `real/chunks/studio.glb.gz.sealed`, so no host takes a sealed
+file for gzip and tries to open it on the way out). Nothing else is read:
 `build:locked` never writes `dist/`, so a `dist/real/` on disk is left over from an older build and
 stays out. Each file gets its own nonce, stored in front of the sealed bytes. `.glb`, `.webp`, `.ktx2`, `.avif`,
 `.jpg` and `.png` go in as they are, everything else is gzipped first. File names stay readable. The

@@ -131,10 +131,12 @@ for (const rel of assets.sort((a, b) => a.localeCompare(b))) {
   const packed = PACKED.has(path.extname(rel).toLowerCase());
   const body = packed ? bytes : gzipSync(bytes, { level: 9 });
   const { iv, sealed } = await seal(Buffer.concat([Buffer.from([packed ? 0 : 1]), body]));
-  const out = path.join(OUT, 'real', rel);
+  // Every sealed file ends in .sealed. A host that sees .gz on a name may say the body is gzip,
+  // and the browser then tries to open sealed bytes before the page ever sees them.
+  const out = path.join(OUT, 'real', `${rel}.sealed`);
   mkdirSync(path.dirname(out), { recursive: true });
   writeFileSync(out, Buffer.concat([iv, sealed]));
-  written.push(`  real/${rel}  ${kb(bytes.length)} to ${kb(iv.length + sealed.length)}  (${packed ? 'as it is' : 'gzipped'})`);
+  written.push(`  real/${rel}.sealed  ${kb(bytes.length)} to ${kb(iv.length + sealed.length)}  (${packed ? 'as it is' : 'gzipped'})`);
 }
 
 // The page goes last, so a copy that has its page has everything.
