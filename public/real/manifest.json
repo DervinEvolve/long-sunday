@@ -1,6 +1,6 @@
 {
  "version": 1,
- "generated": "2026-11-12T09:04:41.439Z",
+ "generated": "2026-11-12T11:08:58.384Z",
  "space": "metres. x east, y up, z south. The same space the ink world is built in.",
  "sun": {
   "direction": [
@@ -465,9 +465,9 @@
    "id": "ground",
    "kind": "base",
    "file": "chunks/ground.glb.gz",
-   "bytes": 1384566,
+   "bytes": 1389096,
    "encoding": "gzip",
-   "rawBytes": 1808024,
+   "rawBytes": 1817384,
    "triangles": 76471,
    "drawCalls": 31,
    "bounds": {
@@ -489,31 +489,31 @@
    "lightmaps": [
     {
      "file": "lightmaps/ground.0.webp",
-     "bytes": 429636,
+     "bytes": 422156,
      "size": 2048,
      "half": "lightmaps/half/ground.0.webp",
-     "halfBytes": 185406
+     "halfBytes": 186018
     },
     {
      "file": "lightmaps/ground.1.webp",
-     "bytes": 341768,
+     "bytes": 335724,
      "size": 2048,
      "half": "lightmaps/half/ground.1.webp",
-     "halfBytes": 151964
+     "halfBytes": 152416
     },
     {
      "file": "lightmaps/ground.2.webp",
-     "bytes": 369442,
+     "bytes": 370386,
      "size": 2048,
      "half": "lightmaps/half/ground.2.webp",
-     "halfBytes": 161704
+     "halfBytes": 161636
     },
     {
      "file": "lightmaps/ground.3.webp",
-     "bytes": 330504,
+     "bytes": 330072,
      "size": 2048,
      "half": "lightmaps/half/ground.3.webp",
-     "halfBytes": 149150
+     "halfBytes": 150468
     }
    ],
    "quality": {
@@ -527,7 +527,7 @@
      32
     ],
     "bounces": 3,
-    "bakeSeconds": 421.5
+    "bakeSeconds": 427
    },
    "materials": [
     "concrete",
@@ -1171,55 +1171,55 @@
    "id": "city",
    "kind": "base",
    "file": "chunks/city.glb.gz",
-   "bytes": 2828445,
+   "bytes": 2572394,
    "encoding": "gzip",
-   "rawBytes": 4069960,
-   "triangles": 162366,
+   "rawBytes": 3985304,
+   "triangles": 172244,
    "drawCalls": 36,
    "bounds": {
     "box": [
-     -234.067,
+     -234.649,
      -2.686,
      -405.618,
-     235.866,
+     235.942,
      55.632,
-     236.467
+     236.56
     ],
     "sphere": [
-     0.9,
+     0.65,
      26.47,
-     -84.58,
-     398.91
+     -84.53,
+     399.14
     ]
    },
    "lightmaps": [
     {
      "file": "lightmaps/city.0.webp",
-     "bytes": 329006,
+     "bytes": 343468,
      "size": 2048,
      "half": "lightmaps/half/city.0.webp",
-     "halfBytes": 139170
+     "halfBytes": 141326
     },
     {
      "file": "lightmaps/city.1.webp",
-     "bytes": 353720,
+     "bytes": 357486,
      "size": 2048,
      "half": "lightmaps/half/city.1.webp",
-     "halfBytes": 155766
+     "halfBytes": 159520
     },
     {
      "file": "lightmaps/city.2.webp",
-     "bytes": 407466,
+     "bytes": 415036,
      "size": 2048,
      "half": "lightmaps/half/city.2.webp",
-     "halfBytes": 183506
+     "halfBytes": 185154
     },
     {
      "file": "lightmaps/city.3.webp",
-     "bytes": 346188,
+     "bytes": 350236,
      "size": 2048,
      "half": "lightmaps/half/city.3.webp",
-     "halfBytes": 154548
+     "halfBytes": 155804
     }
    ],
    "quality": {
@@ -1233,7 +1233,7 @@
      24
     ],
     "bounces": 3,
-    "bakeSeconds": 603.6
+    "bakeSeconds": 506.3
    },
    "materials": [
     "ashlar",
@@ -1251,11 +1251,11 @@
      "name": "city.0.ashlar",
      "material": "ashlar",
      "lightmap": 0,
-     "triangles": 8837,
+     "triangles": 8245,
      "box": [
-      -225.713,
+      -225.728,
       -0.574,
-      -405.218,
+      -405.233,
       2.89,
       46.7,
       0.709
@@ -1335,25 +1335,25 @@
      "name": "city.0.leafcards",
      "material": "leafcards",
      "lightmap": 0,
-     "triangles": 17630,
+     "triangles": 29384,
      "box": [
-      -229.905,
-      -1.931,
-      -239.059,
-      0.306,
-      50.316,
-      1.091
+      -230.067,
+      -2.201,
+      -239.078,
+      0.523,
+      50.381,
+      1.044
      ]
     },
     {
      "name": "city.0.marble",
      "material": "marble",
      "lightmap": 0,
-     "triangles": 15968,
+     "triangles": 6856,
      "box": [
-      -226.057,
+      -226.07,
       -2.686,
-      -405.562,
+      -405.575,
       1.034,
       50.816,
       0.86
@@ -1377,7 +1377,7 @@
      "name": "city.1.ashlar",
      "material": "ashlar",
      "lightmap": 1,
-     "triangles": 1705,
+     "triangles": 1481,
      "box": [
       -2.51,
       11.828,
@@ -1461,27 +1461,27 @@
      "name": "city.1.leafcards",
      "material": "leafcards",
      "lightmap": 1,
-     "triangles": 13590,
+     "triangles": 22640,
      "box": [
-      -0.44,
-      10.127,
-      -227.68,
-      234.957,
-      45.301,
-      1.197
+      -0.876,
+      9.985,
+      -227.819,
+      234.918,
+      45.409,
+      1.281
      ]
     },
     {
      "name": "city.1.marble",
      "material": "marble",
      "lightmap": 1,
-     "triangles": 11478,
+     "triangles": 5292,
      "box": [
       -2.269,
       10.84,
       -216.935,
       232.307,
-      49.186,
+      49.198,
       7.839
      ]
     },
@@ -1503,9 +1503,9 @@
      "name": "city.2.ashlar",
      "material": "ashlar",
      "lightmap": 2,
-     "triangles": 1670,
+     "triangles": 1254,
      "box": [
-      -215.992,
+      -216,
       2.271,
       -1.846,
       -1.776,
@@ -1587,27 +1587,27 @@
      "name": "city.2.leafcards",
      "material": "leafcards",
      "lightmap": 2,
-     "triangles": 18706,
+     "triangles": 31092,
      "box": [
-      -234.067,
-      1.502,
-      -1.083,
-      1.142,
-      31.413,
-      236.467
+      -234.649,
+      1.403,
+      -0.762,
+      1.197,
+      31.383,
+      236.56
      ]
     },
     {
      "name": "city.2.marble",
      "material": "marble",
      "lightmap": 2,
-     "triangles": 14102,
+     "triangles": 6404,
      "box": [
-      -216.588,
+      -216.616,
       0.791,
       -1.769,
       1.814,
-      29.997,
+      30.009,
       221.457
      ]
     },
@@ -1629,12 +1629,12 @@
      "name": "city.3.ashlar",
      "material": "ashlar",
      "lightmap": 3,
-     "triangles": 1996,
+     "triangles": 1644,
      "box": [
       -0.062,
       2.732,
       -2.157,
-      213.617,
+      213.633,
       36,
       188.577
      ]
@@ -1713,27 +1713,27 @@
      "name": "city.3.leafcards",
      "material": "leafcards",
      "lightmap": 3,
-     "triangles": 13904,
+     "triangles": 23112,
      "box": [
-      -1.066,
-      1.137,
-      -1.165,
-      235.866,
-      33.04,
-      231.796
+      -1.391,
+      0.391,
+      -1.107,
+      235.942,
+      33.124,
+      232.138
      ]
     },
     {
      "name": "city.3.marble",
      "material": "marble",
      "lightmap": 3,
-     "triangles": 13872,
+     "triangles": 5932,
      "box": [
-      -3.081,
+      -0.78,
       -0.062,
       -6.061,
       235.262,
-      42.578,
+      42.59,
       194.102
      ]
     },

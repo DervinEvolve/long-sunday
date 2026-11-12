@@ -670,6 +670,11 @@ def pack_page(cw_m, ch_m, weight, fixed, size, density_cap):
 
 def build_chunk(chunk, table, cs, ground_y, seed=1):
     """Returns a dict of arrays ready to become a Blender mesh and a glTF."""
+    tune = cs.get("tune") or {}
+    if tune:
+        # A chunk can change how one of its materials is made (more leaf cards in the city, patchier
+        # grass on the ground) without touching the table, so the other chunks keep their bake.
+        table = {**table, "materials": {n: {**m, **tune.get(n, {})} for n, m in table["materials"].items()}}
     mats = table["materials"]
     S = load_chunk(chunk)
     rng = np.random.default_rng(seed + sum(ord(c) for c in chunk))

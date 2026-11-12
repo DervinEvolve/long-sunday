@@ -39,9 +39,9 @@ const EXPOSURE_TRIM = 1.04;
 /** How far open sky leans toward the district's drawn sky, after the tone curve: at the horizon,
  *  overhead. The haze takes the horizon share too, so the skyline melts into the same colour. */
 const TINT_LOW = 0.75;
-const TINT_HIGH = 0.35;
+const TINT_HIGH = 0.7;
 /** How much of the photographed sky's own brightness the leaning keeps (1 all of it, 0 the drawn colour's). */
-const TINT_KEEP = 0.4;
+const TINT_KEEP = 0.3;
 /** Whether the drawn clouds come into the built look. Lit softly through they still read as cut-outs
  *  pinned on a photograph (.shots/real/pr-b-sheet-clouds.png), and the Cycles pictures have none. So
  *  the built sky is clear. realTune('clouds', 1) brings them back to look at. */
@@ -450,22 +450,26 @@ export function createReal(host: RealHost): RealLook {
         // It stays drawn, as if it moved, so it never goes missing.
         const live = liveSet.has(path) || home === '' || (!bakedSet.has(path) && !dropSet.has(path));
         const blob = path === 'figure/figure-shadow';
+        // The puffs that drift over the holes at the Cloud Terraces are drawn cloud too. Over a hole of
+        // sky in the paving, with the drawing's grain, they read as a white plastic sheet, so they go
+        // with the other clouds and the hole shows the sky under the island.
+        const puff = path === 'terraces/terraces-cloud';
         list.push({
           mesh,
           // A mesh the bake names is hidden once its chunk is in.
           chunk: live ? '' : home,
           home,
           drop: dropSet.has(path),
-          cloud: path.startsWith('sky/clouds'),
+          cloud: path.startsWith('sky/clouds') || puff,
           blob,
           // Things near the ground that move throw a shadow. Markers glow, clouds and birds are far above.
-          casts: live && !blob && path !== 'poi-markers' && home !== 'sky' && !path.startsWith('debug'),
+          casts: live && !blob && !puff && path !== 'poi-markers' && home !== 'sky' && !path.startsWith('debug'),
           ink: mat,
           stand: blob
             ? stands!.patch
             : top.name === 'figure'
               ? stands!.figure
-              : path.startsWith('sky/clouds')
+              : path.startsWith('sky/clouds') || puff
                 ? stands!.cloud
                 : live
                   ? instanced

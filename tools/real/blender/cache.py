@@ -8,7 +8,7 @@ import numpy as np
 import build as B
 from common import BUILD_DIR, chunk_settings, code_digest, digest, load_json, log, save_json
 
-BUILD_KEYS = ["triangles", "pages", "pageBox", "densityCap", "downWeight", "leafShare", "lightmap", "tinyPart", "materialsMax", "bevel", "bevelMinSize", "bevelShare", "chartSplit", "chartSplitOver", "dropBottoms", "focus"]
+BUILD_KEYS = ["triangles", "pages", "pageBox", "densityCap", "downWeight", "leafShare", "lightmap", "tinyPart", "materialsMax", "bevel", "bevelMinSize", "bevelShare", "chartSplit", "chartSplitOver", "dropBottoms", "focus", "tune"]
 
 
 def content_digest(data):

@@ -234,6 +234,38 @@ if ( abs( lsCell - LS_WATER ) < 0.5 ) {
 #endif
 `;
 
+// Paint, the same rule as the things that move: a strong poster colour is a dark pigment. Bright and
+// pure at once does not exist in paint, and under the filmic curve in a low sun it comes out pale:
+// the orange hydrant went salmon, the yellow sign at the Mask Garden cream. The pipeline pulls every
+// plain colour to 0.8 of the drawn one. Pure colours go on down toward 0.5 here, pale ones stay.
+// Metal keeps its colour, and so do the lamps, which make their own light.
+const PLAIN_PULL = /* glsl */ `
+float lsPunchK = 0.0;
+{
+  vec3 lsC = diffuseColor.rgb;
+  float lsHi = max( lsC.r, max( lsC.g, lsC.b ) );
+  float lsSat = ( lsHi - min( lsC.r, min( lsC.g, lsC.b ) ) ) / max( lsHi, 1e-4 );
+  lsPunchK = lsSat * ( 1.0 - metalnessFactor );
+#ifdef LS_LAMP
+  if ( abs( lsCell - LS_LAMP ) < 0.5 ) lsPunchK = 0.0;
+#endif
+  diffuseColor.rgb *= mix( 1.0, 0.625, lsPunchK );
+}
+`;
+
+// And the curve's own inset greys a strong colour before it bends it, so for paint I take that
+// share back out first, as for the things that move. Greys pass through unchanged.
+const PLAIN_PUNCH = /* glsl */ `
+gl_FragColor.rgb = mix( gl_FragColor.rgb, max( mat3( 1.2542, - 0.1282, - 0.0984, - 0.2560, 1.2898, - 0.1639, 0.0020, - 0.1618, 1.2622 ) * gl_FragColor.rgb, 0.0 ), lsPunchK );
+`;
+
+// The low sun is orange, and on a strong paint colour it turns the hue: the orange hydrant went
+// coral. As for the things that move, half of the light's own colour comes back out on pure paint,
+// the way an eye adjusts to it. Pale paint and stone keep the warm light.
+const PLAIN_SUN_KEEP = /* glsl */ `
+  lightMapIrradiance = mix( lightMapIrradiance, vec3( dot( lightMapIrradiance, vec3( 0.2126, 0.7152, 0.0722 ) ) ), 0.5 * lsPunchK );
+`;
+
 const PLAIN_EMISSIVE = /* glsl */ `
 #ifdef LS_LAMP
 if ( abs( lsCell - LS_LAMP ) < 0.5 ) totalEmissiveRadiance += vColor.rgb * uLamp;
@@ -307,8 +339,10 @@ function patch(material: THREE.MeshStandardMaterial, kind: Kind, u: SharedUnifor
         .replace('#include <lights_fragment_maps>', BAKED_LIGHTS_MAPS);
       if (kind === 'plain') {
         fs = fs
-          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + PLAIN_NORMAL)
-          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + PLAIN_EMISSIVE);
+          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + PLAIN_NORMAL + PLAIN_PULL)
+          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + PLAIN_EMISSIVE)
+          .replace('#include <opaque_fragment>', '#include <opaque_fragment>\n' + PLAIN_PUNCH)
+          .replace('  irradiance += lightMapIrradiance;', PLAIN_SUN_KEEP + '  irradiance += lightMapIrradiance;');
       }
       if (kind === 'cards') {
         vs = vs.replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform float uSway;').replace('#include <project_vertex>', CARDS_PROJECT);

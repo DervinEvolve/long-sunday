@@ -1006,14 +1006,17 @@ export function createWorld(opts: WorldOpts): World {
   /** The change-over has run its course: the wanted look fills the screen. */
   function landLook(): void {
     lookWall = -1;
+    const at: Look = lookAim === 1 ? 'real' : 'ink';
     if (lookAim === 0 && real) {
       real.setActive(false);
       releaseAt = performance.now() / 1000 + REAL_KEEP[quality.tier];
     }
     // Each look has its own tier and resolution: a heavy real frame must not leave the drawing blurred.
-    quality.setLook(lookAim === 1 ? 'real' : 'ink');
+    quality.setLook(at);
+    // Back in the drawing while a press for the built look is still loading: that press lands later.
+    if (at !== lookWanted) return;
     lookSettled = true;
-    emit('look', { look: lookAim === 1 ? 'real' : 'ink', state: 'on' });
+    emit('look', { look: at, state: 'on' });
     settleLook();
   }
 
@@ -1032,6 +1035,9 @@ export function createWorld(opts: WorldOpts): World {
     }
     if (lookMix === lookAim) {
       lookWall = -1;
+      // Pressed away and back before the picture had moved: it is already where the last press
+      // wants it, so land it here or the press never hears back.
+      if (!lookSettled && lookWanted === (lookAim === 1 ? 'real' : 'ink') && (lookAim === 0 || (real !== null && real.active()))) landLook();
       return;
     }
     let dt = 0;

@@ -220,8 +220,10 @@ All of it is driven by `tools/real/materials.json` and `tools/real/settings.json
   belong to the Trailhead itself). Before, the lavender stripes matched the steel colour and baked
   to black. Green verges along the paths are lawn.
 - **Grass.** A tiling lawn texture, with patchy lighter and darker areas from low noise in the vertex
-  colour, wide patches of a drier yellow green at a 34 m scale, and the drawn colour showing through
-  a little. Lawn discs and lawns on roofs take it too.
+  colour, patches of a drier yellow green, and the drawn colour showing through a little. Lawn discs
+  and lawns on roofs take it too. On the ground chunk, which holds nearly all the open lawn, the
+  patches are stronger and smaller (7 m for light and dark, 22 m for dry), so a lawn seen from the
+  air is not one flat olive.
 - **Floating islands.** Their undersides are rock and their tops are lawn. They were flat violet
   cones.
 - **First uv set.** World aligned and at true scale: each surface is flattened along the axis it
@@ -517,7 +519,11 @@ To tune: edit the file, `npm run real:bake -- --build-only` to see the counts pe
 - `quality`, `levels`, `chunks`: each chunk takes the defaults, then its level (`rough`, `good`,
   `hero`), then its own overrides: `lightmap` (pixels a side), `samples`, `bounces`, `pages`
   (a grid of lightmap pages over the footprint), `pageSamples`, `triangles` (the ceiling for added
-  detail), `materialsMax`.
+  detail), `materialsMax`, `bevelShare` and `leafShare` (how much of that ceiling the bevels may
+  take, and how much of what is left goes to leaf cards), and `tune`: changes to a material from
+  `materials.json` for this chunk alone, for the things the build reads (cards per crown, how the
+  drawn colour shows, the grass patches). A `tune` bakes only that chunk again. The same change in
+  `materials.json` bakes the whole world.
 - `sun`: `ratio` (sun to sky), `color`, `angleDeg` (how soft the shadow edge is), `envDiscDeg` (0:
   no sun drawn into the sky file).
 - `sky`: Nishita densities, `tint`, `below` (how bright the folded sky is under the horizon),
@@ -543,9 +549,9 @@ To tune: edit the file, `npm run real:bake -- --build-only` to see the counts pe
 <!-- status -->
 | Chunk | Triangles | Draw calls | Geometry | Lightmaps | Half size | Baked as | Bake time |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ground | 76,471 | 31 | 1.38 MB | 4 x 2048 px, 1.47 MB | 0.65 MB | 12/32 samples, 3 bounces | 422 s |
+| ground | 76,471 | 31 | 1.39 MB | 4 x 2048 px, 1.46 MB | 0.65 MB | 12/32 samples, 3 bounces | 427 s |
 | sky | 18,882 | 7 | 0.30 MB | 1 x 1024 px, 0.22 MB | 0.09 MB | 48 samples, 3 bounces | 66 s |
-| city | 162,366 | 36 | 2.83 MB | 4 x 2048 px, 1.44 MB | 0.63 MB | 8/24 samples, 3 bounces | 604 s |
+| city | 172,244 | 36 | 2.57 MB | 4 x 2048 px, 1.47 MB | 0.64 MB | 8/24 samples, 3 bounces | 506 s |
 | trailhead | 34,983 | 12 | 0.49 MB | 1 x 2048 px, 0.37 MB | 0.16 MB | 48 samples, 4 bounces | 567 s |
 | switchboard | 30,419 | 11 | 0.31 MB | 1 x 1024 px, 0.17 MB | 0.07 MB | 48 samples, 3 bounces | 52 s |
 | postcards | 25,116 | 10 | 0.34 MB | 1 x 1024 px, 0.14 MB | 0.06 MB | 48 samples, 3 bounces | 185 s |
@@ -557,7 +563,7 @@ To tune: edit the file, `npm run real:bake -- --build-only` to see the counts pe
 | boneyard | 45,236 | 8 | 0.56 MB | 1 x 1024 px, 0.16 MB | 0.07 MB | 48 samples, 3 bounces | 302 s |
 | observatory | 33,140 | 11 | 0.46 MB | 1 x 2048 px, 0.38 MB | 0.16 MB | 48 samples, 4 bounces | 1218 s |
 | skyharbor | 31,770 | 11 | 0.41 MB | 1 x 1024 px, 0.18 MB | 0.07 MB | 48 samples, 3 bounces | 239 s |
-| all | 645,529 | 194 | 9.44 MB | 5.86 MB | 2.49 MB | | |
+| all | 655,407 | 194 | 9.19 MB | 5.87 MB | 2.50 MB | | |
 <!-- /status -->
 
 Megabytes are a million bytes. Geometry is the gzipped file.
@@ -577,15 +583,19 @@ Each district has its own `triangles` ceiling there as well: together they keep 
 under 680,000.
 
 Against the budgets, as the pack step prints them: shared textures and sky 3.1 MB of 6, the
-base set (ground, city, sky) 7.6 of 10, the biggest district with its lightmap (the Mask Garden)
-1.0 of 4, everything in `public/real/` 21.6 of 60. Every chunk at once is 645,529 triangles and 194
+base set (ground, city, sky) 7.4 of 10, the biggest district with its lightmap (the Mask Garden)
+1.0 of 4, everything in `public/real/` 21.4 of 60. Every chunk at once is 655,407 triangles and 194
 draw calls, under the 680,000 I hold it to. No district is over 12 draw calls or 46,000 triangles.
-The base set is 258,000 triangles and 74 draw calls: the ground and the city are one chunk each in 4
+The base set is 268,000 triangles and 74 draw calls: the ground and the city are one chunk each in 4
 lightmap pages, at most 12 draw calls a page, and are always there.
 
 Where the triangles went: the city went from 223,000 to 162,000 when the lump inside every crown went
 (the city alone had 44,000 triangles of lumps), and the districts got a ceiling each that leaves room
-for more leaf cards on small shrubs and ivy.
+for more leaf cards on small shrubs and ivy. Then the city's trees read as saplings from the air, so
+the city gave most of its bevels back (`bevelShare` 0.1: the city is seen from a distance, where a
+2.5 cm round edge does not show) and the leaves got them: 64,000 triangles of cards became 106,000,
+at least 14 cards a crown where it was 8, the cards a little further out in the crown (`tune` in
+`settings.json`). The city went from 162,000 to 172,000 (`.shots/real/mend-cmp-th-over.png`).
 
 The pictures are in `.shots/real/`: `sheet-trailhead-spawn.png`, `-stones` and `-high` put the
 drawing, the Cycles picture and the bare viewer side by side. `pp-sheet-<view>.png` put the browser
@@ -616,23 +626,25 @@ What still gives it away, most telling first:
   polygon forms. Bevels and textures help stone a lot and help props very little. Crowns are leaf
   cards now, with no lump inside, but they keep the drawn crown's outline: round masses, a little
   too even for a real tree.
-- **The city's trees are thin from above.** The city holds 2,194 crowns and sits at its triangle
-  ceiling, so each gets about an eighth of the cards the cover rule asks for (most get the minimum
-  of 8). At street level they read as young trees. From the air they are smaller and sparser than
-  the drawing's big round crowns. More cards there costs triangles every frame pays for.
+- **The city's trees are smaller than the drawn ones from above.** The city holds 2,194 crowns. With
+  the bevels' share moved to leaves each gets about a fifth of the cards the cover rule asks for
+  (at least 14). From the air they read as trees now, but smaller and looser than the drawing's big
+  round crowns. More cards there costs triangles every frame pays for.
 - **Painted things are one flat colour.** Doors, signs, boards, paper, awnings, the hydrant, the
   lamp posts: no texture, no dirt, no wear. Paper and boards were stone before, which was worse. The
   big painted walls take stone cladding in their own colour. Smaller painted walls are still flat.
-- **One sky for the whole island.** The drawing gives each district its own sky (amber at the
+- **One baked sky for the whole island.** The drawing gives each district its own sky (amber at the
   Switchboard, red at the Mask Garden, teal at Sky Harbor, pink at the Studio, peach at Postcards).
-  The bake has one sun and one golden hour sky. A district's colour would have to come from the
-  browser's sky and haze.
+  The bake has one sun and one golden hour sky. The browser puts each district's colour back into
+  the open sky and the haze (see "Each district's own sky" below), but the light on things and in
+  reflections is the one baked sky everywhere.
 - **Twelve tiling textures.** A long wall repeats. Nothing is stained where water would run, nothing
   is darker where it meets the ground.
 - **Reflections show the sky and nothing else.** A window in a narrow street mirrors open sky. In
   the Cycles pictures the same window mirrors the house across the road.
 - **The sky is clear and empty.** The clouds are ink objects that move, so they are listed as live.
-  Drawing them over the real sky, or hiding them there, is a choice for the browser side.
+  The browser leaves them out of the built look (see "No clouds" below), so the built sky has no
+  weather. Request 11 below would give it some.
 - **Nothing moves in the baked world.** Trees do not sway. The armillary and the floating pediment
   stand still.
 - **Live things have no baked light.** The figure, the train and the whale get one sun and one sky
@@ -653,9 +665,9 @@ What the pipeline does not do:
   the ground and on its neighbours are stale until I bake those again with `--force --only`.
 - `materials.json` sorts by colour and shape. A new prop in a colour the rules do not know lands in
   `paint`. Look at `viewer.html?show=class` after adding things.
-- Every chunk at once is 645,529 triangles, under the 680,000 I hold it to, so a frame with
+- Every chunk at once is 655,407 triangles, under the 680,000 I hold it to, so a frame with
   everything loaded leaves room under the 700,000 ceiling. Stream the districts by distance and a
-  frame is the base set (258,000) plus what is near.
+  frame is the base set (268,000) plus what is near.
 - Full size lightmaps are 12 pages of 2048 and 8 of 1024, now that four districts are at hero. With
   mipmaps that is about 313 MB of video memory if every chunk is loaded, 50 MB more than before.
   The half set is a quarter of that. Phones should get the half set.
@@ -739,12 +751,29 @@ on the wall clock, 0.6 seconds however slow the frames are.
   works that blend out every frame. The world hands it to the real look. The sky shader writes alpha
   0, everything drawn over it 1, so after the tone curve the output pass knows which pixels are open
   sky, and leans those toward the drawn gradient (horizon, middle, top by height): 0.75 of the way at
-  the horizon, 0.35 overhead, none within a few degrees of the sun, keeping 0.4 of the photograph's
-  own brightness. Done before the curve, any strong sky colour came out cream.
+  the horizon, 0.7 overhead, none within a few degrees of the sun, keeping 0.3 of the photograph's
+  own brightness. Done before the curve, any strong sky colour came out cream. With 0.35 overhead
+  and 0.4 kept, the upper half of a phone's tall picture was grey mauve where the drawing is red,
+  pink or orange (`.shots/real/mend-psheet-1.png`, `-2.png`).
+- **Warm light, cool shade.** After the tone curve, lit things lean warm (up to 1.05, 1.0, 0.87 on
+  the brighter half of the range) and things in shade lean a little cool (0.95, 0.97, 1.08 on the
+  dark end), the way a photograph late in the day comes out. The open sky is left alone and so is
+  white, and green takes a quarter of the warmth: warmed, a lawn turns mustard. Without it the
+  light measured warm but did not read as golden, and the drawing's violet shade came out cream.
+  Sunlit pixels at the spawn went from 1.23 red over blue to 1.39 (the Cycles picture has 1.27).
+  `realTune('uGrade', [warm, cool])` scales the two.
+- **Paint is pigment.** The pipeline pulls every plain colour to 0.8 of the drawn one. The browser
+  takes a pure colour on down toward 0.5, gives it back the share the tone curve's inset takes out,
+  and takes half the sun's own colour back out of the baked light on it, the same three things the
+  moving things get (below). Pale paint, stone, metal and lamps are left as they were. Without it the
+  orange hydrant at the Trailhead came out salmon and the yellow sign at the Mask Garden cream
+  (`.shots/real/mend-crop-hydrant.png`).
 - **No clouds.** The drawn clouds, lit softly through with a bright rim against the sun, still read
   as cut-outs pinned on a photograph, and the Cycles pictures have none (`.shots/real/pr-b-sheet-clouds.png`,
   `pr-b-sheet-over.png`: on the left with them, on the right without). They stay in the drawing.
-  `realTune('clouds', 1)` brings them back to look at.
+  `realTune('clouds', 1)` brings them back to look at. The puffs that drift over the holes of sky
+  in the paving at the Cloud Terraces go with them: drawn solid with the drawing's grain they were a
+  white plastic sheet in the fountain (`.shots/real/mend-crop-terraces-fountain.png`).
 - **Water** ripples: a small moving normal on the `water` swatch column. **Lamps** get a little
   radiance on top of what the lightmap gives them. **Leaf cards** shiver a few centimetres with the
   same sway switch the drawing uses, so they stop with reduced motion and with `?still=1`.
@@ -843,7 +872,12 @@ calls and 8,000 triangles lighter than with them (`pr-b-sheet-over.png`).
   340 MB ceiling. That is close: the new bake has more lightmap pages. The streaming lets the
   furthest district go before it would go over.
 - The 0.6 seconds of a change-over draw both looks: 289 draw calls and 1,117,000 triangles at the
-  Trailhead. That is over the ceiling for those frames and I accept it. A dissolve needs both pictures.
+  Trailhead, and held at half way 320 and 1,177,000 at the spawn, 317 and 1,206,000 over the
+  overview. That is over the ceiling for those frames and I accept it: the budget of 250 draw calls
+  and 700,000 triangles is for a steady frame of the built look, and a change-over frame is
+  allowed both looks added together, at most 330 draw calls and 1,250,000 triangles. A dissolve
+  needs both pictures. Drawing less of the built side while the front is near would only move
+  the cost to the end, where the front reaches the skyline and both looks are whole.
   The 0.6 seconds are wall time. Here frames are 1.5 to 3 seconds apart, so it lands on its second
   frame, where it used to take 37 to 56 seconds (six capped steps of a tenth). With frames I drove by
   hand every 300 ms it took 623 ms (`.shots/real/pr-wall2.mjs`).
@@ -860,13 +894,21 @@ calls and 8,000 triangles lighter than with them (`pr-b-sheet-over.png`).
 - No request for anything under `real/`, and none for the real look's code, before the first
   switch: 62 requests, 0 of them.
 - The first bundle is 238.8 kB gzipped as Vite counts it, 2.9 kB of it for the switch in the engine
-  and 3.2 kB for the button. The real look's own code is a separate 27.6 kB gzipped file, fetched on
+  and 3.2 kB for the button. The real look's own code is a separate 28.1 kB gzipped file, fetched on
   the first switch. Four ink pictures (Trailhead, Sky Harbor, Studio, the overview) are the same
   files, byte for byte, as the ones from the code before this change, with the same counts (69 /
   350,002, 46 / 161,108, 47 / 189,841, 79 / 375,754). After a visit to the real look and back, the
   Trailhead picture differs only inside the prompt line.
 - `npm run build` copies `public/real` to `dist/real` (21 MB). The single file build says
   `lookAvailable()` false, refuses the switch with its sentence and asks for nothing under `real/`.
+
+After the city's leaves grew and the light warmed (`.shots/real/mend-*.png`): the spawn with all
+fourteen chunks in 229 draw calls and 651,582 triangles, the overview at most 248 and 676,048, the
+Switchboard 169 and 487,648. The phone sized window on low: 56 to 66 draw calls, 122,000 to
+173,000 triangles at the Mask Garden, the Studio, Postcards and Sky Harbor. Two quick presses of
+the switch (away and back before the picture moves) land in 3 to 5 seconds here, three land on
+the drawing (`.shots/real/mend-btn.out`); before, the button stayed on loading for good. The
+Trailhead spawn and stones drawings are the same pixels as before, after a visit to the built look.
 
 Against the Cycles pictures from the same three Trailhead cameras, mean light in a grid of 18 boxes
 (`pr-end-*.png` against `cycles-trailhead-*.png`): the middle box is 1.04, 1.05 and 0.99 times the

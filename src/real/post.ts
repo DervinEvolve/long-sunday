@@ -123,6 +123,7 @@ uniform float uToReal;    // 1 when the real look is arriving, 0 when the ink lo
 uniform vec2 uCam;        // near, far of the camera the ink page was drawn with
 uniform float uVignette;
 uniform float uGrain;
+uniform vec2 uGrade;      // how much the lit side warms and the shade cools
 uniform float uSeed;
 uniform float uPx;
 uniform vec3 uTintTop;
@@ -215,6 +216,18 @@ void main() {
 #else
   vec3 col = toSrgb( agx( hdr * uExposure ) );
 #endif
+  // Late sun on film: the lit side of things runs warm and the shade a little cool, the way the
+  // drawing puts violet in its shade. Only on things: the open sky is left alone, and white stays white.
+  {
+    float solid = clamp( frame.a, 0.0, 1.0 );
+    float l = dot( col, vec3( 0.2126, 0.7152, 0.0722 ) );
+    float lit = smoothstep( 0.3, 0.75, l ) * ( 1.0 - smoothstep( 0.88, 1.0, l ) );
+    float shade = 1.0 - smoothstep( 0.05, 0.35, l );
+    // Not on green: warming a lawn or a crown only turns it mustard. The island is meant to be grown over.
+    lit *= 1.0 - 0.75 * clamp( ( col.g - max( col.r, col.b ) ) * 6.0, 0.0, 1.0 );
+    col *= mix( vec3( 1.0 ), vec3( 1.05, 1.0, 0.87 ), lit * uGrade.x * solid );
+    col *= mix( vec3( 1.0 ), vec3( 0.95, 0.97, 1.08 ), shade * uGrade.y * solid );
+  }
   // Each district has its own sky in the drawing: amber over the Switchboard, red over the Mask
   // Garden, teal over Sky Harbor, pink over the Studio, peach over Postcards. The baked sky is one
   // sky. Where the frame is open sky (alpha 0), its developed colour leans toward the drawn gradient
@@ -365,6 +378,7 @@ export function createPost(skyTexture: THREE.Texture, sunDir: THREE.Vector3, sun
     uCam: { value: new THREE.Vector2(0.3, 3000) },
     uVignette: { value: 0.1 },
     uGrain: { value: 0.012 },
+    uGrade: { value: new THREE.Vector2(1, 1) },
     uSeed: { value: 1 },
     uPx: { value: 1 },
     uTintTop: { value: new THREE.Vector3(1, 1, 1) },

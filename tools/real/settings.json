@@ -108,6 +108,19 @@
       "bounces": 3,
       "pageSamples": {
         "3": 32
+      },
+      "tune": {
+        "grass": {
+          "vary": 0.45,
+          "varyScale": 7.0,
+          "varyColor": [
+            1.08,
+            1.0,
+            0.55
+          ],
+          "varyColorScale": 22.0,
+          "varyColorAmount": 0.7
+        }
       }
     },
     "city": {
@@ -129,6 +142,18 @@
       "bounces": 3,
       "pageSamples": {
         "3": 24
+      },
+      "bevelShare": 0.1,
+      "leafShare": 0.9,
+      "tune": {
+        "leaves": {
+          "cardsMin": 14,
+          "fit": 0.95,
+          "shell": [
+            0.3,
+            0.8
+          ]
+        }
       }
     },
     "sky": {
