@@ -1,0 +1,251 @@
+/*
+  Long Sunday, the switch between the two looks. Tokens and the shared pieces are in tokens.css.
+  It sits in the top row with Index, Map and Settings and wears the same small button. Inside it the
+  two looks sit side by side, and the one on screen is inked in.
+*/
+
+.ui-look,
+.ui-look:hover {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  align-items: stretch;
+  /* Ink under both halves, so no paper seam shows round the inked one. */
+  background: var(--ls-line);
+}
+
+.ui-look__side {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.7rem 0.3rem;
+  color: var(--ls-text-soft);
+  background: var(--ls-surface);
+}
+
+.ui-look__side + .ui-look__side {
+  border-left: 2px solid var(--ls-line);
+}
+
+.ui-look .ui-look__side svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* The look on screen: ink with paper letters, like a stamp pressed hard. */
+.ui-look[data-look='ink'] .ui-look__side--ink,
+.ui-look[data-look='real'] .ui-look__side--real {
+  color: var(--ls-surface);
+  background: var(--ls-line);
+}
+
+/* On its way: the Built side goes a shade deeper and a small track under it fills with ink. */
+.ui-look[data-loading] .ui-look__side--real {
+  padding-top: 0;
+  padding-bottom: 0.6rem;
+  color: var(--ls-text);
+  background: var(--ls-surface-sunk);
+}
+
+.ui-look__bar {
+  position: absolute;
+  right: 0.55rem;
+  bottom: 4px;
+  left: 0.55rem;
+  height: 6px;
+  overflow: hidden;
+  background: var(--ls-surface);
+  border: 1.5px solid var(--ls-line);
+  border-radius: 3px;
+  visibility: hidden;
+}
+
+.ui-look[data-loading] .ui-look__bar {
+  visibility: visible;
+}
+
+.ui-look__fill {
+  display: block;
+  height: 100%;
+  background: var(--ls-line);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-look:hover .ui-look__side {
+    color: var(--ls-text);
+    background: var(--ls-surface-hover);
+  }
+
+  .ui-look:hover[data-look='ink'] .ui-look__side--ink,
+  .ui-look:hover[data-look='real'] .ui-look__side--real {
+    color: var(--ls-surface);
+    background: var(--ls-line);
+  }
+
+  .ui-look:hover[data-loading] .ui-look__side--real {
+    color: var(--ls-text);
+    background: var(--ls-surface-sunk);
+  }
+}
+
+/* A narrow screen: four controls share the top line, so the two looks keep their pictures only. */
+@media (max-width: 30rem) {
+  .ui-look__word {
+    display: none;
+  }
+
+  .ui-look__side {
+    padding-inline: 0.5rem;
+  }
+}
+
+/* The narrowest phones: no room for both, so it shows Built alone, inked in while the built world is
+   on. The pressed state says the rest to a screen reader. */
+@media (max-width: 22.5rem) {
+  .ui-look {
+    width: var(--ls-tap);
+  }
+
+  .ui-look .ui-look__side--ink {
+    display: none;
+  }
+
+  .ui-look .ui-look__side--real {
+    flex: 1;
+    justify-content: center;
+    padding: 0;
+    border-left: 0;
+  }
+
+  .ui-look[data-look='ink'] .ui-look__side--real {
+    color: var(--ls-text);
+  }
+}
+
+/* The corner holds the note below. */
+.ui-hud__corner {
+  position: relative;
+}
+
+/* One calm line under the buttons when the built version would not load. */
+.ui-look-note {
+  position: absolute;
+  top: calc(100% + var(--ls-s3));
+  right: 0;
+  width: max-content;
+  max-width: min(20rem, calc(100vw - 2 * var(--ls-edge) - var(--ls-safe-left) - var(--ls-safe-right) - 6px));
+  padding: var(--ls-s2) var(--ls-s3);
+  font-size: var(--ls-text-sm);
+  line-height: var(--ls-leading-snug);
+  color: var(--ls-text);
+  background: var(--ls-surface);
+  border: 2px solid var(--ls-line);
+  border-radius: var(--ls-radius-small);
+  box-shadow: var(--ls-drop-small);
+  pointer-events: none;
+}
+
+/* A narrow screen puts the place name under the buttons, where the note goes. The note wins while it
+   is up. */
+@media (max-width: 30rem) {
+  .ui-hud:has(.ui-look-note:not([hidden])) .ui-plate {
+    visibility: hidden;
+  }
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* The row in the settings                                                                      */
+/* ------------------------------------------------------------------------------------------- */
+
+.ui-seg.ui-seg--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ui-look-set__face {
+  position: relative;
+  gap: 0.45rem;
+}
+
+.ui-look-set__face svg {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.ui-seg__item input:disabled + .ui-look-set__face {
+  cursor: not-allowed;
+  color: var(--ls-text-soft);
+  background: var(--ls-surface-sunk);
+  box-shadow: none;
+}
+
+/* How far a load has got, as an ink rule along the foot of Built. */
+.ui-seg--two[data-loading] .ui-seg__item:last-child .ui-look-set__face::after {
+  content: '';
+  position: absolute;
+  right: 0.6rem;
+  bottom: 5px;
+  left: 0.6rem;
+  height: 3px;
+  background: var(--ls-line);
+  border-radius: 2px;
+  transform: scaleX(var(--ui-look-progress, 0));
+  transform-origin: left center;
+}
+
+.ui-look-set__status {
+  color: var(--ls-text);
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* The line on the title card                                                                   */
+/* ------------------------------------------------------------------------------------------- */
+
+.ui-title__look {
+  padding-top: var(--ls-s2);
+  border-top: 1.5px solid var(--ls-line-faint);
+}
+
+.ui-title__look .ui-key {
+  margin-inline: 2px;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Motion: only the fill moves, and only when motion is welcome                                 */
+/* ------------------------------------------------------------------------------------------- */
+
+.ui--lively .ui-look__fill,
+.ui--lively .ui-seg--two[data-loading] .ui-look-set__face::after {
+  transition: transform var(--ls-dur-in) var(--ls-ease-out);
+}
+
+.ui--lively .ui-look-note {
+  animation: ui-look-note var(--ls-dur-in) var(--ls-ease-out) both;
+}
+
+@keyframes ui-look-note {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Over the built world                                                                         */
+/* ------------------------------------------------------------------------------------------- */
+
+/* A photograph is busier than the drawing, so the faint ring that shows where the thumb goes, and
+   the stick itself, get more paper under them. */
+.ui--built .ls-touch .ls-hint {
+  opacity: 0.75;
+}
+
+.ui--built .ls-touch.ls-moved .ls-hint {
+  opacity: 0.45;
+}
+
+.ui--built .ls-touch .ls-base {
+  background: rgba(246, 236, 217, 0.8);
+}

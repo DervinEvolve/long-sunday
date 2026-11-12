@@ -4,7 +4,8 @@
 // The map, the settings and the address bar each live in a file of their own (map.ts, settings.ts,
 // links.ts) and are wired in below. The seams they hang from:
 //   getUi().overlays          open and close a panel, one at a time, the world paused behind it
-//   getUi().hud               addCornerButton() for the map and settings
+//   getUi().hud               addCornerButton() for the map and settings, addCornerEl() for the look switch
+//   getUi().look              the switch between the drawn and the built world (look.ts)
 //   getUi().setMapHandler(fn) fn then runs on the M key, the Map button and at map points
 //   getUi().openEntry(id)     the caption for one entry
 //   getUi().openIndex()       the index
@@ -20,6 +21,7 @@ import { el } from './dom';
 import { createHud, type Hud } from './hud';
 import { createIndex } from './indexPage';
 import { createLinks } from './links';
+import { createLookButton, createLookNote, createLookSwitch, drawTitleLine, type LookSwitch } from './look';
 import { MAP_ICON, createMap } from './map';
 import { createOverlays, type Overlays } from './overlay';
 import { SETTINGS_ICON, createSettings } from './settings';
@@ -28,11 +30,14 @@ import { MORE } from './wordsMore';
 
 export type { Overlays, OverlaySpec } from './overlay';
 export type { CornerButton, Hud } from './hud';
+export type { LookSwitch } from './look';
 
 export interface UiShell {
   readonly overlays: Overlays;
   /** Null on the page with no world behind it. */
   readonly hud: Hud | null;
+  /** Drawn or built. Null on the page with no world behind it. */
+  readonly look: LookSwitch | null;
   /** Open the caption for this entry. False when there is no such entry. */
   openEntry(id: string): boolean;
   openIndex(): void;
@@ -198,16 +203,25 @@ export function mountUi(world: WorldApi, root: HTMLElement): void {
     hud.setMapHandler(fn);
   }
 
+  // Drawn or built. The switch sits between the map and the settings, and a link can ask for either.
+  const look = createLookSwitch({ world, root, overlays, linked: links.read().look });
+  look.onChange((v) => links.setLook(v.wanted));
+  if (title.lookLine) drawTitleLine(title.lookLine, look);
+
   const map = createMap({ world, overlays, go: goThere });
-  const settings = createSettings({ world, overlays, root });
+  const settings = createSettings({ world, overlays, root, look });
   hud.addCornerButton({ label: MORE.map, icon: MAP_ICON, text: MORE.map, onClick: () => map.open() });
+  hud.addCornerEl(createLookButton(look));
   hud.addCornerButton({ label: MORE.settings, icon: SETTINGS_ICON, onClick: () => settings.open() });
+  hud.addCornerEl(createLookNote(look));
   setMapHandler(() => map.open());
 
   // A link can open straight at a place (#d=) or at a caption (#e=). Before the walk has started the
   // title card stays up over that place, the same as the ?d= switch.
   function follow(): void {
-    const { entry, district } = links.read();
+    const { entry, district, look: asked } = links.read();
+    // A pasted link that names a look gets it. One that does not leaves the look alone.
+    if (asked && asked !== look.view().wanted) look.set(asked, false);
     const place = entry ? entry.district : district;
     if (!place) return;
     if (walking) overlays.close();
@@ -245,7 +259,7 @@ export function mountUi(world: WorldApi, root: HTMLElement): void {
   follow();
   links.onChange(follow);
 
-  shell = { overlays, hud, openEntry, openIndex: () => index.open(), goThere, setMapHandler };
+  shell = { overlays, hud, look, openEntry, openIndex: () => index.open(), goThere, setMapHandler };
   if (window.__world) window.__world.openEntry = openEntry;
 }
 
@@ -279,6 +293,7 @@ export function mountFallback(root: HTMLElement): void {
   shell = {
     overlays,
     hud: null,
+    look: null,
     openEntry,
     openIndex: () => index.open(),
     goThere() {},

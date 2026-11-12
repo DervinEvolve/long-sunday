@@ -31,6 +31,8 @@ export interface Hud {
   moved(): void;
   /** Add a button to the top corner. The map and the settings go here. */
   addCornerButton(spec: CornerButton): HTMLButtonElement;
+  /** Add a control of its own making to the top corner, after the buttons already there. */
+  addCornerEl(node: HTMLElement): void;
   /** Until a handler is set, map points show no prompt. Set it through the shell, which also wires the key. */
   setMapHandler(fn: (() => void) | null): void;
   mapHandler(): (() => void) | null;
@@ -175,6 +177,9 @@ export function createHud(opts: HudOptions): Hud {
       hint.classList.remove('is-on');
     },
     addCornerButton,
+    addCornerEl(node) {
+      corner.appendChild(node);
+    },
     setMapHandler(fn) {
       onMap = fn;
       drawPrompt();

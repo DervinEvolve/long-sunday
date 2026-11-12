@@ -12,6 +12,8 @@ export interface TitleOptions {
 
 export interface TitleCard {
   readonly el: HTMLElement;
+  /** An empty line at the foot of the card for the two looks. Null on the page with no world. */
+  readonly lookLine: HTMLElement | null;
   /** 0 to 1, how much of the world is drawn. */
   setProgress(p: number): void;
   setReady(): void;
@@ -37,6 +39,7 @@ export function createTitle(opts: TitleOptions): TitleCard {
   let track: HTMLElement | null = null;
   let fill: HTMLElement | null = null;
   let walk: HTMLButtonElement | null = null;
+  let lookLine: HTMLElement | null = null;
 
   if (opts.onWalk) {
     const progress = el('div', 'ui-title__progress');
@@ -74,6 +77,9 @@ export function createTitle(opts: TitleOptions): TitleCard {
     const keys = el('p', 'ui-title__help ui-only-keys');
     keys.append(key('W'), key('A'), key('S'), key('D'), WORDS.keysTitle, key('E'), WORDS.keysTitleEnd);
     card.append(keys, el('p', 'ui-title__help ui-only-touch', WORDS.thumbsTitle));
+    lookLine = el('p', 'ui-title__help ui-title__look');
+    lookLine.hidden = true;
+    card.appendChild(lookLine);
   }
 
   let shown = -1;
@@ -81,6 +87,7 @@ export function createTitle(opts: TitleOptions): TitleCard {
 
   return {
     el: root,
+    lookLine,
     setProgress(p) {
       if (!track || !fill || ready) return;
       const pct = Math.max(0, Math.min(100, Math.round(p * 100)));

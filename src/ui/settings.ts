@@ -4,6 +4,7 @@ import './settings.css';
 import type { QualityTier, WorldApi } from '../types';
 import type { Overlays } from './overlay';
 import { el, escKey, key, uid } from './dom';
+import { createLookSetting, lookKeyRow, lookTouchRow, type LookSwitch } from './look';
 import { WORDS } from './words';
 import { MORE } from './wordsMore';
 import { LINES } from './wordsUi';
@@ -13,6 +14,8 @@ export interface SettingsOptions {
   overlays: Overlays;
   /** The interface root. It carries the class that stills the interface. */
   root: HTMLElement;
+  /** The switch between the drawn and the built world. Left out where there is no world. */
+  look?: LookSwitch;
 }
 
 export interface SettingsPanel {
@@ -153,6 +156,8 @@ export function createSettings(opts: SettingsOptions): SettingsPanel {
       }
       return dl;
     };
+    const lookKey = opts.look ? lookKeyRow(opts.look) : null;
+    const lookTouch = opts.look ? lookTouchRow(opts.look) : null;
     section.append(
       list('ui-only-keys', [
         [[key('W'), key('A'), key('S'), key('D'), ` ${MORE.or}`], MORE.walk],
@@ -160,6 +165,7 @@ export function createSettings(opts: SettingsOptions): SettingsPanel {
         [[MORE.drag], MORE.look],
         [[key('E')], MORE.closer],
         [[key('M')], MORE.map],
+        ...(lookKey ? [lookKey] : []),
         [[key('Esc')], WORDS.close],
       ]),
       list('ui-only-touch', [
@@ -167,6 +173,7 @@ export function createSettings(opts: SettingsOptions): SettingsPanel {
         [[MORE.drag], MORE.look],
         [[MORE.eye], MORE.closer],
         [[MORE.mapButton], MORE.map],
+        ...(lookTouch ? [lookTouch] : []),
       ]),
     );
     return section;
@@ -189,7 +196,7 @@ export function createSettings(opts: SettingsOptions): SettingsPanel {
     head.append(title, close);
 
     const body = el('div', 'ui-settings__body');
-    body.append(qualitySet(), calmCheck(), controls());
+    body.append(...(opts.look ? [createLookSetting(opts.look)] : []), qualitySet(), calmCheck(), controls());
     root.append(head, body);
     applyCalm();
     return root;
