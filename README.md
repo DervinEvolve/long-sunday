@@ -6,7 +6,7 @@
 
 Long Sunday is my working life built as a small open world that runs in a browser tab. Nine years of technical recruiting sit along one road in date order, and the side roads lead to the things I built along the way, the ones that shipped and the ones that did not. It is drawn like a page from a Moebius comic, and one button shows the same place built in stone and brick and lit by a low sun.
 
-I'm Dervin Dimanche.
+last name Dimanche.
 
 Dimanche is French for Sunday.
 
